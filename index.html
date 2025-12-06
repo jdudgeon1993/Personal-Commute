@@ -278,7 +278,7 @@
 
         <header class="dashboard-header">
             <div class="header-content">
-                <h1>Good Evening!</h1>
+                <h1>Good Afternoon!</h1>
                 <p id="current-date">Loading date...</p>
             </div>
             <button class="theme-toggle" id="theme-toggle">
@@ -341,8 +341,7 @@
         const HOME_ADDRESS = "11625 Community Center Drive Northglenn, CO 80233";
         const WORK_ADDRESS = "707 17th Street Denver, CO 80202";
         
-        // --- TRANSIT PLACE IDs (FIXED) ---
-        // Using Place IDs is the most reliable way to ensure the Directions API finds light rail stations.
+        // --- TRANSIT PLACE IDs (FIXED for reliability) ---
         // ID for 112th Avenue & York Street Station: ChIJg_vQ_u0Q_IcRVHnE3g
         // ID for Denver Union Station: ChIJg-X4oV-XzIMR0W9fT8oF_5E
         const TRANSIT_ORIGIN = "place_id:ChIJg_vQ_u0Q_IcRVHnE3g"; 
@@ -355,7 +354,7 @@
 
 
         // =========================================================
-        // === 2. THEME AND LAYOUT LOGIC (FIXED) ===================
+        // === 2. THEME AND LAYOUT LOGIC ===========================
         // =========================================================
 
         function toggleTheme() {
@@ -517,13 +516,14 @@
 
         // Creates a deep link URL for Google Maps navigation
         function createMapsUrl(origin, destination, mode) {
-            const base = 'https://www.google.com/maps/dir/';
-            const url = `${base}${encodeURIComponent(origin)}/${encodeURIComponent(destination)}?travelmode=${mode}`;
+            // Use the base Maps URL format for deep linking
+            const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=${mode}`;
             return url;
         }
 
         async function fetchCommute(origin, destination, mode, timeId, detailsId, iconId, linkId, cardId) {
             // *** NETLIFY PROXY FIX: Use the local /api-google/ path ***
+            // This structure uses the local proxy path defined in netlify.toml
             const url = `/api-google/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&departure_time=now&key=${GOOGLE_MAPS_API_KEY}`;
             
             const timeElement = document.getElementById(timeId);
@@ -571,11 +571,13 @@
                         detailsText = `${line.short_name || line.name} @ ${departureTime} from ${departureStop.split(' Station')[0]}`;
                         
                         liveDurationValue = leg.duration.value;
+                        trafficStatus = 'good'; // Transit times are usually fixed/scheduled
 
                     } else {
                         // Fallback if Transit is requested but the API only provides walking steps
                         detailsText = 'Walk/No immediate transit route found';
                         liveDurationValue = leg.duration.value;
+                        trafficStatus = 'warning'; // Treat as a warning if transit fails
                     }
                 }
                 
@@ -583,7 +585,8 @@
 
                 timeElement.innerHTML = `${timeInMinutes} min`;
                 detailsElement.textContent = detailsText;
-                // Use the original address for the deep link, NOT the Place ID, for a cleaner link.
+                
+                // Use the original human-readable address for the deep link.
                 const originalOrigin = mode === 'driving' ? HOME_ADDRESS : "112th Avenue & York Street Station";
                 const originalDestination = mode === 'driving' ? WORK_ADDRESS : "Denver Union Station";
 
@@ -595,7 +598,7 @@
             } catch (error) {
                 console.error(`Error fetching commute (${mode}, ${timeId}):`, error);
                 timeElement.innerHTML = "-- min";
-                detailsElement.textContent = mode === 'driving' ? 'Drive Error' : 'Transit Error';
+                detailsElement.textContent = mode === 'driving' ? 'Drive Error (Check Netlify Proxy)' : 'Transit Error (Check Place IDs/Proxy)';
                 linkElement.href = '#';
                 itemElement.classList.add('status-alert');
             }
@@ -622,6 +625,7 @@
             fetchWeather();
             fetchAllCommutes();
             
+            // Set refresh intervals (5 minutes for commutes/weather)
             setInterval(fetchWeather, 300000); 
             setInterval(fetchAllCommutes, 300000);
             setInterval(updateDate, 60000); 
