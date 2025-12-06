@@ -328,261 +328,308 @@
     </div> <footer class="dashboard-footer">
         Engineered with the assistance of **Gemini**, an AI assistant built by Google.
     </footer>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY&libraries=places"></script>
-  <script>
-/* =========================================================
-   1. API CONFIGURATION
-========================================================= */
-const OPENWEATHER_API_KEY = "1c91f81f2adfd1b633d19842869a1a11";
 
-/* LOCATIONS */
-const WEATHER_CITY = "Denver";
-const HOME_ADDRESS = "11625 Community Center Drive Northglenn, CO 80233";
-const WORK_ADDRESS = "707 17th Street Denver, CO 80202";
-const TRANSIT_ORIGIN = "112th Avenue & York Street Station";
-const TRANSIT_DESTINATION = "Denver Union Station";
+    <script>
+        // =========================================================
+        // === 1. API CONFIGURATION (FILLED IN) ====================
+        // =========================================================
+        const OPENWEATHER_API_KEY = "1c91f81f2adfd1b633d19842869a1a11"; 
+        const GOOGLE_MAPS_API_KEY = "AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY"; // NEW, SECURE KEY
+        
+        // --- YOUR LOCATIONS ---
+        const WEATHER_CITY = "Denver"; 
+        const HOME_ADDRESS = "11625 Community Center Drive Northglenn, CO 80233";
+        const WORK_ADDRESS = "707 17th Street Denver, CO 80202";
+        
+        // --- TRANSIT PLACE IDs (FIXED) ---
+        // Using Place IDs is the most reliable way to ensure the Directions API finds light rail stations.
+        // ID for 112th Avenue & York Street Station: ChIJg_vQ_u0Q_IcRVHnE3g
+        // ID for Denver Union Station: ChIJg-X4oV-XzIMR0W9fT8oF_5E
+        const TRANSIT_ORIGIN = "place_id:ChIJg_vQ_u0Q_IcRVHnE3g"; 
+        const TRANSIT_DESTINATION = "place_id:ChIJg-X4oV-XzIMR0W9fT8oF_5E";
+        
+        // --- TRAFFIC ALERT CONFIG ---
+        const TRAFFIC_BUFFER = 1.25; 
+        const ALERT_THRESHOLD = 1.10; 
+        const WARNING_THRESHOLD = 1.05; 
 
-/* TRAFFIC CONFIG */
-const TRAFFIC_BUFFER = 1.25;
-const ALERT_THRESHOLD = 1.10;
-const WARNING_THRESHOLD = 1.05;
 
-/* =========================================================
-   2. THEME + LAYOUT LOGIC
-========================================================= */
-function toggleTheme() {
-    const body = document.body;
-    const toggleButton = document.getElementById("theme-toggle");
+        // =========================================================
+        // === 2. THEME AND LAYOUT LOGIC (FIXED) ===================
+        // =========================================================
 
-    body.classList.toggle("is-dark");
-    const isDark = body.classList.contains("is-dark");
-    localStorage.setItem("theme", isDark ? "dark" : "light");
+        function toggleTheme() {
+            const body = document.body;
+            const toggleButton = document.getElementById('theme-toggle');
+            
+            body.classList.toggle('is-dark');
 
-    toggleButton.innerHTML = isDark
-        ? '<i class="fas fa-sun"></i> Switch to Light'
-        : '<i class="fas fa-moon"></i> Switch to Dark';
-}
+            const isDark = body.classList.contains('is-dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
 
-function applyInitialTheme() {
-    const savedTheme = localStorage.getItem("theme");
-    const body = document.body;
-
-    body.classList.remove("is-dark");
-    if (savedTheme === "dark") body.classList.add("is-dark");
-
-    document.getElementById("theme-toggle").innerHTML = body.classList.contains("is-dark")
-        ? '<i class="fas fa-sun"></i> Switch to Light'
-        : '<i class="fas fa-moon"></i> Switch to Dark';
-}
-
-function setPeakTimeLayout() {
-    const hour = new Date().getHours();
-    const body = document.body;
-
-    body.classList.remove("morning-peak", "evening-peak");
-
-    if (hour >= 6 && hour < 10) body.classList.add("morning-peak");
-    else if (hour >= 15 && hour < 19) body.classList.add("evening-peak");
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    applyInitialTheme();
-    document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
-    setPeakTimeLayout();
-});
-
-/* =========================================================
-   3. GENERAL UI HELPERS
-========================================================= */
-function setGreeting() {
-    const hour = new Date().getHours();
-    const greeting =
-        hour < 12 ? "Good Morning!" :
-        hour < 18 ? "Good Afternoon!" :
-        "Good Evening!";
-
-    document.querySelector(".header-content h1").textContent = greeting;
-}
-
-function updateDate() {
-    const options = { weekday: "long", month: "long", day: "numeric" };
-    document.getElementById("current-date").textContent =
-        new Date().toLocaleDateString("en-US", options);
-}
-
-function getWeatherIcon(iconCode) {
-    const iconMap = {
-        "01d": "fa-sun", "01n": "fa-moon",
-        "02d": "fa-cloud-sun", "02n": "fa-cloud-moon",
-        "03d": "fa-cloud", "03n": "fa-cloud",
-        "04d": "fa-cloud-meatball", "04n": "fa-cloud-meatball",
-        "09d": "fa-cloud-showers-heavy", "09n": "fa-cloud-showers-heavy",
-        "10d": "fa-cloud-sun-rain", "10n": "fa-cloud-moon-rain",
-        "11d": "fa-bolt", "11n": "fa-bolt",
-        "13d": "fa-snowflake", "13n": "fa-snowflake",
-        "50d": "fa-smog", "50n": "fa-smog"
-    };
-    return iconMap[iconCode] || "fa-question-circle";
-}
-
-/* =========================================================
-   4. WEATHER FETCH
-========================================================= */
-async function fetchWeather() {
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${WEATHER_CITY},US&units=metric&appid=${OPENWEATHER_API_KEY}`;
-
-    const tempEl = document.getElementById("weather-temp");
-    const descEl = document.getElementById("weather-desc");
-    const iconEl = document.getElementById("weather-icon");
-    const cityEl = document.getElementById("weather-city-display");
-
-    iconEl.className = "fas fa-sync-alt spinner";
-    cityEl.textContent = "Loading...";
-
-    try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Weather API failed");
-        const data = await res.json();
-
-        const tempF = Math.round(data.main.temp * 9/5 + 32);
-        tempEl.textContent = `${tempF}°F`;
-
-        const desc = data.weather[0].description;
-        descEl.textContent = desc.charAt(0).toUpperCase() + desc.slice(1);
-
-        cityEl.textContent = data.name;
-        iconEl.className = `fas ${getWeatherIcon(data.weather[0].icon)}`;
-    } catch (err) {
-        tempEl.textContent = "--°F";
-        descEl.textContent = "Weather unavailable";
-        cityEl.textContent = WEATHER_CITY;
-        iconEl.className = "fas fa-exclamation-triangle";
-    }
-}
-
-/* =========================================================
-   5. TRAFFIC + COMMUTE LOGIC (NO CORS — MAPS JS API ONLY)
-========================================================= */
-function getTrafficStatus(live, freeFlow) {
-    const normal = freeFlow * TRAFFIC_BUFFER;
-    if (live > normal * ALERT_THRESHOLD) return "alert";
-    if (live > normal * WARNING_THRESHOLD) return "warning";
-    return "good";
-}
-
-function updateCardStatus(cardId, status) {
-    const card = document.getElementById(cardId);
-    card.classList.remove("status-good", "status-warning", "status-alert");
-    card.classList.add(`status-${status}`);
-}
-
-function createMapsUrl(origin, dest, mode) {
-    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-        origin
-    )}&destination=${encodeURIComponent(dest)}&travelmode=${mode}`;
-}
-
-function fetchCommute(origin, destination, mode, timeId, detailsId, linkId, cardId = null) {
-    const timeEl = document.getElementById(timeId);
-    const detailsEl = document.getElementById(detailsId);
-    const linkEl = document.getElementById(linkId);
-
-    timeEl.innerHTML = `<span class="spinner"></span>`;
-    detailsEl.textContent = mode === "driving" ? "Checking traffic..." : "Checking schedule...";
-
-    const service = new google.maps.DirectionsService();
-
-    service.route(
-        {
-            origin,
-            destination,
-            travelMode: mode.toUpperCase(),
-            drivingOptions: mode === "driving" ? { departureTime: new Date() } : undefined,
-            transitOptions: mode === "transit" ? { departureTime: new Date() } : undefined,
-        },
-        (result, status) => {
-            try {
-                if (status !== "OK") throw new Error(status);
-
-                const leg = result.routes[0].legs[0];
-
-                let liveDuration = leg.duration.value;
-                let freeFlow = leg.duration.value;
-                let detailsText = "";
-                let trafficStatus = "good";
-
-                if (mode === "driving") {
-                    if (leg.duration_in_traffic) {
-                        liveDuration = leg.duration_in_traffic.value;
-                    }
-                    trafficStatus = getTrafficStatus(liveDuration, freeFlow);
-                    if (cardId) updateCardStatus(cardId, trafficStatus);
-
-                    detailsText = leg.duration_in_traffic ? "Live traffic" : "Normal traffic";
-                } else {
-                    const step = leg.steps.find(s => s.travel_mode === "TRANSIT");
-                    if (step) {
-                        const d = step.transit_details;
-                        detailsText = `${d.line.short_name || d.line.name} @ ${d.departure_time.text} from ${d.departure_stop.name}`;
-                    } else {
-                        detailsText = "Walking route (no transit)";
-                    }
-                }
-
-                const min = Math.round(liveDuration / 60);
-
-                timeEl.textContent = `${min} min`;
-                detailsEl.textContent = detailsText;
-                linkEl.href = createMapsUrl(origin, destination, mode);
-
-            } catch (err) {
-                console.error("Commute error:", err);
-                timeEl.textContent = "-- min";
-                detailsEl.textContent = "Route unavailable";
+            if (isDark) {
+                toggleButton.innerHTML = '<i class="fas fa-sun"></i> Switch to Light';
+            } else {
+                toggleButton.innerHTML = '<i class="fas fa-moon"></i> Switch to Dark';
             }
         }
-    );
-}
 
-function fetchAllCommutes() {
-    fetchCommute(
-        HOME_ADDRESS, WORK_ADDRESS, "driving",
-        "h2w-drive-time", "h2w-drive-details", "h2w-drive-link", "h2w-card"
-    );
+        function applyInitialTheme() {
+            const body = document.body;
+            const savedTheme = localStorage.getItem('theme');
+            
+            // EXPLICIT DEFAULT: Start with light theme.
+            body.classList.remove('is-dark');
 
-    fetchCommute(
-        WORK_ADDRESS, HOME_ADDRESS, "driving",
-        "w2h-drive-time", "w2h-drive-details", "w2h-drive-link", "w2h-card"
-    );
+            // CHECK SAVED PREFERENCE: If the user previously chose 'dark', apply it.
+            if (savedTheme === 'dark') {
+                body.classList.add('is-dark');
+            } 
 
-    fetchCommute(
-        TRANSIT_ORIGIN, TRANSIT_DESTINATION, "transit",
-        "h2w-transit-time", "h2w-transit-details", "h2w-transit-link"
-    );
+            // Update the button UI to match the applied theme.
+            const isDark = body.classList.contains('is-dark');
+            const toggleButton = document.getElementById('theme-toggle');
 
-    fetchCommute(
-        TRANSIT_DESTINATION, TRANSIT_ORIGIN, "transit",
-        "w2h-transit-time", "w2h-transit-details", "w2h-transit-link"
-    );
-}
+            if (isDark) {
+                toggleButton.innerHTML = '<i class="fas fa-sun"></i> Switch to Light';
+            } else {
+                toggleButton.innerHTML = '<i class="fas fa-moon"></i> Switch to Dark';
+            }
+        }
 
-/* =========================================================
-   6. INIT
-========================================================= */
-function initDashboard() {
-    setGreeting();
-    updateDate();
-    fetchWeather();
-    fetchAllCommutes();
+        function setPeakTimeLayout() {
+            const hour = new Date().getHours();
+            const body = document.body;
+            
+            body.classList.remove('morning-peak', 'evening-peak');
 
-    setInterval(fetchWeather, 300000);
-    setInterval(fetchAllCommutes, 300000);
-    setInterval(updateDate, 60000);
-    setInterval(setPeakTimeLayout, 60000);
-}
+            if (hour >= 6 && hour < 10) {
+                body.classList.add('morning-peak');
+            } else if (hour >= 15 && hour < 19) {
+                body.classList.add('evening-peak');
+            }
+        }
 
-window.onload = initDashboard;
-</script>
+        document.addEventListener('DOMContentLoaded', () => {
+            applyInitialTheme(); 
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            setPeakTimeLayout();
+        });
 
+
+        // =========================================================
+        // === 3. UI HELPER FUNCTIONS ==============================
+        // =========================================================
+
+        function setGreeting() {
+            const hour = new Date().getHours();
+            let greeting;
+            if (hour < 12) {
+                greeting = "Good Morning!";
+            } else if (hour < 18) {
+                greeting = "Good Afternoon!";
+            } else {
+                greeting = "Good Evening!";
+            }
+            document.querySelector('.header-content h1').textContent = greeting;
+        }
+
+        function updateDate() {
+            const options = { weekday: 'long', month: 'long', day: 'numeric' };
+            const now = new Date();
+            const dateString = now.toLocaleDateString('en-US', options); 
+            
+            document.getElementById('current-date').textContent = dateString;
+        }
+        
+        function getWeatherIcon(iconCode) {
+            const iconMap = {
+                '01d': 'fa-sun', '01n': 'fa-moon', '02d': 'fa-cloud-sun', 
+                '02n': 'fa-cloud-moon', '03d': 'fa-cloud', '03n': 'fa-cloud',
+                '04d': 'fa-cloud-meatball', '04n': 'fa-cloud-meatball',
+                '09d': 'fa-cloud-showers-heavy', '09n': 'fa-cloud-showers-heavy',
+                '10d': 'fa-cloud-sun-rain', '10n': 'fa-cloud-moon-rain',
+                '11d': 'fa-bolt', '11n': 'fa-bolt',
+                '13d': 'fa-snowflake', '13n': 'fa-snowflake',
+                '50d': 'fa-smog', '50n': 'fa-smog'
+            };
+            return iconMap[iconCode] || 'fa-question-circle';
+        }
+
+        // =========================================================
+        // === 4. DATA FETCHING AND ALERTS =========================
+        // =========================================================
+
+        async function fetchWeather() {
+            const url = `https://api.openweathermap.org/data/2.5/weather?q=${WEATHER_CITY},US&units=metric&appid=${OPENWEATHER_API_KEY}`;
+            const tempElement = document.getElementById('weather-temp');
+            const descElement = document.getElementById('weather-desc');
+            const iconElement = document.getElementById('weather-icon');
+            const cityDisplayElement = document.getElementById('weather-city-display');
+
+            iconElement.className = 'fas fa-sync-alt spinner'; 
+            cityDisplayElement.textContent = 'Loading...';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) { 
+                    throw new Error(`Weather API Error: ${response.status}. Check API Key or Activation time.`); 
+                }
+                const data = await response.json();
+                
+                // Converting C to F
+                const temp = Math.round(data.main.temp * 9/5 + 32); 
+                const description = data.weather[0].description.charAt(0).toUpperCase() + data.weather[0].description.slice(1);
+                
+                tempElement.textContent = `${temp}°F`;
+                descElement.textContent = description;
+                cityDisplayElement.textContent = data.name;
+
+                const faIcon = getWeatherIcon(data.weather[0].icon);
+                iconElement.className = `fas ${faIcon}`;
+
+            } catch (error) {
+                console.error("Error fetching weather:", error);
+                tempElement.textContent = "--°F";
+                descElement.textContent = "Error loading data. (Check Key)";
+                cityDisplayElement.textContent = WEATHER_CITY;
+                iconElement.className = 'fas fa-exclamation-triangle';
+            }
+        }
+
+        function getTrafficStatus(liveDuration, freeFlowDuration) {
+            const normalDuration = freeFlowDuration * TRAFFIC_BUFFER;
+
+            if (liveDuration > normalDuration * ALERT_THRESHOLD) {
+                return 'alert';
+            } else if (liveDuration > normalDuration * WARNING_THRESHOLD) {
+                return 'warning';
+            } else {
+                return 'good';
+            }
+        }
+        
+        function updateCardStatus(cardId, trafficStatus) {
+            const card = document.getElementById(cardId);
+            card.classList.remove('status-good', 'status-warning', 'status-alert');
+            card.classList.add(`status-${trafficStatus}`);
+        }
+
+        // Creates a deep link URL for Google Maps navigation
+        function createMapsUrl(origin, destination, mode) {
+            const base = 'https://www.google.com/maps/dir/';
+            const url = `${base}${encodeURIComponent(origin)}/${encodeURIComponent(destination)}?travelmode=${mode}`;
+            return url;
+        }
+
+        async function fetchCommute(origin, destination, mode, timeId, detailsId, iconId, linkId, cardId) {
+            // *** NETLIFY PROXY FIX: Use the local /api-google/ path ***
+            const url = `/api-google/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&departure_time=now&key=${GOOGLE_MAPS_API_KEY}`;
+            
+            const timeElement = document.getElementById(timeId);
+            const detailsElement = document.getElementById(detailsId);
+            const linkElement = document.getElementById(linkId);
+            const itemElement = linkElement; 
+
+            timeElement.innerHTML = `<span class="spinner"></span>`; 
+            detailsElement.textContent = mode === 'driving' ? 'Checking traffic...' : 'Checking schedule...';
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.status !== 'OK' || data.routes.length === 0) {
+                    throw new Error(`API Status: ${data.status}. No route.`);
+                }
+                
+                const leg = data.routes[0].legs[0];
+                
+                let liveDurationValue = leg.duration.value;
+                let freeFlowDurationValue = leg.duration.value; 
+                let detailsText;
+                let trafficStatus = 'good';
+
+                if (mode === 'driving') {
+                    liveDurationValue = leg.duration_in_traffic ? leg.duration_in_traffic.value : leg.duration.value;
+                    freeFlowDurationValue = leg.duration.value;
+                    
+                    trafficStatus = getTrafficStatus(liveDurationValue, freeFlowDurationValue);
+                    detailsText = leg.duration_in_traffic ? 'Live Traffic' : 'No Traffic Data';
+
+                    if (cardId) {
+                        updateCardStatus(cardId, trafficStatus);
+                    }
+
+                } else {
+                    const transitStep = leg.steps.find(step => step.travel_mode === 'TRANSIT');
+                    
+                    if (transitStep && transitStep.transit_details) {
+                        const line = transitStep.transit_details.line;
+                        const departureTime = transitStep.transit_details.departure_time.text;
+                        const departureStop = transitStep.transit_details.departure_stop.name;
+                        
+                        detailsText = `${line.short_name || line.name} @ ${departureTime} from ${departureStop.split(' Station')[0]}`;
+                        
+                        liveDurationValue = leg.duration.value;
+
+                    } else {
+                        // Fallback if Transit is requested but the API only provides walking steps
+                        detailsText = 'Walk/No immediate transit route found';
+                        liveDurationValue = leg.duration.value;
+                    }
+                }
+                
+                const timeInMinutes = Math.round(liveDurationValue / 60);
+
+                timeElement.innerHTML = `${timeInMinutes} min`;
+                detailsElement.textContent = detailsText;
+                // Use the original address for the deep link, NOT the Place ID, for a cleaner link.
+                const originalOrigin = mode === 'driving' ? HOME_ADDRESS : "112th Avenue & York Street Station";
+                const originalDestination = mode === 'driving' ? WORK_ADDRESS : "Denver Union Station";
+
+                linkElement.href = createMapsUrl(originalOrigin, originalDestination, mode); 
+                
+                itemElement.classList.remove('status-good', 'status-warning', 'status-alert');
+                itemElement.classList.add(`status-${trafficStatus}`);
+
+            } catch (error) {
+                console.error(`Error fetching commute (${mode}, ${timeId}):`, error);
+                timeElement.innerHTML = "-- min";
+                detailsElement.textContent = mode === 'driving' ? 'Drive Error' : 'Transit Error';
+                linkElement.href = '#';
+                itemElement.classList.add('status-alert');
+            }
+        }
+
+        function fetchAllCommutes() {
+            // Driving
+            fetchCommute(HOME_ADDRESS, WORK_ADDRESS, 'driving', 'h2w-drive-time', 'h2w-drive-details', 'h2w-drive-icon', 'h2w-drive-link', 'h2w-card');
+            fetchCommute(WORK_ADDRESS, HOME_ADDRESS, 'driving', 'w2h-drive-time', 'w2h-drive-details', 'w2h-drive-icon', 'w2h-drive-link', 'w2h-card');
+
+            // Transit (Using Place IDs)
+            fetchCommute(TRANSIT_ORIGIN, TRANSIT_DESTINATION, 'transit', 'h2w-transit-time', 'h2w-transit-details', 'h2w-transit-icon', 'h2w-transit-link');
+            fetchCommute(TRANSIT_DESTINATION, TRANSIT_ORIGIN, 'transit', 'w2h-transit-time', 'w2h-transit-details', 'w2h-transit-icon', 'w2h-transit-link');
+        }
+
+        // =========================================================
+        // === 6. INITIALIZATION AND REFRESH =======================
+        // =========================================================
+
+        function initDashboard() {
+            setGreeting();
+            updateDate();
+            
+            fetchWeather();
+            fetchAllCommutes();
+            
+            setInterval(fetchWeather, 300000); 
+            setInterval(fetchAllCommutes, 300000);
+            setInterval(updateDate, 60000); 
+            setInterval(setPeakTimeLayout, 60000); 
+        }
+
+        window.onload = initDashboard;
+        
+    </script>
 </body>
 </html>
