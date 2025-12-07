@@ -315,6 +315,14 @@ function refreshAll(){
 document.getElementById('refreshBtn').addEventListener('click',refreshAll);
 document.getElementById('themeToggle').addEventListener('click',()=>document.body.classList.toggle('force-dark'));
 
+// ====== NEW: Radio buttons recalc on change ======
+document.querySelectorAll('input[name="driveToWorkOpt"]').forEach(rb=>{
+  rb.addEventListener('change',()=>getDriveTime(HOME,WORK,driveToWorkEl,mapToWorkEl,'driveToWorkOpt'));
+});
+document.querySelectorAll('input[name="driveToHomeOpt"]').forEach(rb=>{
+  rb.addEventListener('change',()=>getDriveTime(WORK,HOME,driveToHomeEl,mapToHomeEl,'driveToHomeOpt'));
+});
+
 // ========== Google Maps Init ==========
 function initMap(){
   directionsService=new google.maps.DirectionsService();
