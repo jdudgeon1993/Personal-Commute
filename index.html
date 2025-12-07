@@ -43,6 +43,9 @@ h1{margin:0; font-size:22px; font-weight:800;}
 .timeline-item.yellow{background:var(--warn); color:#111;}
 .timeline-item.red{background:var(--danger); color:#fff;}
 footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
+.commute-section{display:flex; flex-direction:column; gap:12px;}
+.commute-header{display:flex; align-items:center; gap:12px;}
+.commute-header h3{margin:0;font-size:18px;font-weight:700;}
 </style>
 </head>
 <body>
@@ -57,23 +60,10 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
       <button class="btn ghost" id="themeToggle">Toggle Theme</button>
     </div>
   </header>
+  
   <main class="grid">
-    
-    <!-- Quick Alerts -->
-    <section class="card">
-      <div class="top-row">
-        <div class="left icon-alert">⚠️</div>
-        <div style="flex:1">
-          <h3>Quick Alerts</h3>
-          <div class="muted">Weather & Traffic</div>
-        </div>
-      </div>
-      <div class="status-row" id="alertsRow">
-        <div class="pill">Loading…</div>
-      </div>
-    </section>
 
-    <!-- Weather -->
+    <!-- Weather Card -->
     <section class="card">
       <div class="top-row">
         <div class="left icon-weather" id="weatherIcon">☀️</div>
@@ -90,65 +80,58 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
       </div>
     </section>
 
-    <!-- Drive to Work -->
-    <section class="card">
-      <div class="top-row">
+    <!-- Commute Card: To Work -->
+    <section class="card commute-section">
+      <div class="commute-header">
         <div class="left icon-drive">🚗</div>
-        <div style="flex:1">
-          <h3>Drive → Work</h3>
-          <div class="muted">Home → Work</div>
-          <div class="big" id="driveToWork">Loading…</div>
+        <h3>Commute → Work</h3>
+      </div>
+
+      <div class="status-row">
+        <div>
+          <strong>Drive:</strong> <span id="driveToWork">Loading…</span>
+          <div class="radio-group">
+            <label><input type="radio" name="driveToWorkOpt" value="false" checked> Use Highways</label>
+            <label><input type="radio" name="driveToWorkOpt" value="true"> Avoid Highways</label>
+          </div>
         </div>
       </div>
-      <div class="radio-group">
-        <label><input type="radio" name="driveToWorkOpt" value="false" checked> Use Highways</label>
-        <label><input type="radio" name="driveToWorkOpt" value="true"> Avoid Highways</label>
+
+      <div class="status-row">
+        <div>
+          <strong>Transit (N Line):</strong> <span id="trainToWork">Loading…</span>
+          <div class="timeline" id="trainToWorkTimeline"></div>
+        </div>
       </div>
     </section>
 
-    <!-- Drive Home -->
-    <section class="card">
-      <div class="top-row">
+    <!-- Commute Card: To Home -->
+    <section class="card commute-section">
+      <div class="commute-header">
         <div class="left icon-drive">🏠</div>
-        <div style="flex:1">
-          <h3>Drive → Home</h3>
-          <div class="muted">Work → Home</div>
-          <div class="big" id="driveToHome">Loading…</div>
+        <h3>Commute → Home</h3>
+      </div>
+
+      <div class="status-row">
+        <div>
+          <strong>Drive:</strong> <span id="driveToHome">Loading…</span>
+          <div class="radio-group">
+            <label><input type="radio" name="driveToHomeOpt" value="false" checked> Use Highways</label>
+            <label><input type="radio" name="driveToHomeOpt" value="true"> Avoid Highways</label>
+          </div>
         </div>
       </div>
-      <div class="radio-group">
-        <label><input type="radio" name="driveToHomeOpt" value="false" checked> Use Highways</label>
-        <label><input type="radio" name="driveToHomeOpt" value="true"> Avoid Highways</label>
+
+      <div class="status-row">
+        <div>
+          <strong>Transit (N Line):</strong> <span id="trainToHome">Loading…</span>
+          <div class="timeline" id="trainToHomeTimeline"></div>
+        </div>
       </div>
     </section>
 
-    <!-- Transit to Work -->
-    <section class="card">
-      <div class="top-row">
-        <div class="left icon-transit">🚆</div>
-        <div style="flex:1">
-          <h3>N Line → Union Station</h3>
-          <div class="muted">Northglenn & 112th → Union Station</div>
-          <div class="big" id="trainToWork">Loading…</div>
-        </div>
-      </div>
-      <div class="timeline" id="trainToWorkTimeline"></div>
-    </section>
-
-    <!-- Transit Home -->
-    <section class="card">
-      <div class="top-row">
-        <div class="left icon-transit">↩️</div>
-        <div style="flex:1">
-          <h3>N Line → Northglenn</h3>
-          <div class="muted">Union Station → Northglenn & 112th</div>
-          <div class="big" id="trainToHome">Loading…</div>
-        </div>
-      </div>
-      <div class="timeline" id="trainToHomeTimeline"></div>
-    </section>
-    
   </main>
+
   <footer>Auto-refresh every 3 minutes • Click refresh anytime</footer>
 </div>
 
@@ -173,7 +156,6 @@ const trainToHomeEl=document.getElementById('trainToHome');
 const trainToWorkTimeline=document.getElementById('trainToWorkTimeline');
 const trainToHomeTimeline=document.getElementById('trainToHomeTimeline');
 const dayTimeEl=document.getElementById('dayTime');
-const alertsRow=document.getElementById('alertsRow');
 
 let directionsService=null;
 let trainIntervals=[];
@@ -210,28 +192,7 @@ async function fetchWeather(){
       img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px';
       weatherIconEl.appendChild(img);
     }
-    updateAlerts(data);
   }catch(err){console.error(err); weatherTempEl.textContent='Error loading weather';}
-}
-
-function updateAlerts(weatherData){
-  alertsRow.innerHTML='';
-  // Weather alerts
-  if(weatherData.alerts && weatherData.alerts.length){
-    weatherData.alerts.forEach(alert=>{
-      const pill=document.createElement('div'); pill.className='pill'; pill.textContent=`⚠️ ${alert.event}`;
-      pill.style.backgroundColor='var(--danger)'; pill.style.color='#fff';
-      alertsRow.appendChild(pill);
-    });
-  }else{
-    const pill=document.createElement('div'); pill.className='pill'; pill.textContent='No weather alerts';
-    pill.style.backgroundColor='var(--success)'; pill.style.color='#fff';
-    alertsRow.appendChild(pill);
-  }
-  // Traffic alert placeholder
-  const trafficPill=document.createElement('div'); trafficPill.className='pill'; trafficPill.textContent='No traffic alerts';
-  trafficPill.style.backgroundColor='var(--success)'; trafficPill.style.color='#fff';
-  alertsRow.appendChild(trafficPill);
 }
 
 function getDriveTime(origin,destination,el,optName){
