@@ -1,233 +1,443 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Commute Dashboard</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Commute Dashboard — Drive & N Line</title>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
 <style>
-    :root {
-        --bg: #eef1f6;
-        --card: #ffffff;
-        --text: #1a1a1a;
-        --accent: #4a6cff;
-        --shadow: rgba(0,0,0,0.12);
+  :root{
+    --bg:#f3f6fb;
+    --card:#ffffff;
+    --muted:#6b7280;
+    --accent:#4f46e5;
+    --success:#10b981;
+    --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1724;
+      --card:#111827;
+      --muted:#9ca3af;
+      --accent:#7c89ff;
+      --success:#34d399;
+      --shadow: 0 12px 28px rgba(2,6,23,0.6);
     }
+  }
 
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --bg: #12151a;
-            --card: #1e222a;
-            --text: #eaeaea;
-            --accent: #7f96ff;
-            --shadow: rgba(0,0,0,0.45);
-        }
-    }
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto;
+    background:var(--bg);
+    color: #0f1724;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    display:flex;
+    justify-content:center;
+    padding:20px;
+  }
 
-    body {
-        margin: 0;
-        padding: 18px;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Inter, sans-serif;
-        display: flex;
-        justify-content: center;
-    }
+  .app {
+    width:100%;
+    max-width:880px;
+  }
 
-    .app {
-        width: 100%;
-        max-width: 540px;
-    }
+  header{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  h1{
+    margin:0;
+    font-size:20px;
+    font-weight:800;
+    letter-spacing:-0.4px;
+  }
+  .controls{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .btn{
+    padding:8px 12px;
+    border-radius:10px;
+    border: none;
+    font-weight:600;
+    cursor:pointer;
+    background:var(--accent);
+    color:white;
+    box-shadow: var(--shadow);
+  }
+  .btn.ghost{
+    background:transparent;
+    color:var(--muted);
+    border:1px solid rgba(0,0,0,0.06);
+  }
 
-    h1 {
-        margin-top: 0;
-        font-size: 1.8rem;
-        font-weight: 800;
-        text-align: center;
-        margin-bottom: 20px;
-    }
+  .grid{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:14px;
+  }
+  @media(min-width:900px){
+    .grid{ grid-template-columns: 1fr 1fr; }
+  }
 
-    .card {
-        background: var(--card);
-        padding: 20px;
-        border-radius: 22px;
-        box-shadow: 0 10px 24px var(--shadow);
-        margin-bottom: 22px;
-        animation: fadeIn 0.3s ease;
-    }
+  .card{
+    background:var(--card);
+    border-radius:14px;
+    padding:16px;
+    box-shadow: var(--shadow);
+    display:flex;
+    gap:12px;
+    align-items:flex-start;
+  }
 
-    .card h2 {
-        margin: 0;
-        margin-bottom: 8px;
-        font-size: 1.35rem;
-    }
+  .card .left{
+    width:56px;
+    height:56px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    color:white;
+    flex-shrink:0;
+  }
+  .card h3{ margin:0; font-size:16px; }
+  .muted{ color:var(--muted); font-size:13px; margin-top:6px; }
+  .big{ font-weight:700; font-size:18px; margin-top:6px; }
 
-    .card p {
-        margin: 6px 0;
-        font-size: 1.05rem;
-    }
+  .icon-weather{ background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937; }
+  .icon-drive{ background:linear-gradient(135deg,#60a5fa,#4f46e5); }
+  .icon-transit{ background:linear-gradient(135deg,#34d399,#10b981); color:#052e16; }
 
-    .icon {
-        font-size: 1.4rem;
-        margin-right: 6px;
-        color: var(--accent);
-    }
+  .small-note{ font-size:12px; color:var(--muted); margin-top:8px; }
 
-    button.refresh {
-        width: 100%;
-        margin-bottom: 20px;
-        padding: 14px;
-        border: none;
-        border-radius: 14px;
-        font-size: 1.15rem;
-        font-weight: 700;
-        background: var(--accent);
-        color: white;
-        cursor: pointer;
-        box-shadow: 0 4px 12px var(--shadow);
-    }
+  .status-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  .pill{ padding:6px 10px; border-radius:999px; font-weight:600; background:rgba(0,0,0,0.04); color:var(--muted); font-size:13px; }
 
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(6px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
+  footer{ margin-top:12px; color:var(--muted); font-size:13px; text-align:center; }
+
 </style>
 </head>
-
 <body>
-<div class="app">
-    <h1>🚇 Commute Dashboard</h1>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Commute Dashboard</h1>
+        <div class="small-note">Drive & N Line (preset routes for your commute)</div>
+      </div>
 
-    <button class="refresh" onclick="refreshAll()">
-        <i class="fa-solid fa-rotate-right"></i> Refresh All
-    </button>
+      <div class="controls">
+        <button class="btn" id="refreshBtn" title="Refresh now">⟳ Refresh</button>
+        <button class="btn ghost" id="themeToggle" title="Toggle theme">Toggle Theme</button>
+      </div>
+    </header>
 
-    <!-- Drive to work -->
-    <div class="card">
-        <h2><i class="fa-solid fa-car icon"></i>Drive → Work</h2>
-        <p id="driveToWork">Loading…</p>
-    </div>
+    <main class="grid">
+      <!-- WEATHER -->
+      <section class="card" id="weatherCard">
+        <div class="left icon-weather" id="weatherIcon">☀️</div>
+        <div style="flex:1">
+          <h3>Current Weather — Denver</h3>
+          <div class="big" id="weatherTemp">Loading…</div>
+          <div class="muted" id="weatherDesc"></div>
+          <div class="status-row">
+            <div class="pill" id="weatherFeels">—</div>
+            <div class="pill" id="weatherWind">—</div>
+            <div class="pill" id="weatherHumidity">—</div>
+          </div>
+        </div>
+      </section>
 
-    <!-- Drive home -->
-    <div class="card">
-        <h2><i class="fa-solid fa-car-rear icon"></i>Drive → Home</h2>
-        <p id="driveHome">Loading…</p>
-    </div>
+      <!-- DRIVE TO WORK -->
+      <section class="card">
+        <div class="left icon-drive">🚗</div>
+        <div style="flex:1">
+          <h3>Drive → Work</h3>
+          <div class="muted">Home → Work</div>
+          <div class="big" id="driveToWork">Loading…</div>
+          <div class="muted small-note" id="driveToNote">ETA & traffic</div>
+        </div>
+      </section>
 
-    <!-- Train to Union Station -->
-    <div class="card">
-        <h2><i class="fa-solid fa-train-subway icon"></i>N Line → Union Station</h2>
-        <p id="trainToWork">Loading…</p>
-    </div>
+      <!-- DRIVE HOME -->
+      <section class="card">
+        <div class="left icon-drive">🏠</div>
+        <div style="flex:1">
+          <h3>Drive → Home</h3>
+          <div class="muted">Work → Home</div>
+          <div class="big" id="driveToHome">Loading…</div>
+          <div class="muted small-note" id="driveHomeNote">ETA & traffic</div>
+        </div>
+      </section>
 
-    <!-- Train home -->
-    <div class="card">
-        <h2><i class="fa-solid fa-train-tram icon"></i>N Line → Northglenn</h2>
-        <p id="trainHome">Loading…</p>
-    </div>
-</div>
+      <!-- TRANSIT TO WORK -->
+      <section class="card">
+        <div class="left icon-transit">🚆</div>
+        <div style="flex:1">
+          <h3>N Line → Union Station</h3>
+          <div class="muted">Northglenn & 112th → Union Station</div>
+          <div class="big" id="trainToWork">Loading…</div>
+          <div class="muted small-note" id="trainToNote"></div>
+        </div>
+      </section>
+
+      <!-- TRANSIT HOME -->
+      <section class="card">
+        <div class="left icon-transit">↩️</div>
+        <div style="flex:1">
+          <h3>N Line → Northglenn</h3>
+          <div class="muted">Union Station → Northglenn & 112th</div>
+          <div class="big" id="trainToHome">Loading…</div>
+          <div class="muted small-note" id="trainHomeNote"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      Auto-refresh every 3 minutes • You can click Refresh anytime
+    </footer>
+  </div>
 
 <script>
-const API_KEY = "AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY";
+/*
+  CLIENT-SIDE MAPS SERVICES (no REST fetch to Google)
+  - uses DistanceMatrixService for driving
+  - uses DirectionsService for transit (train-only), filters for N Line
+  - OpenWeather used for weather (public fetch)
+*/
 
-// YOUR PRESET COMMUTE DATA
-const HOME = "11625 Community Center Drive, Northglenn, CO 80233";
-const WORK = "707 17th Street, Denver, CO 80202";
-const N_ORIGIN = "Northglenn & 112th Station";
-const N_DEST = "Denver Union Station";
+// ========== CONFIG (presets) ==========
+const OPENWEATHER_API_KEY = '1c91f81f2adfd1b633d19842869a1a11';
+const GOOGLE_MAPS_API_KEY = 'AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
 
-// ========================
-// GOOGLE MATRIX (DRIVE)
-// ========================
-async function getDriveTime(origin, destination, elementId) {
-    const url =
-      `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origin)}&destinations=${encodeURIComponent(destination)}&mode=driving&departure_time=now&key=${API_KEY}`;
+// Preset locations (as you provided)
+const HOME = '11625 Community Center Drive, Northglenn, CO 80233';
+const WORK = '707 17th Street, Denver, CO 80202';
+const N_ORIGIN = 'Northglenn & 112th Station, Northglenn, CO';
+const N_DEST = 'Denver Union Station, Denver, CO';
 
-    document.getElementById(elementId).textContent = "Loading…";
+// DOM refs
+const weatherTempEl = document.getElementById('weatherTemp');
+const weatherDescEl = document.getElementById('weatherDesc');
+const weatherIconEl = document.getElementById('weatherIcon');
+const weatherFeelsEl = document.getElementById('weatherFeels');
+const weatherWindEl = document.getElementById('weatherWind');
+const weatherHumidityEl = document.getElementById('weatherHumidity');
 
-    try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const info = data?.rows?.[0]?.elements?.[0];
+const driveToWorkEl = document.getElementById('driveToWork');
+const driveToHomeEl = document.getElementById('driveToHome');
 
-        if (info?.duration_in_traffic) {
-            document.getElementById(elementId).textContent =
-                `${info.duration_in_traffic.text}`;
-        } else {
-            document.getElementById(elementId).textContent =
-                "No driving data.";
-        }
-    } catch (e) {
-        document.getElementById(elementId).textContent = "Error loading drive time.";
+const trainToWorkEl = document.getElementById('trainToWork');
+const trainToHomeEl = document.getElementById('trainToHome');
+
+const trainToNoteEl = document.getElementById('trainToNote');
+const trainHomeNoteEl = document.getElementById('trainHomeNote');
+
+// Map services (initialized in initMap)
+let directionsService = null;
+let distanceMatrixService = null;
+
+// ========== Weather (OpenWeather) ==========
+async function fetchWeather() {
+  try {
+    const res = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?q=Denver,US&units=imperial&appid=${OPENWEATHER_API_KEY}`
+    );
+    const data = await res.json();
+    if (!data || data.cod && data.cod !== 200) throw new Error('Weather error');
+
+    const temp = Math.round(data.main.temp) + '°F';
+    const desc = data.weather?.[0]?.description ?? '—';
+    const icon = data.weather?.[0]?.icon;
+    const feels = Math.round(data.main.feels_like) + '°F';
+    const wind = `${Math.round(data.wind.speed)} mph`;
+    const humidity = `${data.main.humidity}%`;
+
+    weatherTempEl.textContent = temp;
+    weatherDescEl.textContent = desc[0]?.toUpperCase() + desc.slice(1);
+    weatherFeelsEl.textContent = `Feels: ${feels}`;
+    weatherWindEl.textContent = `Wind: ${wind}`;
+    weatherHumidityEl.textContent = `Humidity: ${humidity}`;
+
+    if (icon) {
+      weatherIconEl.textContent = '';
+      const img = document.createElement('img');
+      img.src = `https://openweathermap.org/img/wn/${icon}@2x.png`;
+      img.alt = desc;
+      img.style.width = '48px';
+      img.style.height = '48px';
+      img.style.borderRadius = '8px';
+      weatherIconEl.appendChild(img);
     }
+  } catch (err) {
+    console.error('Weather error', err);
+    weatherTempEl.textContent = 'Error loading weather';
+    weatherDescEl.textContent = '';
+    weatherFeelsEl.textContent = '';
+    weatherWindEl.textContent = '';
+    weatherHumidityEl.textContent = '';
+    weatherIconEl.textContent = '⚠️';
+  }
 }
 
-// ========================
-// GOOGLE DIRECTIONS (N LINE)
-// ========================
-async function getNLine(origin, destination, elementId) {
-    const url =
-      `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=transit&transit_mode=train&departure_time=now&key=${API_KEY}`;
+// ========== Driving (DistanceMatrixService) ==========
+function getDriveTime(origin, destination, el) {
+  if (!distanceMatrixService) {
+    el.textContent = 'Maps service not ready';
+    return;
+  }
 
-    document.getElementById(elementId).textContent = "Loading…";
+  el.textContent = 'Loading…';
 
+  distanceMatrixService.getDistanceMatrix({
+    origins: [origin],
+    destinations: [destination],
+    travelMode: google.maps.TravelMode.DRIVING,
+    drivingOptions: {
+      departureTime: new Date(),
+      trafficModel: 'bestguess'
+    },
+    unitSystem: google.maps.UnitSystem.IMPERIAL
+  }, (response, status) => {
     try {
-        const res = await fetch(url);
-        const data = await res.json();
+      if (status !== 'OK') throw new Error('DistanceMatrix status ' + status);
+      const info = response.rows?.[0]?.elements?.[0];
+      if (!info) throw new Error('No element');
 
-        const route = data.routes?.[0];
-        if (!route) {
-            document.getElementById(elementId).textContent = "No route found.";
-            return;
-        }
-
-        const steps = route.legs[0].steps;
-
-        // Filter for N LINE ONLY
-        const nTrain = steps.find(
-            s =>
-                s.transit_details &&
-                (
-                  s.transit_details.line.short_name === "N" ||
-                  s.transit_details.line.name.includes("N Line")
-                )
-        );
-
-        if (!nTrain) {
-            document.getElementById(elementId).textContent =
-                "No N Line trains right now.";
-            return;
-        }
-
-        const dep = nTrain.transit_details.departure_time.text;
-        const arr = nTrain.transit_details.arrival_time.text;
-        const total = route.legs[0].duration.text;
-
-        document.getElementById(elementId).textContent =
-            `Departs ${dep} → Arrives ${arr} (${total})`;
-
+      // Prefer duration_in_traffic if available
+      const text = info.duration_in_traffic?.text ?? info.duration?.text ?? 'N/A';
+      el.textContent = text;
     } catch (e) {
-        document.getElementById(elementId).textContent =
-            "Error loading train info.";
+      console.error('DistanceMatrix error', e);
+      el.textContent = 'Error loading drive';
     }
+  });
 }
 
-// ========================
-// REFRESH ALL
-// ========================
+// ========== Transit (DirectionsService) — filter for N Line ==========
+function getNLine(origin, destination, el, noteEl) {
+  if (!directionsService) {
+    el.textContent = 'Maps service not ready';
+    return;
+  }
+
+  el.textContent = 'Searching N Line…';
+  if (noteEl) noteEl.textContent = '';
+
+  directionsService.route({
+    origin,
+    destination,
+    travelMode: google.maps.TravelMode.TRANSIT,
+    transitOptions: { modes: ['RAIL'] },
+    unitSystem: google.maps.UnitSystem.IMPERIAL
+  }, (result, status) => {
+    try {
+      if (status !== 'OK') throw new Error('Directions status ' + status);
+      const route = result.routes?.[0];
+      if (!route) throw new Error('No route');
+
+      const leg = route.legs?.[0];
+      if (!leg) throw new Error('No leg');
+
+      // Find a step that is a transit step for the N Line
+      const steps = leg.steps || [];
+      const nStep = steps.find(s =>
+        s.transit && s.transit.line && (
+          String(s.transit.line.short_name) === 'N' ||
+          (s.transit.line && s.transit.line.name && s.transit.line.name.includes('N Line')) ||
+          (s.transit.line && s.transit.line.name && /\bN\b/.test(s.transit.line.name))
+        )
+      );
+
+      if (!nStep) {
+        // If none found — show a helpful fallback: show next transit leg if any
+        el.textContent = 'No N Line train found for this route right now.';
+        if (noteEl) noteEl.textContent = 'Google returned other transit options.';
+        return;
+      }
+
+      // Display times
+      const dep = nStep.transit.departure_time?.text ?? '—';
+      const arr = nStep.transit.arrival_time?.text ?? '—';
+      const total = leg.duration?.text ?? '—';
+      el.textContent = `Departs ${dep} → Arrives ${arr} (${total})`;
+
+      // optionally show platform or headsign if available
+      const headsign = nStep.transit.headsign || nStep.transit.line?.short_name || '';
+      if (noteEl && headsign) noteEl.textContent = `Heads to ${headsign}`;
+    } catch (err) {
+      console.error('Transit error', err);
+      el.textContent = 'Error loading transit';
+      if (noteEl) noteEl.textContent = '';
+    }
+  });
+}
+
+// ========== Initialization & refresh ==========
 function refreshAll() {
-    getDriveTime(HOME, WORK, "driveToWork");
-    getDriveTime(WORK, HOME, "driveHome");
+  fetchWeather();
 
-    getNLine(N_ORIGIN, N_DEST, "trainToWork");
-    getNLine(N_DEST, N_ORIGIN, "trainHome");
+  // Drive
+  getDriveTime(HOME, WORK, driveToWorkEl);
+  getDriveTime(WORK, HOME, driveToHomeEl);
+
+  // Transit (N Line)
+  getNLine(N_ORIGIN, N_DEST, trainToWorkEl, trainToNoteEl);
+  getNLine(N_DEST, N_ORIGIN, trainToHomeEl, trainHomeNoteEl);
 }
 
-// Load immediately
-refreshAll();
-</script>
+// Hook up manual refresh
+document.getElementById('refreshBtn').addEventListener('click', refreshAll);
 
+// theme toggle (simple)
+document.getElementById('themeToggle').addEventListener('click', () => {
+  // toggle a dark class on body for quick override
+  document.documentElement.classList.toggle('force-dark');
+  // small visual feedback: invert root colors (quick hack)
+  if (document.documentElement.classList.contains('force-dark')) {
+    document.body.style.background = '#071126';
+  } else {
+    document.body.style.background = '';
+  }
+});
+
+// ========== Google Maps loader + init ==========
+function initMap() {
+  // create services
+  directionsService = new google.maps.DirectionsService();
+  distanceMatrixService = new google.maps.DistanceMatrixService();
+
+  // initial refresh
+  refreshAll();
+
+  // auto-refresh every 3 minutes
+  setInterval(refreshAll, 180000);
+}
+
+// Load Google Maps JS API
+(function loadGoogleMaps(){
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
+  script.async = true;
+  script.defer = true;
+  script.onerror = () => {
+    // If the script fails to load, show errors in cards
+    driveToWorkEl.textContent = 'Maps failed to load';
+    driveToHomeEl.textContent = 'Maps failed to load';
+    trainToWorkEl.textContent = 'Maps failed to load';
+    trainToHomeEl.textContent = 'Maps failed to load';
+    console.error('Failed to load Google Maps API script — check API key or network.');
+  };
+  document.head.appendChild(script);
+})();
+</script>
 </body>
 </html>
