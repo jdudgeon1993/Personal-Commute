@@ -105,124 +105,111 @@ body.dark .card {
             <p id="weatherDesc"></p>
         </div>
     </div>
+
     <div class="card" id="driveCard">
         <img src="https://img.icons8.com/ios-filled/50/000000/car.png" alt="Drive Icon">
         <div class="card-content">
             <h2>Drive Time</h2>
             <p id="driveTo">Loading...</p>
-            <p id="driveFrom"></p>
+            <p id="driveFrom">Loading...</p>
         </div>
     </div>
+
     <div class="card" id="transitCard">
         <img src="https://img.icons8.com/ios-filled/50/000000/bus.png" alt="Transit Icon">
         <div class="card-content">
             <h2>RTD Line N</h2>
-            <p id="nextTrain">Loading...</p>
+            <p id="transitTo">Loading...</p>
+            <p id="transitFrom">Loading...</p>
         </div>
     </div>
 </div>
 
 <script>
-// ================ Theme Toggle ================
+// ================= Theme Toggle =================
 const themeBtn = document.getElementById('themeToggle');
 themeBtn.addEventListener('click', () => {
     document.body.classList.toggle('dark');
     themeBtn.textContent = document.body.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
 });
 
-// ================ Weather ===================
+// ================= Weather ===================
 const weatherApiKey = '1c91f81f2adfd1b633d19842869a1a11';
 const city = 'Denver,US';
 const weatherIcon = document.getElementById('weatherIcon');
 
 async function fetchWeather() {
     try {
-        const response = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=imperial&appid=${weatherApiKey}`
-        );
-        const data = await response.json();
-
-        const location = `${data.name}, ${data.sys.country}`;
-        const temp = `${Math.round(data.main.temp)}°F`;
-        const desc = data.weather[0].description;
-        const iconUrl = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
-
-        document.getElementById('weatherLocation').textContent = location;
-        document.getElementById('weatherTemp').textContent = `Temperature: ${temp}`;
-        document.getElementById('weatherDesc').textContent = desc;
-        weatherIcon.src = iconUrl;
-        weatherIcon.alt = desc;
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=imperial&appid=${weatherApiKey}`);
+        const data = await res.json();
+        document.getElementById('weatherLocation').textContent = `${data.name}, ${data.sys.country}`;
+        document.getElementById('weatherTemp').textContent = `Temp: ${Math.round(data.main.temp)}°F`;
+        document.getElementById('weatherDesc').textContent = data.weather[0].description;
+        weatherIcon.src = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
     } catch (err) {
-        console.error('Weather fetch error:', err);
+        console.error(err);
         document.getElementById('weatherLocation').textContent = 'Error loading weather';
     }
 }
 
-// ================ Drive Time =================
-const googleApiKey = 'AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
-const home = '11625 Community Center Drive, Northglenn, CO 80233';
-const work = '707 17th Street, Denver, CO 80202';
-
-async function fetchDriveTime() {
-    try {
-        const toResponse = await fetch(
-            `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(home)}&destination=${encodeURIComponent(work)}&key=${googleApiKey}`
-        );
-        const toData = await toResponse.json();
-        const toDuration = toData.routes[0]?.legs[0]?.duration?.text || 'N/A';
-
-        const fromResponse = await fetch(
-            `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(work)}&destination=${encodeURIComponent(home)}&key=${googleApiKey}`
-        );
-        const fromData = await fromResponse.json();
-        const fromDuration = fromData.routes[0]?.legs[0]?.duration?.text || 'N/A';
-
-        document.getElementById('driveTo').textContent = `To Work: ${toDuration}`;
-        document.getElementById('driveFrom').textContent = `From Work: ${fromDuration}`;
-    } catch (err) {
-        console.error('Drive fetch error:', err);
-        document.getElementById('driveTo').textContent = 'Error loading drive time';
-        document.getElementById('driveFrom').textContent = '';
-    }
+// ================= Google Maps Directions =================
+let directionsService;
+function initMap() {
+    directionsService = new google.maps.DirectionsService();
+    fetchDrive();
+    fetchTransit();
 }
 
-// ================ Transit =================
+const home = '11625 Community Center Drive, Northglenn, CO 80233';
+const work = '707 17th Street, Denver, CO 80202';
 const transitOrigin = 'Northglenn & 112th Station, Northglenn, CO';
 const transitDestination = 'Denver Union Station, Denver, CO';
 
-async function fetchTransit() {
-    try {
-        const response = await fetch(
-            `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(transitOrigin)}&destination=${encodeURIComponent(transitDestination)}&mode=transit&transit_mode=bus&key=${googleApiKey}`
-        );
-        const data = await response.json();
-
-        if (data.routes && data.routes.length > 0) {
-            const leg = data.routes[0].legs[0];
-            const departure = leg.departure_time?.text || 'N/A';
-            const duration = leg.duration?.text || 'N/A';
-            document.getElementById('nextTrain').textContent = `Next Line N: Departs ${departure}, Duration: ${duration}`;
-        } else {
-            document.getElementById('nextTrain').textContent = 'No upcoming transit found';
+function fetchDrive() {
+    const driveToReq = { origin: home, destination: work, travelMode: 'DRIVING' };
+    directionsService.route(driveToReq, (res, status) => {
+        if(status==='OK'){
+            document.getElementById('driveTo').textContent = `To Work: ${res.routes[0].legs[0].duration.text}`;
         }
-    } catch (err) {
-        console.error('Transit fetch error:', err);
-        document.getElementById('nextTrain').textContent = 'Error loading transit';
-    }
+    });
+    const driveFromReq = { origin: work, destination: home, travelMode: 'DRIVING' };
+    directionsService.route(driveFromReq, (res, status) => {
+        if(status==='OK'){
+            document.getElementById('driveFrom').textContent = `From Work: ${res.routes[0].legs[0].duration.text}`;
+        }
+    });
 }
 
-// ================ Refresh All ================
-async function refreshData() {
-    await fetchWeather();
-    await fetchDriveTime();
-    await fetchTransit();
+function fetchTransit() {
+    const transitToReq = { origin: transitOrigin, destination: transitDestination, travelMode: 'TRANSIT', transitOptions: { modes:['BUS'] } };
+    directionsService.route(transitToReq, (res, status) => {
+        if(status==='OK'){
+            const leg = res.routes[0].legs[0];
+            document.getElementById('transitTo').textContent = `To Union Station: Departs ${leg.departure_time.text}, Duration ${leg.duration.text}`;
+        }
+    });
+    const transitFromReq = { origin: transitDestination, destination: transitOrigin, travelMode: 'TRANSIT', transitOptions: { modes:['BUS'] } };
+    directionsService.route(transitFromReq, (res, status) => {
+        if(status==='OK'){
+            const leg = res.routes[0].legs[0];
+            document.getElementById('transitFrom').textContent = `From Union Station: Departs ${leg.departure_time.text}, Duration ${leg.duration.text}`;
+        }
+    });
+}
+
+// ================= Refresh All =================
+function refreshAll() {
+    fetchWeather();
+    fetchDrive();
+    fetchTransit();
 }
 
 // Initial load
-refreshData();
+refreshAll();
 
 // Auto-refresh every 5 minutes
-setInterval(refreshData, 300000);
+setInterval(refreshAll, 300000);
 </script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY&callback=initMap" async defer></script>
 </body>
 </html>
