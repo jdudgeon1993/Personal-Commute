@@ -81,42 +81,51 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
       </div>
     </section>
 
-    <!-- Unified Commute Card -->
+    <!-- Drive Card -->
     <section class="card commute-section">
       <div class="commute-header">
-        <div class="left icon-commute">🛣️</div>
-        <h3>Today's Commute</h3>
+        <div class="left icon-commute">🚗</div>
+        <h3>Drive</h3>
       </div>
-
-      <!-- Drive -->
-      <div>
-        <strong>Drive:</strong>
-        <div class="direction-row">
-          <div class="direction-col">
-            <div>To Work: <span id="driveToWork">Loading…</span></div>
-            <div class="radio-group">
-              <label><input type="radio" name="driveOpt" value="false" checked> Use Highways</label>
-              <label><input type="radio" name="driveOpt" value="true"> Avoid Highways</label>
-            </div>
-          </div>
-          <div class="direction-col">
-            <div>To Home: <span id="driveToHome">Loading…</span></div>
+      <div class="direction-row">
+        <div class="direction-col">
+          <div>To Work: <span id="driveToWork">Loading…</span></div>
+          <div class="radio-group">
+            <label><input type="radio" name="driveOpt" value="false" checked> Use Highways</label>
+            <label><input type="radio" name="driveOpt" value="true"> Avoid Highways</label>
           </div>
         </div>
+        <div class="direction-col">
+          <div>To Home: <span id="driveToHome">Loading…</span></div>
+        </div>
       </div>
+    </section>
 
-      <!-- Transit -->
-      <div>
-        <strong>Transit (N Line):</strong>
-        <div class="direction-row">
-          <div class="direction-col">
-            <div>To Work: <span id="trainToWork">Loading…</span></div>
-            <div class="timeline" id="trainToWorkTimeline"></div>
-          </div>
-          <div class="direction-col">
-            <div>To Home: <span id="trainToHome">Loading…</span></div>
-            <div class="timeline" id="trainToHomeTimeline"></div>
-          </div>
+    <!-- Transit Card -->
+    <section class="card commute-section">
+      <div class="commute-header">
+        <div class="left icon-commute">🚉</div>
+        <h3>Transit (N Line)</h3>
+      </div>
+      <div class="direction-row">
+        <div class="direction-col">
+          <div>To Work: <span id="trainToWork">Loading…</span></div>
+          <div class="timeline" id="trainToWorkTimeline"></div>
+        </div>
+        <div class="direction-col">
+          <div>To Home: <span id="trainToHome">Loading…</span></div>
+          <div class="timeline" id="trainToHomeTimeline"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Alerts Card -->
+    <section class="card">
+      <div class="top-row">
+        <div class="left icon-alert">⚠️</div>
+        <div>
+          <h3>Alerts</h3>
+          <div class="muted" id="alertsText">No alerts</div>
         </div>
       </div>
     </section>
@@ -147,6 +156,7 @@ const trainToHomeEl=document.getElementById('trainToHome');
 const trainToWorkTimeline=document.getElementById('trainToWorkTimeline');
 const trainToHomeTimeline=document.getElementById('trainToHomeTimeline');
 const dayTimeEl=document.getElementById('dayTime');
+const alertsText=document.getElementById('alertsText');
 
 let directionsService=null;
 let trainIntervals=[];
@@ -254,6 +264,7 @@ function refreshAll(){
   getDriveTime(WORK,HOME,driveToHomeEl,avoidHighways);
   getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkTimeline);
   getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeTimeline);
+  alertsText.textContent="No alerts at this time"; // Placeholder for alert integration
 }
 
 document.getElementById('refreshBtn').addEventListener('click',refreshAll);
