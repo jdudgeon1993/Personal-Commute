@@ -3,137 +3,95 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Commute Dashboard – Drive & N Line</title>
+<title>Commute Dashboard</title>
 
-<!-- Icons -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
     :root {
-        --bg: #f4f6f9;
+        --bg: #eef1f6;
         --card: #ffffff;
-        --text: #222;
+        --text: #1a1a1a;
         --accent: #4a6cff;
-        --shadow: rgba(0,0,0,0.15);
+        --shadow: rgba(0,0,0,0.12);
     }
 
     @media (prefers-color-scheme: dark) {
         :root {
-            --bg: #1c1f26;
-            --card: #262a33;
-            --text: #e6e6e6;
-            --accent: #7a90ff;
-            --shadow: rgba(0,0,0,0.4);
+            --bg: #12151a;
+            --card: #1e222a;
+            --text: #eaeaea;
+            --accent: #7f96ff;
+            --shadow: rgba(0,0,0,0.45);
         }
     }
 
     body {
-        font-family: Inter, sans-serif;
         margin: 0;
-        padding: 0;
+        padding: 18px;
         background: var(--bg);
         color: var(--text);
+        font-family: Inter, sans-serif;
         display: flex;
         justify-content: center;
-        padding: 20px;
     }
 
     .app {
         width: 100%;
-        max-width: 520px;
+        max-width: 540px;
     }
 
     h1 {
-        text-align: center;
-        font-size: 1.9rem;
         margin-top: 0;
+        font-size: 1.8rem;
         font-weight: 800;
-        letter-spacing: -1px;
+        text-align: center;
+        margin-bottom: 20px;
     }
 
     .card {
         background: var(--card);
         padding: 20px;
         border-radius: 22px;
-        box-shadow: 0 10px 25px var(--shadow);
-        margin-bottom: 25px;
-        animation: fadeIn 0.4s ease;
+        box-shadow: 0 10px 24px var(--shadow);
+        margin-bottom: 22px;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .card h2 {
+        margin: 0;
+        margin-bottom: 8px;
+        font-size: 1.35rem;
+    }
+
+    .card p {
+        margin: 6px 0;
+        font-size: 1.05rem;
+    }
+
+    .icon {
+        font-size: 1.4rem;
+        margin-right: 6px;
+        color: var(--accent);
+    }
+
+    button.refresh {
+        width: 100%;
+        margin-bottom: 20px;
+        padding: 14px;
+        border: none;
+        border-radius: 14px;
+        font-size: 1.15rem;
+        font-weight: 700;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+        box-shadow: 0 4px 12px var(--shadow);
     }
 
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    label {
-        font-weight: 600;
-        font-size: 0.95rem;
-        margin-top: 12px;
-        display: block;
-    }
-
-    input {
-        width: 100%;
-        padding: 10px 12px;
-        margin-top: 6px;
-        border-radius: 12px;
-        border: 1px solid #ccc;
-        font-size: 1rem;
-        background: var(--bg);
-        color: var(--text);
-    }
-
-    .tabs {
-        display: flex;
-        margin-bottom: 15px;
-        gap: 10px;
-    }
-
-    .tab {
-        flex: 1;
-        padding: 12px;
-        font-weight: 600;
-        border-radius: 14px;
-        background: var(--card);
-        text-align: center;
-        cursor: pointer;
-        box-shadow: 0 3px 10px var(--shadow);
-        transition: 0.15s;
-    }
-
-    .tab:hover {
-        transform: scale(1.02);
-    }
-
-    .tab.active {
-        background: var(--accent);
-        color: white;
-    }
-
-    .result-box {
-        padding: 15px;
-        margin-top: 20px;
-        border-radius: 14px;
-        font-size: 1.1rem;
-        text-align: center;
-        background: var(--bg);
-    }
-
-    .button {
-        width: 100%;
-        margin-top: 18px;
-        padding: 14px;
-        font-size: 1.1rem;
-        font-weight: 700;
-        border: none;
-        border-radius: 14px;
-        background: var(--accent);
-        color: #fff;
-        cursor: pointer;
-    }
-
-    .button i {
-        margin-right: 8px;
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
 </style>
 </head>
@@ -142,112 +100,133 @@
 <div class="app">
     <h1>🚇 Commute Dashboard</h1>
 
-    <div class="tabs">
-        <div class="tab active" id="driveTab">🚗 Drive</div>
-        <div class="tab" id="transitTab">🚆 N Line</div>
+    <button class="refresh" onclick="refreshAll()">
+        <i class="fa-solid fa-rotate-right"></i> Refresh All
+    </button>
+
+    <!-- Drive to work -->
+    <div class="card">
+        <h2><i class="fa-solid fa-car icon"></i>Drive → Work</h2>
+        <p id="driveToWork">Loading…</p>
     </div>
 
+    <!-- Drive home -->
     <div class="card">
-        <label>From:</label>
-        <input id="from" placeholder="123 Main St, SF">
+        <h2><i class="fa-solid fa-car-rear icon"></i>Drive → Home</h2>
+        <p id="driveHome">Loading…</p>
+    </div>
 
-        <label>To:</label>
-        <input id="to" placeholder="Work address">
+    <!-- Train to Union Station -->
+    <div class="card">
+        <h2><i class="fa-solid fa-train-subway icon"></i>N Line → Union Station</h2>
+        <p id="trainToWork">Loading…</p>
+    </div>
 
-        <button class="button" onclick="calculateTime()">
-            <i class="fa-solid fa-arrows-rotate"></i> Refresh
-        </button>
-
-        <div id="result" class="result-box">Enter a location to begin.</div>
+    <!-- Train home -->
+    <div class="card">
+        <h2><i class="fa-solid fa-train-tram icon"></i>N Line → Northglenn</h2>
+        <p id="trainHome">Loading…</p>
     </div>
 </div>
 
 <script>
-// YOUR API KEY:
 const API_KEY = "AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY";
 
-let mode = "drive";
+// YOUR PRESET COMMUTE DATA
+const HOME = "11625 Community Center Drive, Northglenn, CO 80233";
+const WORK = "707 17th Street, Denver, CO 80202";
+const N_ORIGIN = "Northglenn & 112th Station";
+const N_DEST = "Denver Union Station";
 
-// Tab switching
-document.getElementById("driveTab").onclick = () => {
-    mode = "drive";
-    setActiveTab();
-};
-document.getElementById("transitTab").onclick = () => {
-    mode = "transit";
-    setActiveTab();
-};
+// ========================
+// GOOGLE MATRIX (DRIVE)
+// ========================
+async function getDriveTime(origin, destination, elementId) {
+    const url =
+      `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origin)}&destinations=${encodeURIComponent(destination)}&mode=driving&departure_time=now&key=${API_KEY}`;
 
-function setActiveTab() {
-    document.getElementById("driveTab").classList.remove("active");
-    document.getElementById("transitTab").classList.remove("active");
-
-    if (mode === "drive") document.getElementById("driveTab").classList.add("active");
-    else document.getElementById("transitTab").classList.add("active");
-}
-
-async function calculateTime() {
-    const from = document.getElementById("from").value.trim();
-    const to = document.getElementById("to").value.trim();
-    const resultBox = document.getElementById("result");
-
-    if (!from || !to) {
-        resultBox.textContent = "Please enter both locations.";
-        return;
-    }
-
-    resultBox.textContent = "Loading…";
-
-    let url = "";
-
-    if (mode === "drive") {
-        url =
-            `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(from)}&destinations=${encodeURIComponent(to)}&mode=driving&departure_time=now&key=${API_KEY}`;
-    } else {
-        url =
-            `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&mode=transit&transit_mode=train&departure_time=now&key=${API_KEY}`;
-    }
+    document.getElementById(elementId).textContent = "Loading…";
 
     try {
-        const response = await fetch(url);
-        const data = await response.json();
+        const res = await fetch(url);
+        const data = await res.json();
+        const info = data?.rows?.[0]?.elements?.[0];
 
-        if (mode === "drive") {
-            const info = data.rows?.[0]?.elements?.[0];
-            if (info?.duration_in_traffic) {
-                resultBox.textContent = `🚗 Drive Time: ${info.duration_in_traffic.text}`;
-            } else {
-                resultBox.textContent = "Unable to fetch driving time.";
-            }
+        if (info?.duration_in_traffic) {
+            document.getElementById(elementId).textContent =
+                `${info.duration_in_traffic.text}`;
         } else {
-            // Transit - filter for N Judah train
-            const route = data.routes?.[0];
-            if (!route) {
-                resultBox.textContent = "No transit route found.";
-                return;
-            }
-
-            const legs = route.legs[0];
-            const steps = legs.steps;
-
-            const nLineStep = steps.find(
-                s =>
-                    s.transit_details &&
-                    (s.transit_details.line.short_name === "N" ||
-                     s.transit_details.line.name.includes("N"))
-            );
-
-            if (!nLineStep) {
-                resultBox.textContent = "⚠️ No N Line (N Judah) trains available right now.";
-                return;
-            }
-
-            resultBox.textContent = `🚆 N Line Time: ${legs.duration.text}`;
+            document.getElementById(elementId).textContent =
+                "No driving data.";
         }
-    } catch (err) {
-        resultBox.textContent = "Error retrieving commute data.";
+    } catch (e) {
+        document.getElementById(elementId).textContent = "Error loading drive time.";
     }
 }
+
+// ========================
+// GOOGLE DIRECTIONS (N LINE)
+// ========================
+async function getNLine(origin, destination, elementId) {
+    const url =
+      `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=transit&transit_mode=train&departure_time=now&key=${API_KEY}`;
+
+    document.getElementById(elementId).textContent = "Loading…";
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const route = data.routes?.[0];
+        if (!route) {
+            document.getElementById(elementId).textContent = "No route found.";
+            return;
+        }
+
+        const steps = route.legs[0].steps;
+
+        // Filter for N LINE ONLY
+        const nTrain = steps.find(
+            s =>
+                s.transit_details &&
+                (
+                  s.transit_details.line.short_name === "N" ||
+                  s.transit_details.line.name.includes("N Line")
+                )
+        );
+
+        if (!nTrain) {
+            document.getElementById(elementId).textContent =
+                "No N Line trains right now.";
+            return;
+        }
+
+        const dep = nTrain.transit_details.departure_time.text;
+        const arr = nTrain.transit_details.arrival_time.text;
+        const total = route.legs[0].duration.text;
+
+        document.getElementById(elementId).textContent =
+            `Departs ${dep} → Arrives ${arr} (${total})`;
+
+    } catch (e) {
+        document.getElementById(elementId).textContent =
+            "Error loading train info.";
+    }
+}
+
+// ========================
+// REFRESH ALL
+// ========================
+function refreshAll() {
+    getDriveTime(HOME, WORK, "driveToWork");
+    getDriveTime(WORK, HOME, "driveHome");
+
+    getNLine(N_ORIGIN, N_DEST, "trainToWork");
+    getNLine(N_DEST, N_ORIGIN, "trainHome");
+}
+
+// Load immediately
+refreshAll();
 </script>
 
 </body>
