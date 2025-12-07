@@ -6,41 +6,51 @@
 <title>Commute Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-:root {
+:root{
   --bg:#f0f2f5; --text:#111827; --card:#fff; --muted:#6b7280; --accent:#4f46e5;
   --success:#10b981; --warn:#facc15; --danger:#ef4444; --shadow:0 6px 18px rgba(15,23,42,0.08);
 }
-body.dark { --bg:#0f1724; --text:#f3f6fb; --card:#1e293b; --muted:#9ca3af;
-  --accent:#7c89ff; --success:#34d399; --warn:#fbbf24; --danger:#f87171; --shadow:0 8px 24px rgba(0,0,0,0.6);}
+body.dark{
+  --bg:#0f1724; --text:#f3f6fb; --card:#1e293b; --muted:#9ca3af;
+  --accent:#7c89ff; --success:#34d399; --warn:#fbbf24; --danger:#f87171; --shadow:0 8px 24px rgba(0,0,0,0.6);
+}
 *{box-sizing:border-box;}
 body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto; background:var(--bg); color:var(--text);}
 .app{max-width:640px;margin:auto;padding:16px; display:flex; flex-direction:column; gap:16px;}
-header{display:flex; justify-content:space-between; align-items:center;}
+header{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
 h1{margin:0; font-size:24px; font-weight:800;}
 .controls{display:flex; gap:8px;}
 .btn{padding:8px 14px; border-radius:12px; border:none; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:var(--shadow); transition:all 0.2s;}
 .btn:hover{transform:translateY(-2px);}
 .btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(0,0,0,0.08);}
-.grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));}
+.grid{display:grid; gap:16px;}
 .card{background:var(--card); border-radius:20px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:var(--shadow); transition:transform 0.2s, box-shadow 0.2s;}
 .card:hover{transform:translateY(-2px); box-shadow:0 12px 24px rgba(15,23,42,0.15);}
-.top-row, .status-row, .direction-row{display:flex; gap:12px; flex-wrap:wrap;}
+.top-row{display:flex; align-items:center; gap:14px;}
 .left{width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:24px; color:#fff; flex-shrink:0;}
 .big{font-weight:700; font-size:18px; margin-top:4px;}
 .muted{color:var(--muted); font-size:13px;}
-.pill{padding:6px 14px; border-radius:999px; font-weight:600; font-size:14px; min-width:50px; text-align:center;}
-.direction-col{flex:1; min-width:160px; display:flex; flex-direction:column; gap:12px; padding:12px; border-radius:16px; background:rgba(0,0,0,0.03);}
-body.dark .direction-col{background:rgba(255,255,255,0.05);}
-.progress-bar{height:8px; border-radius:8px; background:rgba(0,0,0,0.1); overflow:hidden;}
-.progress-fill{height:100%; width:0%; background:var(--success); transition:width 0.6s ease, background 0.6s ease;}
+.status-row{display:flex; gap:10px; flex-wrap:wrap;}
+.pill{padding:6px 14px; border-radius:999px; font-weight:600; font-size:14px; transition:all 0.3s; min-width:50px; text-align:center;}
+.radio-group{display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;}
+.icon-weather{background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937;}
+.icon-commute{background:linear-gradient(135deg,#60a5fa,#4f46e5);}
 .timeline{display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;}
 .timeline-item{display:flex; justify-content:space-between; align-items:center; padding:6px 12px; border-radius:12px; font-size:14px; font-weight:600; transition:all 0.3s;}
 .timeline-item.green{background:var(--success); color:#fff;}
 .timeline-item.yellow{background:var(--warn); color:#111;}
 .timeline-item.red{background:var(--danger); color:#fff;}
+footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
+.commute-section{display:flex; flex-direction:column; gap:16px;}
+.commute-header{display:flex; align-items:center; gap:12px;}
+.commute-header h3{margin:0;font-size:18px;font-weight:700;}
+.direction-row{display:flex; justify-content:space-between; flex-wrap:wrap; gap:24px;}
+.direction-col{flex:1; min-width:160px; display:flex; flex-direction:column; gap:12px; padding:12px; border-radius:16px; background:rgba(0,0,0,0.03);}
+body.dark .direction-col{background:rgba(255,255,255,0.05);}
+.progress-bar{height:8px; border-radius:8px; background:rgba(0,0,0,0.1); margin-top:4px; overflow:hidden;}
+.progress-fill{height:100%; width:0%; background:var(--success); transition:width 0.6s ease, background 0.6s ease;}
 .link-btn{display:inline-block;margin-top:6px;color:var(--accent);font-weight:600;text-decoration:none;}
 .link-btn:hover{text-decoration:underline;}
-footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
 </style>
 </head>
 <body>
@@ -55,8 +65,10 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
       <button class="btn ghost" id="themeToggle">Toggle Theme</button>
     </div>
   </header>
+
   <main class="grid">
-    <!-- Weather -->
+
+    <!-- Weather Card -->
     <section class="card">
       <div class="top-row">
         <div class="left icon-weather" id="weatherIcon">☀️</div>
@@ -72,9 +84,10 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
         <div class="pill" id="weatherHumidity">—</div>
       </div>
     </section>
-    <!-- Drive -->
+
+    <!-- Drive Card -->
     <section class="card commute-section">
-      <div class="top-row">
+      <div class="commute-header">
         <div class="left icon-commute">🚗</div>
         <h3>Drive</h3>
       </div>
@@ -92,33 +105,35 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
         </div>
       </div>
     </section>
-    <!-- Transit -->
+
+    <!-- Transit Card -->
     <section class="card commute-section">
-      <div class="top-row">
+      <div class="commute-header">
         <div class="left icon-commute">🚉</div>
         <h3>Transit (N Line)</h3>
       </div>
       <div class="direction-row">
         <div class="direction-col">
-          <strong>Southbound</strong>
+          <div><strong>Southbound</strong></div>
           <div>Next Trains: <span id="trainToWork">Loading…</span></div>
           <div class="timeline" id="trainToWorkTimeline"></div>
           <a href="https://app.rtd-denver.com/route/N/schedule" target="_blank" class="link-btn">View Full Schedule</a>
         </div>
         <div class="direction-col">
-          <strong>Northbound</strong>
+          <div><strong>Northbound</strong></div>
           <div>Next Trains: <span id="trainToHome">Loading…</span></div>
           <div class="timeline" id="trainToHomeTimeline"></div>
           <a href="https://app.rtd-denver.com/route/N/schedule" target="_blank" class="link-btn">View Full Schedule</a>
         </div>
       </div>
     </section>
+
   </main>
+
   <footer>Auto-refresh every 10 minutes • Click refresh anytime</footer>
 </div>
 
 <script>
-/* ---------------- Constants ---------------- */
 const OPENWEATHER_API_KEY='1c91f81f2adfd1b633d19842869a1a11';
 const GOOGLE_MAPS_API_KEY='AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
 const HOME='11625 Community Center Drive, Northglenn, CO 80233';
@@ -126,107 +141,159 @@ const WORK='707 17th Street, Denver, CO 80202';
 const N_ORIGIN='112th & Northglenn Station, Northglenn, CO';
 const N_DEST='Denver Union Station, Denver, CO';
 
-/* ---------------- DOM Elements ---------------- */
-const DOM = {};
-['weatherTemp','weatherDesc','weatherIcon','weatherFeels','weatherWind','weatherHumidity',
- 'driveToWork','driveToHome','driveToWorkBar','driveToHomeBar',
- 'trainToWork','trainToHome','trainToWorkTimeline','trainToHomeTimeline','dayTime',
- 'avoidHighways','driveToWorkBtn','driveToHomeBtn','refreshBtn','themeToggle']
-.forEach(id => DOM[id] = document.getElementById(id));
+const el={ weatherTemp:document.getElementById('weatherTemp'),
+           weatherDesc:document.getElementById('weatherDesc'),
+           weatherIcon:document.getElementById('weatherIcon'),
+           weatherFeels:document.getElementById('weatherFeels'),
+           weatherWind:document.getElementById('weatherWind'),
+           weatherHumidity:document.getElementById('weatherHumidity'),
+           driveToWork:document.getElementById('driveToWork'),
+           driveToHome:document.getElementById('driveToHome'),
+           driveToWorkBar:document.getElementById('driveToWorkBar'),
+           driveToHomeBar:document.getElementById('driveToHomeBar'),
+           trainToWork:document.getElementById('trainToWork'),
+           trainToHome:document.getElementById('trainToHome'),
+           trainToWorkTimeline:document.getElementById('trainToWorkTimeline'),
+           trainToHomeTimeline:document.getElementById('trainToHomeTimeline'),
+           dayTime:document.getElementById('dayTime'),
+           avoidHighways:document.getElementById('avoidHighways'),
+           driveToWorkBtn:document.getElementById('driveToWorkBtn'),
+           driveToHomeBtn:document.getElementById('driveToHomeBtn')};
 
-let directionsService = null;
-let transitIntervals = {};
+let directionsService=null;
+let trainIntervals=[];
 
-/* ---------------- Helpers ---------------- */
-function setText(el,text){ if(el) el.textContent=text; }
-function formatTime(d){ return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
-function getPartOfDay(){ const h=new Date().getHours(); return h<12?'Morning':h<17?'Afternoon':'Evening'; }
-function setProgress(fillEl,mins){ fillEl.style.width=Math.min(Math.max((mins/60)*100,0),100)+'%';
-  fillEl.style.backgroundColor=mins<=20?'var(--success)':mins<=40?'var(--warn)':'var(--danger)';}
+function safeSet(el,val){ if(el) el.textContent=val; }
 
-/* ---------------- Weather ---------------- */
-async function updateWeather(){
+function updateDayTime(){
+  const now=new Date();
+  let part='Morning';
+  if(now.getHours()>=12 && now.getHours()<17) part='Afternoon';
+  else if(now.getHours()>=17) part='Evening';
+  el.dayTime.textContent=`${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`;
+}
+
+async function fetchWeather(){
   try{
     const res=await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Denver,US&units=imperial&appid=${OPENWEATHER_API_KEY}`);
     const data=await res.json();
-    setText(DOM.weatherTemp,Math.round(data.main.temp)+'°F');
-    setText(DOM.weatherDesc,(data.weather?.[0]?.description||'—').replace(/^./,s=>s.toUpperCase()));
-    setText(DOM.weatherFeels,'Feels: '+Math.round(data.main.feels_like)+'°F');
-    setText(DOM.weatherWind,'Wind: '+Math.round(data.wind.speed)+' mph');
-    setText(DOM.weatherHumidity,'Humidity: '+data.main.humidity+'%');
-    if(data.weather?.[0]?.icon){
-      DOM.weatherIcon.innerHTML='';
+    const temp=Math.round(data.main.temp)+'°F';
+    const desc=data.weather?.[0]?.description ?? '—';
+    const icon=data.weather?.[0]?.icon;
+    const feels=Math.round(data.main.feels_like)+'°F';
+    const wind=`${Math.round(data.wind.speed)} mph`;
+    const humidity=`${data.main.humidity}%`;
+    safeSet(el.weatherTemp,temp);
+    safeSet(el.weatherDesc,desc[0].toUpperCase()+desc.slice(1));
+    safeSet(el.weatherFeels,`Feels: ${feels}`);
+    safeSet(el.weatherWind,`Wind: ${wind}`);
+    safeSet(el.weatherHumidity,`Humidity: ${humidity}`);
+    if(icon){
+      el.weatherIcon.innerHTML='';
       const img=document.createElement('img');
-      img.src=`https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
-      img.alt=data.weather[0].description;
-      img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px';
-      DOM.weatherIcon.appendChild(img);
+      img.src=`https://openweathermap.org/img/wn/${icon}@2x.png`;
+      img.alt=desc; img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px';
+      el.weatherIcon.appendChild(img);
     }
-  }catch(e){ console.error(e); setText(DOM.weatherTemp,'Error'); }
+  }catch(err){ console.error(err); safeSet(el.weatherTemp,'Error'); }
 }
 
-/* ---------------- Drive ---------------- */
 function updateDrive(origin,destination,etaEl,fillEl,mapBtnEl){
-  if(!directionsService){ setText(etaEl,'Maps not ready'); return; }
-  setText(etaEl,'Calculating…'); fillEl.style.width='0%';
+  if(!directionsService){ safeSet(etaEl,'Maps not ready'); return; }
+  safeSet(etaEl,'Calculating…');
+  fillEl.style.width='0%';
   directionsService.route({
-    origin,destination, travelMode: google.maps.TravelMode.DRIVING,
+    origin,destination,
+    travelMode: google.maps.TravelMode.DRIVING,
     drivingOptions:{departureTime:new Date(),trafficModel:'bestguess'},
-    avoidHighways: DOM.avoidHighways.checked
-  },(res,status)=>{
-    if(status!=='OK'){ setText(etaEl,'Error'); return; }
-    const leg=res.routes[0].legs[0];
-    const mins=(leg.duration_in_traffic?.value||leg.duration?.value)/60;
-    setText(etaEl,leg.duration_in_traffic?.text||leg.duration.text||'N/A');
-    setProgress(fillEl,mins);
-    if(mapBtnEl) mapBtnEl.href=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving${DOM.avoidHighways.checked?'&avoid=highways':''}`;
+    avoidHighways:el.avoidHighways.checked
+  },(result,status)=>{
+    if(status!=='OK'){ console.error(status,status); safeSet(etaEl,'Error'); return; }
+    const leg=result.routes[0].legs[0];
+    const mins=leg.duration_in_traffic?.value/60||leg.duration?.value/60;
+    safeSet(etaEl,leg.duration_in_traffic?.text||leg.duration.text||'N/A');
+    const pct=Math.min(Math.max((mins/60)*100,0),100);
+    fillEl.style.width=pct+'%';
+    fillEl.style.backgroundColor=mins<=20?'var(--success)':mins<=40?'var(--warn)':'var(--danger)';
+    if(mapBtnEl) mapBtnEl.href=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving${el.avoidHighways.checked?'&avoid=highways':''}`;
   });
 }
 
-/* ---------------- Transit ---------------- */
-function updateTransit(origin,destination,elDisplay,elTimeline){
-  if(!directionsService){ setText(elDisplay,'Maps not ready'); return; }
-  setText(elDisplay,'Calculating…'); elTimeline.innerHTML='';
+function updateTransit(origin,destination,displayEl,timelineEl){
+  if(!directionsService){ safeSet(displayEl,'Maps not ready'); return; }
+  safeSet(displayEl,'Loading…');
   directionsService.route({
-    origin,destination, travelMode: google.maps.TravelMode.TRANSIT,
-    transitOptions: {departureTime: new Date()}
-  },(res,status)=>{
-    if(status!=='OK'){ console.error(status,status); setText(elDisplay,'Error'); return; }
-    const legs=res.routes[0].legs[0].steps.filter(s=>s.travel_mode==='TRANSIT');
-    elTimeline.innerHTML='';
-    const times=[];
-    legs.forEach(step=>{
-      const dep=new Date(step.transit.departure_time.value);
-      const arr=new Date(step.transit.arrival_time.value);
-      const lineName=step.transit.line.short_name || step.transit.line.name;
-      const div=document.createElement('div');
-      div.className='timeline-item green';
-      div.textContent=`${lineName}: ${formatTime(dep)} → ${formatTime(arr)} (${step.transit.num_stops} stops)`;
-      elTimeline.appendChild(div);
-      times.push(formatTime(dep));
-    });
-    setText(elDisplay,times.join(' | '));
+    origin,destination,
+    travelMode: google.maps.TravelMode.TRANSIT,
+    transitOptions:{modes:[google.maps.TransitMode.RAIL]},
+    provideRouteAlternatives:true
+  },(result,status)=>{
+    if(status!=='OK'){ console.error(status,status); safeSet(displayEl,'Error'); return; }
+    const upcoming=[];
+    for(const route of result.routes){
+      const leg=route.legs[0];
+      for(const step of leg.steps){
+        if(step.travel_mode==='TRANSIT'){
+          const line=step.transit.line;
+          const lineName=(line.short_name||line.name||'').toUpperCase();
+          if(lineName.includes('N')){ // Filter N Line only
+            const dep=new Date(step.transit.departure_time.value);
+            const arr=new Date(step.transit.arrival_time.value);
+            upcoming.push({dep,arr});
+          }
+        }
+      }
+    }
+    if(upcoming.length===0){ safeSet(displayEl,'No upcoming N Line trains'); timelineEl.innerHTML=''; return; }
+    upcoming.sort((a,b)=>a.dep-b.dep);
+    const nextTrains=upcoming.slice(0,3);
+    function updateTimeline(){
+      timelineEl.innerHTML='';
+      const now=new Date();
+      const labels=nextTrains.map(u=>{
+        const diff=Math.max(0,u.dep-now);
+        const min=Math.floor(diff/60000);
+        const sec=Math.floor((diff%60000)/1000);
+        const div=document.createElement('div');
+        div.className='timeline-item '+(min<=5?'red':(min<=15?'yellow':'green'));
+        div.textContent=`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} | Next: ${min}m ${sec}s`;
+        timelineEl.appendChild(div);
+        return div;
+      });
+      displayEl.textContent=nextTrains.map(u=>u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})).join(' | ');
+    }
+    updateTimeline();
+    trainIntervals.forEach(i=>clearInterval(i));
+    trainIntervals=[];
+    trainIntervals.push(setInterval(updateTimeline,1000));
   });
 }
 
-/* ---------------- Refresh ---------------- */
 function refreshAll(){
-  DOM.dayTime.textContent=`${new Date().toLocaleDateString(undefined,{weekday:'long'})}, ${getPartOfDay()}`;
-  updateWeather();
-  updateDrive(HOME,WORK,DOM.driveToWork,DOM.driveToWorkBar,DOM.driveToWorkBtn);
-  updateDrive(WORK,HOME,DOM.driveToHome,DOM.driveToHomeBar,DOM.driveToHomeBtn);
-  updateTransit(N_ORIGIN,N_DEST,DOM.trainToWork,DOM.trainToWorkTimeline);
-  updateTransit(N_DEST,N_ORIGIN,DOM.trainToHome,DOM.trainToHomeTimeline);
+  updateDayTime();
+  fetchWeather();
+  updateDrive(HOME,WORK,el.driveToWork,el.driveToWorkBar,el.driveToWorkBtn);
+  updateDrive(WORK,HOME,el.driveToHome,el.driveToHomeBar,el.driveToHomeBtn);
+  updateTransit(N_ORIGIN,N_DEST,el.trainToWork,el.trainToWorkTimeline);
+  updateTransit(N_DEST,N_ORIGIN,el.trainToHome,el.trainToHomeTimeline);
 }
 
-/* ---------------- Events ---------------- */
-DOM.refreshBtn.addEventListener('click',refreshAll);
-DOM.themeToggle.addEventListener('click',()=>document.body.classList.toggle('dark'));
-DOM.avoidHighways.addEventListener('change',refreshAll);
+document.getElementById('refreshBtn').addEventListener('click',refreshAll);
+document.getElementById('themeToggle').addEventListener('click',()=>document.body.classList.toggle('dark'));
+el.avoidHighways.addEventListener('change',()=>refreshAll());
 
-/* ---------------- Google Maps ---------------- */
-function initMap(){ directionsService=new google.maps.DirectionsService(); refreshAll(); setInterval(refreshAll,10*60*1000);}
-(function(){ const script=document.createElement('script'); script.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`; script.async=true; script.defer=true; document.head.appendChild(script);})();
+function initMap(){
+  directionsService=new google.maps.DirectionsService();
+  refreshAll();
+  setInterval(refreshAll,10*60*1000);
+}
+
+(function loadGoogleMaps(){
+  const script=document.createElement('script');
+  script.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
+  script.async=true; script.defer=true;
+  document.head.appendChild(script);
+})();
 </script>
 </body>
 </html>
