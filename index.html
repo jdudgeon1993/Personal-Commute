@@ -1,307 +1,360 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Commute Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#f0f2f5; --text:#111827; --card:#fff; --muted:#6b7280; --accent:#4f46e5;
-  --success:#10b981; --warn:#facc15; --danger:#ef4444; --shadow:0 6px 18px rgba(15,23,42,0.08);
-}
-body.dark{
-  --bg:#0f1724; --text:#f3f6fb; --card:#1e293b; --muted:#9ca3af;
-  --accent:#7c89ff; --success:#34d399; --warn:#fbbf24; --danger:#f87171; --shadow:0 8px 24px rgba(0,0,0,0.6);
-}
-*{box-sizing:border-box;}
-body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto; background:var(--bg); color:var(--text);}
-.app{max-width:640px;margin:auto;padding:16px; display:flex; flex-direction:column; gap:16px;}
-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
-h1{margin:0; font-size:24px; font-weight:800;}
-.controls{display:flex; gap:8px;}
-.btn{padding:8px 14px; border-radius:12px; border:none; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:var(--shadow); transition:all 0.2s;}
-.btn:hover{transform:translateY(-2px);}
-.btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(0,0,0,0.08);}
-.grid{display:grid; gap:16px;}
-.card{background:var(--card); border-radius:20px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:var(--shadow); transition:transform 0.2s, box-shadow 0.2s;}
-.card:hover{transform:translateY(-2px); box-shadow:0 12px 24px rgba(15,23,42,0.15);}
-.top-row{display:flex; align-items:center; gap:14px;}
-.left{width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:24px; color:#fff; flex-shrink:0;}
-.big{font-weight:700; font-size:18px; margin-top:4px;}
-.muted{color:var(--muted); font-size:13px;}
-.status-row{display:flex; gap:10px; flex-wrap:wrap;}
-.pill{padding:6px 14px; border-radius:999px; font-weight:600; font-size:14px; transition:all 0.3s; min-width:50px; text-align:center;}
-.radio-group{display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;}
-.icon-weather{background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937;}
-.icon-commute{background:linear-gradient(135deg,#60a5fa,#4f46e5);}
-.icon-alert{background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff;}
-.timeline{display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;}
-.timeline-item{display:flex; justify-content:space-between; align-items:center; padding:6px 12px; border-radius:12px; font-size:14px; font-weight:600; transition:all 0.3s;}
-.timeline-item.green{background:var(--success); color:#fff;}
-.timeline-item.yellow{background:var(--warn); color:#111;}
-.timeline-item.red{background:var(--danger); color:#fff;}
-footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
-.commute-section{display:flex; flex-direction:column; gap:16px;}
-.commute-header{display:flex; align-items:center; gap:12px;}
-.commute-header h3{margin:0;font-size:18px;font-weight:700;}
-.direction-row{display:flex; justify-content:space-between; flex-wrap:wrap; gap:24px;}
-.direction-col{flex:1; min-width:160px; display:flex; flex-direction:column; gap:12px; padding:12px; border-radius:16px; background:rgba(0,0,0,0.03);}
-body.dark .direction-col{background:rgba(255,255,255,0.05);}
-.progress-bar{height:8px; border-radius:8px; background:rgba(0,0,0,0.1); margin-top:4px; overflow:hidden;}
-.progress-fill{height:100%; width:0%; background:var(--success); transition:width 0.6s ease, background 0.6s ease;}
+    :root {
+        --bg: #f3f3f7;
+        --card: #ffffff;
+        --text: #2b2b2b;
+        --subtext: #666;
+        --accent: #4a90e2;
+        --accent-soft: rgba(74,144,226,0.12);
+        --border: #e5e5e5;
+
+        /* Dark theme */
+        --bg-dark: #0f0f10;
+        --card-dark: #1a1b1e;
+        --text-dark: #ededed;
+        --subtext-dark: #999;
+        --border-dark: #2a2a2a;
+    }
+
+    body {
+        margin: 0;
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        transition: background 0.3s, color 0.3s;
+    }
+    body.dark {
+        background: var(--bg-dark);
+        color: var(--text-dark);
+    }
+
+    h2 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1.35rem;
+    }
+
+    .container {
+        max-width: 1100px;
+        margin: auto;
+        padding: 20px;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    @media (min-width: 800px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    .card {
+        position: relative;
+        background: var(--card);
+        border-radius: 14px;
+        padding: 18px 20px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.07);
+        border: 1px solid var(--border);
+        transition: background 0.3s, border 0.3s;
+    }
+    body.dark .card {
+        background: var(--card-dark);
+        border: 1px solid var(--border-dark);
+    }
+
+    /* Right side status bar */
+    .status-bar {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 8px;
+        height: 100%;
+        border-radius: 0 14px 14px 0;
+        background: gray; /* default */
+    }
+
+    /* Radio segmented control */
+    .route-options {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+    }
+    .route-options label {
+        flex: 1;
+        background: var(--accent-soft);
+        padding: 8px 10px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: 0.25s;
+        border: 1px solid transparent;
+    }
+    body.dark .route-options label {
+        background: rgba(255,255,255,0.06);
+    }
+    .route-options input {
+        display: none;
+    }
+    .route-options input:checked + label {
+        background: var(--accent);
+        color: white;
+        border-color: rgba(0,0,0,0.15);
+    }
+
+    .section {
+        margin-top: 16px;
+        border-top: 1px solid var(--border);
+        padding-top: 14px;
+    }
+    body.dark .section {
+        border-color: var(--border-dark);
+    }
+
+    .row {
+        display: flex;
+        justify-content: space-between;
+        margin: 6px 0;
+    }
+
+    .label {
+        font-size: 0.9rem;
+        color: var(--subtext);
+    }
+    body.dark .label {
+        color: var(--subtext-dark);
+    }
+
+    .value {
+        font-weight: 600;
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+        text-align: right;
+        margin-bottom: 15px;
+    }
+    .theme-toggle button {
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: none;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div>
-      <h1>Commute Dashboard</h1>
-      <div class="muted" id="dayTime">Loading…</div>
+
+<div class="container">
+
+    <div class="theme-toggle">
+        <button onclick="toggleTheme()">Toggle Theme</button>
     </div>
-    <div class="controls">
-      <button class="btn" id="refreshBtn">⟳ Refresh</button>
-      <button class="btn ghost" id="themeToggle">Toggle Theme</button>
+
+    <div class="dashboard-grid">
+
+        <!-- DRIVE CARD -->
+        <div class="card" id="driveCard">
+            <div class="status-bar" id="driveStatus"></div>
+
+            <h2>Drive</h2>
+
+            <!-- Route options -->
+            <div class="route-options">
+                <input type="radio" name="route" id="fast" checked value="best">
+                <label for="fast">Fastest Route</label>
+
+                <input type="radio" name="route" id="noHighway" value="avoidHighways">
+                <label for="noHighway">Avoid Highways</label>
+            </div>
+
+            <div class="section">
+                <div class="label">To Work (Home → Downtown)</div>
+                <div class="row">
+                    <div class="label">ETA:</div>
+                    <div class="value" id="driveToWork">Loading…</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="label">To Home (Downtown → Home)</div>
+                <div class="row">
+                    <div class="label">ETA:</div>
+                    <div class="value" id="driveToHome">Loading…</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRANSIT CARD -->
+        <div class="card" id="transitCard">
+            <div class="status-bar" id="transitStatus"></div>
+
+            <h2>N Line Transit</h2>
+
+            <div class="section">
+                <div class="label">Southbound (112th → Union Station)</div>
+                <div class="row">
+                    <div class="label">Next Train:</div>
+                    <div class="value" id="sbNext">Loading…</div>
+                </div>
+                <div class="row">
+                    <div class="label">Countdown:</div>
+                    <div class="value" id="sbCountdown">—</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="label">Northbound (Union Station → 112th)</div>
+                <div class="row">
+                    <div class="label">Next Train:</div>
+                    <div class="value" id="nbNext">Loading…</div>
+                </div>
+                <div class="row">
+                    <div class="label">Countdown:</div>
+                    <div class="value" id="nbCountdown">—</div>
+                </div>
+            </div>
+        </div>
+
     </div>
-  </header>
-
-  <main class="grid">
-
-    <!-- Weather Card -->
-    <section class="card">
-      <div class="top-row">
-        <div class="left icon-weather" id="weatherIcon">☀️</div>
-        <div style="flex:1">
-          <h3>Weather — Denver</h3>
-          <div class="big" id="weatherTemp">Loading…</div>
-          <div class="muted" id="weatherDesc"></div>
-        </div>
-      </div>
-      <div class="status-row">
-        <div class="pill" id="weatherFeels">—</div>
-        <div class="pill" id="weatherWind">—</div>
-        <div class="pill" id="weatherHumidity">—</div>
-      </div>
-    </section>
-
-    <!-- Drive Card -->
-    <section class="card commute-section">
-      <div class="commute-header">
-        <div class="left icon-commute">🚗</div>
-        <h3>Drive</h3>
-      </div>
-      <div class="direction-row">
-        <div class="direction-col">
-          <div>To Work: <span id="driveToWork">Loading…</span></div>
-          <div class="progress-bar"><div class="progress-fill" id="driveToWorkBar"></div></div>
-          <div class="radio-group">
-            <label><input type="radio" name="driveOpt" value="false" checked> Use Highways</label>
-            <label><input type="radio" name="driveOpt" value="true"> Avoid Highways</label>
-          </div>
-        </div>
-        <div class="direction-col">
-          <div>To Home: <span id="driveToHome">Loading…</span></div>
-          <div class="progress-bar"><div class="progress-fill" id="driveToHomeBar"></div></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Transit Card -->
-    <section class="card commute-section">
-      <div class="commute-header">
-        <div class="left icon-commute">🚉</div>
-        <h3>Transit (N Line)</h3>
-      </div>
-      <div class="direction-row">
-        <div class="direction-col">
-          <div><strong>To Work</strong></div>
-          <div>Next Train: <span id="trainToWork">Loading…</span></div>
-          <div class="timeline" id="trainToWorkTimeline"></div>
-        </div>
-        <div class="direction-col">
-          <div><strong>To Home</strong></div>
-          <div>Next Train: <span id="trainToHome">Loading…</span></div>
-          <div class="timeline" id="trainToHomeTimeline"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Alerts Card -->
-    <section class="card">
-      <div class="top-row">
-        <div class="left icon-alert">⚠️</div>
-        <div>
-          <h3>Alerts</h3>
-          <div class="muted" id="alertsText">No alerts</div>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <footer>Auto-refresh every 3 minutes • Click refresh anytime</footer>
 </div>
 
 <script>
-const OPENWEATHER_API_KEY='1c91f81f2adfd1b633d19842869a1a11';
-const GOOGLE_MAPS_API_KEY='AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
-const HOME='11625 Community Center Drive, Northglenn, CO 80233';
-const WORK='707 17th Street, Denver, CO 80202';
-const N_ORIGIN='112th & Northglenn Station, Northglenn, CO';
-const N_DEST='Denver Union Station, Denver, CO';
+/* -------------------------------
+   SETTINGS
+-------------------------------- */
+const WEATHER_API = "REPLACE_WITH_YOUR_OPENWEATHER_KEY";
+const GOOGLE_KEY = "REPLACE_WITH_YOUR_GOOGLE_MAPS_KEY";
 
-const TRAIN_LABELS={
-  TO_WORK:'112th & Northglenn → Denver Union Station',
-  TO_HOME:'Denver Union Station → 112th & Northglenn'
-};
+// Addresses
+const home = "11625 Community Center Dr, Northglenn CO 80233";
+const work = "707 17th St, Denver CO 80202";
 
-const weatherTempEl=document.getElementById('weatherTemp');
-const weatherDescEl=document.getElementById('weatherDesc');
-const weatherIconEl=document.getElementById('weatherIcon');
-const weatherFeelsEl=document.getElementById('weatherFeels');
-const weatherWindEl=document.getElementById('weatherWind');
-const weatherHumidityEl=document.getElementById('weatherHumidity');
-const driveToWorkEl=document.getElementById('driveToWork');
-const driveToHomeEl=document.getElementById('driveToHome');
-const driveToWorkBar=document.getElementById('driveToWorkBar');
-const driveToHomeBar=document.getElementById('driveToHomeBar');
-const trainToWorkEl=document.getElementById('trainToWork');
-const trainToHomeEl=document.getElementById('trainToHome');
-const trainToWorkTimeline=document.getElementById('trainToWorkTimeline');
-const trainToHomeTimeline=document.getElementById('trainToHomeTimeline');
-const dayTimeEl=document.getElementById('dayTime');
-const alertsText=document.getElementById('alertsText');
+const station112 = "112th & York Pkwy Station, Northglenn CO";
+const union = "Denver Union Station, Denver CO";
 
-let directionsService=null;
-let trainIntervals=[];
-
-function updateDayTime(){
-  const now=new Date();
-  const hours=now.getHours();
-  let part='Morning';
-  if(hours>=12 && hours<17) part='Afternoon';
-  else if(hours>=17) part='Evening';
-  dayTimeEl.textContent=`${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`;
+/* -------------------------------
+   THEME TOGGLE
+-------------------------------- */
+function toggleTheme() {
+    document.body.classList.toggle("dark");
 }
 
-async function fetchWeather(){
-  try{
-    const res=await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Denver,US&units=imperial&appid=${OPENWEATHER_API_KEY}`);
-    const data=await res.json();
-    const temp=Math.round(data.main.temp)+'°F';
-    const desc=data.weather?.[0]?.description??'—';
-    const icon=data.weather?.[0]?.icon;
-    const feels=Math.round(data.main.feels_like)+'°F';
-    const wind=`${Math.round(data.wind.speed)} mph`;
-    const humidity=`${data.main.humidity}%`;
-    weatherTempEl.textContent=temp;
-    weatherDescEl.textContent=desc[0].toUpperCase()+desc.slice(1);
-    weatherFeelsEl.textContent=`Feels: ${feels}`;
-    weatherWindEl.textContent=`Wind: ${wind}`;
-    weatherHumidityEl.textContent=`Humidity: ${humidity}`;
-    if(icon){
-      weatherIconEl.textContent='';
-      const img=document.createElement('img');
-      img.src=`https://openweathermap.org/img/wn/${icon}@2x.png`;
-      img.alt=desc;
-      img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px';
-      weatherIconEl.appendChild(img);
+/* -------------------------------
+   DRIVE TIME FETCHER
+-------------------------------- */
+async function fetchDrive(from, to, routingPref) {
+    const avoid = routingPref === "avoidHighways" ? "&avoid=highways" : "";
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}${avoid}&departure_time=now&key=${GOOGLE_KEY}`;
+
+    const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+
+    try {
+        const r = await fetch(proxy);
+        const data = await r.json();
+
+        if (!data.routes || !data.routes[0] || !data.routes[0].legs) return null;
+
+        return data.routes[0].legs[0].duration_in_traffic.text;
+    } catch (e) {
+        return null;
     }
-  }catch(err){console.error(err); weatherTempEl.textContent='Error loading weather';}
 }
 
-function getDriveTime(origin,destination,el,bar,avoidHighways){
-  if(!directionsService){el.textContent='Maps service not ready'; return;}
-  el.textContent='Calculating…';
-  bar.style.width='0%';
-  directionsService.route({
-    origin,destination,travelMode: google.maps.TravelMode.DRIVING,
-    drivingOptions:{departureTime:new Date(),trafficModel:'bestguess'},
-    avoidHighways
-  },(result,status)=>{
-    if(status!=='OK'){el.textContent='Error'; console.error(status); return;}
-    const leg=result.routes[0].legs[0];
-    const mins=leg.duration_in_traffic?.value/60||leg.duration?.value/60;
-    el.textContent=leg.duration_in_traffic?.text||leg.duration.text||'N/A';
-    const pct=Math.min(Math.max((mins/60)*100,0),100);
-    bar.style.width=pct+'%';
-    if(mins<=20) bar.style.backgroundColor='var(--success)';
-    else if(mins<=40) bar.style.backgroundColor='var(--warn)';
-    else bar.style.backgroundColor='var(--danger)';
-  });
+/* -------------------------------
+   TRANSIT TIME (Simplified Demo)
+-------------------------------- */
+function getFakeTrainTime(offsetMin) {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + offsetMin);
+    return now;
 }
 
-function updateTrainTimeline(upcoming,timelineEl){
-  timelineEl.innerHTML='';
-  upcoming.forEach(u=>{
-    const diff=Math.max(0,u.dep-new Date());
-    const min=Math.floor(diff/60000);
-    const sec=Math.floor((diff%60000)/1000);
-    const item=document.createElement('div'); 
-    item.className='timeline-item';
-    if(min<=5)item.classList.add('red');
-    else if(min<=15)item.classList.add('yellow');
-    else item.classList.add('green');
-    item.textContent=`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} | Next: ${min}m ${sec}s`;
-    timelineEl.appendChild(item);
-  });
+function formatTime(d) {
+    return d.toLocaleTimeString([], {hour: "numeric", minute:"2-digit"});
 }
 
-function getNLine(origin,destination,el,timelineEl,label){
-  if(!directionsService){el.textContent='Maps service not ready'; return;}
-  el.textContent='Searching N Line…';
-  timelineEl.innerHTML='';
-  directionsService.route({
-    origin,destination,travelMode: google.maps.TravelMode.TRANSIT,
-    transitOptions:{modes:['RAIL']}, provideRouteAlternatives:false
-  },(result,status)=>{
-    if(status!=='OK'){el.textContent='Error'; return;}
-    const leg=result.routes[0].legs[0];
-    const steps=leg.steps.filter(s=>s.transit && s.transit.line && (String(s.transit.line.short_name)==='N' || /N/.test(s.transit.line.name)));
-    if(!steps.length){el.textContent='No N Line trains now'; return;}
-    const upcoming=[];
-    steps.slice(0,3).forEach(step=>{
-      const dep=new Date(step.transit.departure_time.value);
-      const arr=new Date(step.transit.arrival_time.value);
-      upcoming.push({dep,arr,headsign:step.transit.headsign||step.transit.line.short_name});
-    });
-    el.textContent = label + " | " + upcoming.map(u=>`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`).join(' | ');
-    updateTrainTimeline(upcoming,timelineEl);
-    trainIntervals.forEach(i=>clearInterval(i));
-    trainIntervals=[];
-    upcoming.forEach(u=>{
-      const interval=setInterval(()=>updateTrainTimeline(upcoming,timelineEl),1000);
-      trainIntervals.push(interval);
-    });
-  });
+function countdown(d) {
+    const diff = (d - new Date())/60000;
+    return Math.max(0, diff).toFixed(0) + " min";
 }
 
-function refreshAll(){
-  updateDayTime();
-  fetchWeather();
-  const avoidHighways=document.querySelector(`input[name="driveOpt"]:checked`).value==='true';
-  getDriveTime(HOME,WORK,driveToWorkEl,driveToWorkBar,avoidHighways);
-  getDriveTime(WORK,HOME,driveToHomeEl,driveToHomeBar,avoidHighways);
-  getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkTimeline,TRAIN_LABELS.TO_WORK);
-  getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeTimeline,TRAIN_LABELS.TO_HOME);
-  alertsText.textContent="No alerts at this time";
+/* -------------------------------
+   DRIVE + TRANSIT UPDATE
+-------------------------------- */
+async function updateDashboard() {
+    const mode = document.querySelector("input[name='route']:checked").value;
+
+    // DRIVE
+    const toWork = await fetchDrive(home, work, mode);
+    const toHome = await fetchDrive(work, home, mode);
+
+    document.getElementById("driveToWork").textContent = toWork || "—";
+    document.getElementById("driveToHome").textContent = toHome || "—";
+
+    updateDriveStatusBar(toWork, toHome);
+
+    // TRANSIT (Fake demo until GTFS or Maps Transit API is used)
+    const sb = getFakeTrainTime(5);
+    const nb = getFakeTrainTime(12);
+
+    document.getElementById("sbNext").textContent = formatTime(sb);
+    document.getElementById("nbNext").textContent = formatTime(nb);
+
+    document.getElementById("sbCountdown").textContent = countdown(sb);
+    document.getElementById("nbCountdown").textContent = countdown(nb);
+
+    updateTransitStatusBar(sb, nb);
 }
 
-document.getElementById('refreshBtn').addEventListener('click',refreshAll);
-document.getElementById('themeToggle').addEventListener('click',()=>document.body.classList.toggle('dark'));
-document.querySelectorAll('input[name="driveOpt"]').forEach(rb=>rb.addEventListener('change',refreshAll));
+/* -------------------------------
+   STATUS BAR COLOR LOGIC
+-------------------------------- */
+function updateDriveStatusBar(toWork, toHome) {
+    const bar = document.getElementById("driveStatus");
 
-function initMap(){
-  directionsService=new google.maps.DirectionsService();
-  refreshAll();
-  setInterval(refreshAll,180000);
+    let val = toWork || toHome;
+    if (!val) { bar.style.background = "gray"; return; }
+
+    let mins = parseInt(val);
+    if (mins < 25) bar.style.background = "green";
+    else if (mins < 40) bar.style.background = "yellow";
+    else bar.style.background = "red";
 }
-(function loadGoogleMaps(){
-  const script=document.createElement('script');
-  script.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
-  script.async=true; script.defer=true;
-  document.head.appendChild(script);
-})();
+
+function updateTransitStatusBar(sb, nb) {
+    const bar = document.getElementById("transitStatus");
+    const soonest = sb < nb ? sb : nb;
+
+    const mins = (soonest - new Date()) / 60000;
+
+    if (mins < 7) bar.style.background = "green";
+    else if (mins < 12) bar.style.background = "yellow";
+    else bar.style.background = "red";
+}
+
+/* -------------------------------
+   AUTO-REFRESH
+-------------------------------- */
+setInterval(updateDashboard, 600000); // 10 min
+updateDashboard();
+
+/* On toggle radio update */
+document.querySelectorAll("input[name='route']").forEach(el => {
+    el.addEventListener("change", updateDashboard);
+});
 </script>
+
 </body>
 </html>
