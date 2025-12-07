@@ -35,10 +35,11 @@ h1{margin:0; font-size:22px; font-weight:800; letter-spacing:-0.4px;}
 .btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(0,0,0,0.06);}
 .grid{display:grid; grid-template-columns: 1fr; gap:14px;}
 @media(min-width:900px){.grid{ grid-template-columns: 1fr 1fr; }}
-.card{background:var(--card); border-radius:14px; padding:16px; box-shadow: var(--shadow); display:flex; gap:12px; align-items:flex-start;}
+.card{background:var(--card); border-radius:14px; padding:16px; box-shadow: var(--shadow); display:flex; flex-direction:column; gap:12px;}
+.card .top-row{display:flex; gap:12px; align-items:center;}
 .card .left{width:56px; height:56px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; color:white; flex-shrink:0;}
 .card h3{ margin:0; font-size:16px; }
-.muted{ color:var(--muted); font-size:13px; margin-top:6px; }
+.muted{ color:var(--muted); font-size:13px; margin-top:4px; }
 .big{ font-weight:700; font-size:18px; margin-top:6px; }
 .icon-weather{ background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937; }
 .icon-drive{ background:linear-gradient(135deg,#60a5fa,#4f46e5); }
@@ -47,6 +48,8 @@ h1{margin:0; font-size:22px; font-weight:800; letter-spacing:-0.4px;}
 .status-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
 .pill{ padding:6px 10px; border-radius:999px; font-weight:600; background:rgba(0,0,0,0.04); color:var(--muted); font-size:13px; }
 footer{ margin-top:12px; color:var(--muted); font-size:13px; text-align:center; }
+.map-container{height:140px; border-radius:12px; overflow:hidden; margin-top:8px; }
+.radio-group{display:flex; gap:12px; margin-top:6px;}
 </style>
 </head>
 <body>
@@ -64,59 +67,79 @@ footer{ margin-top:12px; color:var(--muted); font-size:13px; text-align:center; 
   <main class="grid">
     <!-- WEATHER -->
     <section class="card" id="weatherCard">
-      <div class="left icon-weather" id="weatherIcon">☀️</div>
-      <div style="flex:1">
-        <h3>Weather — Denver</h3>
-        <div class="big" id="weatherTemp">Loading…</div>
-        <div class="muted" id="weatherDesc"></div>
-        <div class="status-row">
-          <div class="pill" id="weatherFeels">—</div>
-          <div class="pill" id="weatherWind">—</div>
-          <div class="pill" id="weatherHumidity">—</div>
+      <div class="top-row">
+        <div class="left icon-weather" id="weatherIcon">☀️</div>
+        <div style="flex:1">
+          <h3>Weather — Denver</h3>
+          <div class="big" id="weatherTemp">Loading…</div>
+          <div class="muted" id="weatherDesc"></div>
         </div>
+      </div>
+      <div class="status-row">
+        <div class="pill" id="weatherFeels">—</div>
+        <div class="pill" id="weatherWind">—</div>
+        <div class="pill" id="weatherHumidity">—</div>
       </div>
     </section>
 
     <!-- DRIVE TO WORK -->
     <section class="card">
-      <div class="left icon-drive">🚗</div>
-      <div style="flex:1">
-        <h3>Drive → Work</h3>
-        <div class="muted">Home → Work</div>
-        <div class="big" id="driveToWork">Loading…</div>
+      <div class="top-row">
+        <div class="left icon-drive">🚗</div>
+        <div style="flex:1">
+          <h3>Drive → Work</h3>
+          <div class="muted">Home → Work</div>
+          <div class="big" id="driveToWork">Loading…</div>
+        </div>
       </div>
+      <div class="radio-group">
+        <label><input type="radio" name="driveToWorkOpt" value="false" checked> Use Highways</label>
+        <label><input type="radio" name="driveToWorkOpt" value="true"> Avoid Highways</label>
+      </div>
+      <div class="map-container" id="mapToWork"></div>
     </section>
 
     <!-- DRIVE HOME -->
     <section class="card">
-      <div class="left icon-drive">🏠</div>
-      <div style="flex:1">
-        <h3>Drive → Home</h3>
-        <div class="muted">Work → Home</div>
-        <div class="big" id="driveToHome">Loading…</div>
+      <div class="top-row">
+        <div class="left icon-drive">🏠</div>
+        <div style="flex:1">
+          <h3>Drive → Home</h3>
+          <div class="muted">Work → Home</div>
+          <div class="big" id="driveToHome">Loading…</div>
+        </div>
       </div>
+      <div class="radio-group">
+        <label><input type="radio" name="driveToHomeOpt" value="false" checked> Use Highways</label>
+        <label><input type="radio" name="driveToHomeOpt" value="true"> Avoid Highways</label>
+      </div>
+      <div class="map-container" id="mapToHome"></div>
     </section>
 
     <!-- TRANSIT TO WORK -->
     <section class="card">
-      <div class="left icon-transit">🚆</div>
-      <div style="flex:1">
-        <h3>N Line → Union Station</h3>
-        <div class="muted">Northglenn & 112th → Union Station</div>
-        <div class="big" id="trainToWork">Loading…</div>
-        <div class="status-row" id="trainToWorkCountdown"></div>
+      <div class="top-row">
+        <div class="left icon-transit">🚆</div>
+        <div style="flex:1">
+          <h3>N Line → Union Station</h3>
+          <div class="muted">Northglenn & 112th → Union Station</div>
+          <div class="big" id="trainToWork">Loading…</div>
+        </div>
       </div>
+      <div class="status-row" id="trainToWorkCountdown"></div>
     </section>
 
     <!-- TRANSIT HOME -->
     <section class="card">
-      <div class="left icon-transit">↩️</div>
-      <div style="flex:1">
-        <h3>N Line → Northglenn</h3>
-        <div class="muted">Union Station → Northglenn & 112th</div>
-        <div class="big" id="trainToHome">Loading…</div>
-        <div class="status-row" id="trainToHomeCountdown"></div>
+      <div class="top-row">
+        <div class="left icon-transit">↩️</div>
+        <div style="flex:1">
+          <h3>N Line → Northglenn</h3>
+          <div class="muted">Union Station → Northglenn & 112th</div>
+          <div class="big" id="trainToHome">Loading…</div>
+        </div>
       </div>
+      <div class="status-row" id="trainToHomeCountdown"></div>
     </section>
   </main>
   <footer>Auto-refresh every 3 minutes • Click refresh anytime</footer>
@@ -148,10 +171,14 @@ const trainToHomeEl = document.getElementById('trainToHome');
 const trainToWorkCountdownEl = document.getElementById('trainToWorkCountdown');
 const trainToHomeCountdownEl = document.getElementById('trainToHomeCountdown');
 
+const mapToWorkEl = document.getElementById('mapToWork');
+const mapToHomeEl = document.getElementById('mapToHome');
+
 const dayTimeEl = document.getElementById('dayTime');
 
 let directionsService = null;
 let distanceMatrixService = null;
+let driveRenderers = {};
 let trainIntervals=[];
 
 // ======= Helper =======
@@ -195,26 +222,36 @@ async function fetchWeather() {
 }
 
 // ========== Drive ==========
-function getDriveTime(origin,destination,el){
-  if(!distanceMatrixService){el.textContent='Maps service not ready'; return;}
+function getDriveTime(origin,destination,el,mapEl,optName){
+  if(!directionsService){el.textContent='Maps service not ready'; return;}
+  const avoidHighways = document.querySelector(`input[name="${optName}"]:checked`).value==='true';
   el.textContent='Calculating…';
-  distanceMatrixService.getDistanceMatrix({
-    origins:[origin],
-    destinations:[destination],
-    travelMode:google.maps.TravelMode.DRIVING,
+
+  const request = {
+    origin,
+    destination,
+    travelMode: google.maps.TravelMode.DRIVING,
     drivingOptions:{departureTime:new Date(),trafficModel:'bestguess'},
-    unitSystem: google.maps.UnitSystem.IMPERIAL
-  },(response,status)=>{
+    unitSystem: google.maps.UnitSystem.IMPERIAL,
+    avoidHighways
+  };
+
+  directionsService.route(request,(result,status)=>{
     if(status!=='OK'){el.textContent='Error loading drive time'; console.error(status); return;}
     try{
-      const info=response.rows[0].elements[0];
-      const durationMinutes = info.duration_in_traffic?.value / 60 || info.duration?.value / 60;
-      el.textContent = info.duration_in_traffic?.text || info.duration?.text || 'N/A';
-      // color code
+      const durationMinutes = result.routes[0].legs[0].duration_in_traffic?.value / 60 || result.routes[0].legs[0].duration?.value / 60;
+      el.textContent = result.routes[0].legs[0].duration_in_traffic?.text || result.routes[0].legs[0].duration.text || 'N/A';
       if(durationMinutes <= 20) el.style.color='#10b981';
       else if(durationMinutes <= 40) el.style.color='#facc15';
       else el.style.color='#ef4444';
-    }catch(e){el.textContent='Error loading drive time'; console.error(e);}
+
+      // Render map
+      if(driveRenderers[mapEl.id]) driveRenderers[mapEl.id].setMap(null);
+      const map = new google.maps.Map(mapEl, {zoom:12, center: result.routes[0].legs[0].start_location});
+      const renderer = new google.maps.DirectionsRenderer({map, suppressMarkers:false, preserveViewport:true});
+      renderer.setDirections(result);
+      driveRenderers[mapEl.id]=renderer;
+    } catch(e){el.textContent='Error loading drive time'; console.error(e);}
   });
 }
 
@@ -255,7 +292,7 @@ function getNLine(origin,destination,el,countdownEl){
           if(min <= 5) { pill.style.backgroundColor='#ef4444'; pill.style.color='white'; } // urgent
           else if(min <=15){ pill.style.backgroundColor='#facc15'; pill.style.color='black'; }
           else { pill.style.backgroundColor='#10b981'; pill.style.color='white'; }
-          if(index===0) pill.style.fontWeight='700'; // bold first
+          if(index===0) pill.style.fontWeight='700';
         }
         updateCountdown();
         const interval=setInterval(updateCountdown,1000);
@@ -269,8 +306,8 @@ function getNLine(origin,destination,el,countdownEl){
 function refreshAll(){
   updateDayTime();
   fetchWeather();
-  getDriveTime(HOME,WORK,driveToWorkEl);
-  getDriveTime(WORK,HOME,driveToHomeEl);
+  getDriveTime(HOME,WORK,driveToWorkEl,mapToWorkEl,'driveToWorkOpt');
+  getDriveTime(WORK,HOME,driveToHomeEl,mapToHomeEl,'driveToHomeOpt');
   getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkCountdownEl);
   getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeCountdownEl);
 }
