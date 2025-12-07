@@ -144,8 +144,13 @@ const OPENWEATHER_API_KEY='1c91f81f2adfd1b633d19842869a1a11';
 const GOOGLE_MAPS_API_KEY='AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
 const HOME='11625 Community Center Drive, Northglenn, CO 80233';
 const WORK='707 17th Street, Denver, CO 80202';
-const N_ORIGIN='Northglenn & 112th Station, Northglenn, CO';
+const N_ORIGIN='112th & Northglenn Station, Northglenn, CO';
 const N_DEST='Denver Union Station, Denver, CO';
+
+const TRAIN_LABELS={
+  TO_WORK:'112th & Northglenn → Denver Union Station',
+  TO_HOME:'Denver Union Station → 112th & Northglenn'
+};
 
 const weatherTempEl=document.getElementById('weatherTemp');
 const weatherDescEl=document.getElementById('weatherDesc');
@@ -215,7 +220,6 @@ function getDriveTime(origin,destination,el,bar,avoidHighways){
     const leg=result.routes[0].legs[0];
     const mins=leg.duration_in_traffic?.value/60||leg.duration?.value/60;
     el.textContent=leg.duration_in_traffic?.text||leg.duration.text||'N/A';
-    // Update bar
     const pct=Math.min(Math.max((mins/60)*100,0),100);
     bar.style.width=pct+'%';
     if(mins<=20) bar.style.backgroundColor='var(--success)';
@@ -239,7 +243,7 @@ function updateTrainTimeline(upcoming,timelineEl){
   });
 }
 
-function getNLine(origin,destination,el,timelineEl){
+function getNLine(origin,destination,el,timelineEl,label){
   if(!directionsService){el.textContent='Maps service not ready'; return;}
   el.textContent='Searching N Line…';
   timelineEl.innerHTML='';
@@ -257,7 +261,7 @@ function getNLine(origin,destination,el,timelineEl){
       const arr=new Date(step.transit.arrival_time.value);
       upcoming.push({dep,arr,headsign:step.transit.headsign||step.transit.line.short_name});
     });
-    el.textContent=upcoming.map(u=>`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} (${u.headsign})`).join(' | ');
+    el.textContent = label + " | " + upcoming.map(u=>`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`).join(' | ');
     updateTrainTimeline(upcoming,timelineEl);
     trainIntervals.forEach(i=>clearInterval(i));
     trainIntervals=[];
@@ -274,8 +278,8 @@ function refreshAll(){
   const avoidHighways=document.querySelector(`input[name="driveOpt"]:checked`).value==='true';
   getDriveTime(HOME,WORK,driveToWorkEl,driveToWorkBar,avoidHighways);
   getDriveTime(WORK,HOME,driveToHomeEl,driveToHomeBar,avoidHighways);
-  getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkTimeline);
-  getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeTimeline);
+  getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkTimeline,TRAIN_LABELS.TO_WORK);
+  getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeTimeline,TRAIN_LABELS.TO_HOME);
   alertsText.textContent="No alerts at this time";
 }
 
