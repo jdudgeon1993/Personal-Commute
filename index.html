@@ -50,7 +50,7 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
 body.dark .direction-col{background:rgba(255,255,255,0.05);}
 .progress-bar{height:8px; border-radius:8px; background:rgba(0,0,0,0.1); margin-top:4px; overflow:hidden;}
 .progress-fill{height:100%; width:0%; background:var(--success); transition:width 0.6s ease, background 0.6s ease;}
-.leave-text{margin-top:4px; font-size:14px; color:var(--muted);}
+.leave-time{font-size:14px;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -94,8 +94,8 @@ body.dark .direction-col{background:rgba(255,255,255,0.05);}
       <div class="direction-row">
         <div class="direction-col">
           <div>To Work: <span id="driveToWork">Loading…</span></div>
+          <div class="leave-time" id="leaveToWork">—</div>
           <div class="progress-bar"><div class="progress-fill" id="driveToWorkBar"></div></div>
-          <div class="leave-text" id="leaveToWork">Calculating…</div>
           <div class="radio-group">
             <label><input type="radio" name="driveOpt" value="false" checked> Use Highways</label>
             <label><input type="radio" name="driveOpt" value="true"> Avoid Highways</label>
@@ -103,8 +103,8 @@ body.dark .direction-col{background:rgba(255,255,255,0.05);}
         </div>
         <div class="direction-col">
           <div>To Home: <span id="driveToHome">Loading…</span></div>
+          <div class="leave-time" id="arriveHomeTime">—</div>
           <div class="progress-bar"><div class="progress-fill" id="driveToHomeBar"></div></div>
-          <div class="leave-text" id="leaveToHome">Calculating…</div>
         </div>
       </div>
     </section>
@@ -152,11 +152,7 @@ const HOME='11625 Community Center Drive, Northglenn, CO 80233';
 const WORK='707 17th Street, Denver, CO 80202';
 const N_ORIGIN='112th & Northglenn Station, Northglenn, CO';
 const N_DEST='Denver Union Station, Denver, CO';
-
-const TRAIN_LABELS={
-  TO_WORK:'112th & Northglenn → Denver Union Station',
-  TO_HOME:'Denver Union Station → 112th & Northglenn'
-};
+const TRAIN_LABELS={TO_WORK:'112th & Northglenn → Denver Union Station',TO_HOME:'Denver Union Station → 112th & Northglenn'};
 
 const weatherTempEl=document.getElementById('weatherTemp');
 const weatherDescEl=document.getElementById('weatherDesc');
@@ -172,14 +168,27 @@ const trainToWorkEl=document.getElementById('trainToWork');
 const trainToHomeEl=document.getElementById('trainToHome');
 const trainToWorkTimeline=document.getElementById('trainToWorkTimeline');
 const trainToHomeTimeline=document.getElementById('trainToHomeTimeline');
-const leaveToWorkEl=document.getElementById('leaveToWork');
-const leaveToHomeEl=document.getElementById('leaveToHome');
 const dayTimeEl=document.getElementById('dayTime');
 const alertsText=document.getElementById('alertsText');
+const leaveToWorkEl=document.getElementById('leaveToWork');
+const arriveHomeTimeEl=document.getElementById('arriveHomeTime');
 
 let directionsService=null;
 let trainIntervals=[];
 
+// Personal schedule
+function getLeaveTimes(){
+  const now=new Date();
+  const day=now.getDay(); // 0=Sun, 1=Mon, ...,5=Fri
+  let workTime=new Date();
+  workTime.setHours(7,40,0,0); // arrive 20 min early
+  let homeTime=new Date();
+  if(day===5) homeTime.setHours(16,30,0,0); // Friday 4:30 PM leave
+  else homeTime.setHours(17,30,0,0); // M-Th 5:30 PM leave
+  return {workTime,homeTime};
+}
+
+// Update day and period
 function updateDayTime(){
   const now=new Date();
   const hours=now.getHours();
@@ -189,6 +198,7 @@ function updateDayTime(){
   dayTimeEl.textContent=`${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`;
 }
 
+// Weather
 async function fetchWeather(){
   try{
     const res=await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Denver,US&units=imperial&appid=${OPENWEATHER_API_KEY}`);
@@ -215,18 +225,8 @@ async function fetchWeather(){
   }catch(err){console.error(err); weatherTempEl.textContent='Error loading weather';}
 }
 
-function updateLeaveBy(durationMinutes, targetTime, el){
-  const now=new Date();
-  const leaveTime=new Date(targetTime.getTime() - durationMinutes*60000);
-  let diff=leaveTime-now;
-  if(diff<0) diff=0;
-  const hours=Math.floor(diff/3600000);
-  const minutes=Math.floor((diff%3600000)/60000);
-  const seconds=Math.floor((diff%60000)/1000);
-  el.textContent=`Leave by ${leaveTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} (in ${hours}h ${minutes}m ${seconds}s)`;
-}
-
-function getDriveTime(origin,destination,el,bar,leaveEl,avoidHighways,targetArrival){
+// Drive
+function getDriveTime(origin,destination,el,bar,leaveEl,avoidHighways,isHome=false){
   if(!directionsService){el.textContent='Maps service not ready'; return;}
   el.textContent='Calculating…';
   bar.style.width='0%';
@@ -244,10 +244,21 @@ function getDriveTime(origin,destination,el,bar,leaveEl,avoidHighways,targetArri
     if(mins<=20) bar.style.backgroundColor='var(--success)';
     else if(mins<=40) bar.style.backgroundColor='var(--warn)';
     else bar.style.backgroundColor='var(--danger)';
-    if(leaveEl && targetArrival) updateLeaveBy(mins,targetArrival,leaveEl);
+
+    const {workTime,homeTime}=getLeaveTimes();
+    if(!isHome){
+      const leaveNow=new Date(workTime.getTime() - mins*60000);
+      const diff=Math.max(0, leaveNow-new Date());
+      const minCountdown=Math.floor(diff/60000);
+      leaveEl.textContent=`Suggested leave: ${leaveNow.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} | Countdown: ${minCountdown} min`;
+    } else {
+      const arrive=new Date(homeTime.getTime() + mins*60000);
+      leaveEl.textContent=`Expected arrival: ${arrive.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+    }
   });
 }
 
+// Transit
 function updateTrainTimeline(upcoming,timelineEl){
   timelineEl.innerHTML='';
   upcoming.forEach(u=>{
@@ -293,51 +304,34 @@ function getNLine(origin,destination,el,timelineEl,label){
   });
 }
 
+// Refresh all
 function refreshAll(){
   updateDayTime();
   fetchWeather();
   const avoidHighways=document.querySelector(`input[name="driveOpt"]:checked`).value==='true';
-  const workArrival=new Date();
-  workArrival.setHours(7,40,0,0); // Arrive 20 min early
-  const homeDeparture=new Date();
-  homeDeparture.setHours(17,30,0,0); // Leave 5:30 PM
-  getDriveTime(HOME,WORK,driveToWorkEl,driveToWorkBar,leaveToWorkEl,avoidHighways,workArrival);
-  getDriveTime(WORK,HOME,driveToHomeEl,driveToHomeBar,leaveToHomeEl,avoidHighways,homeDeparture);
+  getDriveTime(HOME,WORK,driveToWorkEl,driveToWorkBar,leaveToWorkEl,avoidHighways,false);
+  getDriveTime(WORK,HOME,driveToHomeEl,driveToHomeBar,arriveHomeTimeEl,avoidHighways,true,true);
   getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkTimeline,TRAIN_LABELS.TO_WORK);
   getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeTimeline,TRAIN_LABELS.TO_HOME);
+  alertsText.textContent="No alerts at this time";
 }
 
-// Initialize Google Maps DirectionsService
-function initMaps() {
-  directionsService = new google.maps.DirectionsService();
-  refreshAll();
-}
-
-// Theme toggle
-const themeToggle=document.getElementById('themeToggle');
-themeToggle.addEventListener('click',()=>document.body.classList.toggle('dark'));
-
-// Refresh button
 document.getElementById('refreshBtn').addEventListener('click',refreshAll);
+document.getElementById('themeToggle').addEventListener('click',()=>document.body.classList.toggle('dark'));
+document.querySelectorAll('input[name="driveOpt"]').forEach(rb=>rb.addEventListener('change',refreshAll));
 
-// Recalculate drive times when highway option changes
-document.querySelectorAll('input[name="driveOpt"]').forEach(radio=>{
-  radio.addEventListener('change',refreshAll);
-});
+function initMap(){
+  directionsService=new google.maps.DirectionsService();
+  refreshAll();
+  setInterval(refreshAll,180000);
+}
 
-// Auto-refresh every 10 minutes
-setInterval(refreshAll, 10*60*1000);
-
-// Update day/time every second
-setInterval(updateDayTime,1000);
-
-// Load Google Maps script dynamically
-const gmapsScript=document.createElement('script');
-gmapsScript.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
-gmapsScript.defer=true;
-gmapsScript.onload=initMaps;
-document.head.appendChild(gmapsScript);
-
+(function loadGoogleMaps(){
+  const script=document.createElement('script');
+  script.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
+  script.async=true; script.defer=true;
+  document.head.appendChild(script);
+})();
 </script>
 </body>
 </html>
