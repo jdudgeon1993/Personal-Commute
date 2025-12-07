@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f3f6fb; --text:#111827; --card:#fff; --muted:#6b7280; --accent:#4f46e5;
+  --bg:#f0f2f5; --text:#111827; --card:#fff; --muted:#6b7280; --accent:#4f46e5;
   --success:#10b981; --warn:#facc15; --danger:#ef4444; --shadow:0 6px 18px rgba(15,23,42,0.08);
 }
 body.dark{
@@ -16,37 +16,39 @@ body.dark{
 }
 *{box-sizing:border-box;}
 body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto; background:var(--bg); color:var(--text);}
-.app{max-width:600px;margin:auto;padding:16px; display:flex; flex-direction:column; gap:16px;}
+.app{max-width:640px;margin:auto;padding:16px; display:flex; flex-direction:column; gap:16px;}
 header{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
-h1{margin:0; font-size:22px; font-weight:800;}
+h1{margin:0; font-size:24px; font-weight:800;}
 .controls{display:flex; gap:8px;}
-.btn{padding:8px 14px; border-radius:12px; border:none; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:var(--shadow); transition:transform 0.2s;}
+.btn{padding:8px 14px; border-radius:12px; border:none; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:var(--shadow); transition:all 0.2s;}
 .btn:hover{transform:translateY(-2px);}
 .btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(0,0,0,0.08);}
 .grid{display:grid; gap:16px;}
-.card{background:var(--card); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow); transition:transform 0.2s, box-shadow 0.2s;}
+.card{background:var(--card); border-radius:20px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:var(--shadow); transition:transform 0.2s, box-shadow 0.2s;}
 .card:hover{transform:translateY(-2px); box-shadow:0 12px 24px rgba(15,23,42,0.15);}
 .top-row{display:flex; align-items:center; gap:14px;}
-.left{width:56px; height:56px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff; flex-shrink:0;}
+.left{width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:24px; color:#fff; flex-shrink:0;}
 .big{font-weight:700; font-size:18px; margin-top:4px;}
 .muted{color:var(--muted); font-size:13px;}
 .status-row{display:flex; gap:10px; flex-wrap:wrap;}
-.pill{padding:6px 12px; border-radius:999px; font-weight:600; font-size:13px; transition:all 0.3s;}
+.pill{padding:6px 14px; border-radius:999px; font-weight:600; font-size:14px; transition:all 0.3s; min-width:50px; text-align:center;}
 .radio-group{display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;}
 .icon-weather{background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937;}
 .icon-commute{background:linear-gradient(135deg,#60a5fa,#4f46e5);}
 .icon-alert{background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff;}
-.timeline{display:flex; flex-direction:column; gap:6px;}
+.timeline{display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;}
 .timeline-item{display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.03); padding:6px 12px; border-radius:12px; font-size:14px; transition:all 0.3s;}
 .timeline-item.green{background:var(--success); color:#fff;}
 .timeline-item.yellow{background:var(--warn); color:#111;}
 .timeline-item.red{background:var(--danger); color:#fff;}
 footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
-.commute-section{display:flex; flex-direction:column; gap:12px;}
+.commute-section{display:flex; flex-direction:column; gap:16px;}
 .commute-header{display:flex; align-items:center; gap:12px;}
 .commute-header h3{margin:0;font-size:18px;font-weight:700;}
-.direction-row{display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
-.direction-col{flex:1; min-width:130px;}
+.direction-row{display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;}
+.direction-col{flex:1; min-width:160px;}
+.progress-bar{height:8px; border-radius:8px; background:rgba(0,0,0,0.1); margin-top:4px; overflow:hidden;}
+.progress-fill{height:100%; width:0%; background:var(--success); transition:width 0.6s ease, background 0.6s ease;}
 </style>
 </head>
 <body>
@@ -61,7 +63,7 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
       <button class="btn ghost" id="themeToggle">Toggle Theme</button>
     </div>
   </header>
-  
+
   <main class="grid">
 
     <!-- Weather Card -->
@@ -90,6 +92,7 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
       <div class="direction-row">
         <div class="direction-col">
           <div>To Work: <span id="driveToWork">Loading…</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="driveToWorkBar"></div></div>
           <div class="radio-group">
             <label><input type="radio" name="driveOpt" value="false" checked> Use Highways</label>
             <label><input type="radio" name="driveOpt" value="true"> Avoid Highways</label>
@@ -97,6 +100,7 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
         </div>
         <div class="direction-col">
           <div>To Home: <span id="driveToHome">Loading…</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="driveToHomeBar"></div></div>
         </div>
       </div>
     </section>
@@ -151,6 +155,8 @@ const weatherWindEl=document.getElementById('weatherWind');
 const weatherHumidityEl=document.getElementById('weatherHumidity');
 const driveToWorkEl=document.getElementById('driveToWork');
 const driveToHomeEl=document.getElementById('driveToHome');
+const driveToWorkBar=document.getElementById('driveToWorkBar');
+const driveToHomeBar=document.getElementById('driveToHomeBar');
 const trainToWorkEl=document.getElementById('trainToWork');
 const trainToHomeEl=document.getElementById('trainToHome');
 const trainToWorkTimeline=document.getElementById('trainToWorkTimeline');
@@ -196,9 +202,10 @@ async function fetchWeather(){
   }catch(err){console.error(err); weatherTempEl.textContent='Error loading weather';}
 }
 
-function getDriveTime(origin,destination,el,avoidHighways){
+function getDriveTime(origin,destination,el,bar,avoidHighways){
   if(!directionsService){el.textContent='Maps service not ready'; return;}
   el.textContent='Calculating…';
+  bar.style.width='0%';
   directionsService.route({
     origin,destination,travelMode: google.maps.TravelMode.DRIVING,
     drivingOptions:{departureTime:new Date(),trafficModel:'bestguess'},
@@ -208,7 +215,12 @@ function getDriveTime(origin,destination,el,avoidHighways){
     const leg=result.routes[0].legs[0];
     const mins=leg.duration_in_traffic?.value/60||leg.duration?.value/60;
     el.textContent=leg.duration_in_traffic?.text||leg.duration.text||'N/A';
-    el.style.color=mins<=20?'var(--success)':mins<=40?'var(--warn)':'var(--danger)';
+    // Update bar
+    const pct=Math.min(Math.max((mins/60)*100,0),100);
+    bar.style.width=pct+'%';
+    if(mins<=20) bar.style.backgroundColor='var(--success)';
+    else if(mins<=40) bar.style.backgroundColor='var(--warn)';
+    else bar.style.backgroundColor='var(--danger)';
   });
 }
 
@@ -260,11 +272,11 @@ function refreshAll(){
   updateDayTime();
   fetchWeather();
   const avoidHighways=document.querySelector(`input[name="driveOpt"]:checked`).value==='true';
-  getDriveTime(HOME,WORK,driveToWorkEl,avoidHighways);
-  getDriveTime(WORK,HOME,driveToHomeEl,avoidHighways);
+  getDriveTime(HOME,WORK,driveToWorkEl,driveToWorkBar,avoidHighways);
+  getDriveTime(WORK,HOME,driveToHomeEl,driveToHomeBar,avoidHighways);
   getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkTimeline);
   getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeTimeline);
-  alertsText.textContent="No alerts at this time"; // Placeholder for alert integration
+  alertsText.textContent="No alerts at this time";
 }
 
 document.getElementById('refreshBtn').addEventListener('click',refreshAll);
