@@ -6,40 +6,41 @@
 <title>Commute Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-:root{
+:root {
   --bg:#f0f2f5; --text:#111827; --card:#fff; --muted:#6b7280; --accent:#4f46e5;
   --success:#10b981; --warn:#facc15; --danger:#ef4444; --shadow:0 6px 18px rgba(15,23,42,0.08);
 }
-body.dark{
-  --bg:#0f1724; --text:#f3f6fb; --card:#1e293b; --muted:#9ca3af;
-  --accent:#7c89ff; --success:#34d399; --warn:#fbbf24; --danger:#f87171; --shadow:0 8px 24px rgba(0,0,0,0.6);
-}
+body.dark { --bg:#0f1724; --text:#f3f6fb; --card:#1e293b; --muted:#9ca3af;
+  --accent:#7c89ff; --success:#34d399; --warn:#fbbf24; --danger:#f87171; --shadow:0 8px 24px rgba(0,0,0,0.6);}
 *{box-sizing:border-box;}
 body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto; background:var(--bg); color:var(--text);}
 .app{max-width:640px;margin:auto;padding:16px; display:flex; flex-direction:column; gap:16px;}
-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+header{display:flex; justify-content:space-between; align-items:center;}
 h1{margin:0; font-size:24px; font-weight:800;}
 .controls{display:flex; gap:8px;}
 .btn{padding:8px 14px; border-radius:12px; border:none; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:var(--shadow); transition:all 0.2s;}
 .btn:hover{transform:translateY(-2px);}
 .btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(0,0,0,0.08);}
-.grid{display:grid; gap:16px;}
-.card{background:var(--card); border-radius:20px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:var(--shadow); transition:transform 0.2s, box-shadow 0.2s; border-left:6px solid transparent;}
+.grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));}
+.card{background:var(--card); border-radius:20px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:var(--shadow); transition:transform 0.2s, box-shadow 0.2s;}
 .card:hover{transform:translateY(-2px); box-shadow:0 12px 24px rgba(15,23,42,0.15);}
-.top-row{display:flex; align-items:center; gap:14px;}
+.top-row, .status-row, .direction-row{display:flex; gap:12px; flex-wrap:wrap;}
 .left{width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:24px; color:#fff; flex-shrink:0;}
 .big{font-weight:700; font-size:18px; margin-top:4px;}
 .muted{color:var(--muted); font-size:13px;}
-.status-row{display:flex; gap:10px; flex-wrap:wrap;}
-.pill{padding:4px 10px; border-radius:999px; font-weight:600; font-size:12px; transition:all 0.3s; min-width:40px; text-align:center;}
-.commute-section{display:flex; flex-direction:column; gap:16px;}
-.commute-header{display:flex; align-items:center; gap:12px;}
-.commute-header h3{margin:0;font-size:18px;font-weight:700;}
-.direction-row{display:flex; justify-content:space-between; flex-wrap:wrap; gap:24px;}
-.direction-col{flex:1; min-width:160px; display:flex; flex-direction:column; gap:6px; padding:12px; border-radius:16px; background:rgba(0,0,0,0.03);}
+.pill{padding:6px 14px; border-radius:999px; font-weight:600; font-size:14px; min-width:50px; text-align:center;}
+.direction-col{flex:1; min-width:160px; display:flex; flex-direction:column; gap:12px; padding:12px; border-radius:16px; background:rgba(0,0,0,0.03);}
 body.dark .direction-col{background:rgba(255,255,255,0.05);}
-.progress-bar{height:8px; border-radius:8px; background:rgba(0,0,0,0.1); margin-top:4px; overflow:hidden;}
+.progress-bar{height:8px; border-radius:8px; background:rgba(0,0,0,0.1); overflow:hidden;}
 .progress-fill{height:100%; width:0%; background:var(--success); transition:width 0.6s ease, background 0.6s ease;}
+.timeline{display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;}
+.timeline-item{display:flex; justify-content:space-between; align-items:center; padding:6px 12px; border-radius:12px; font-size:14px; font-weight:600; transition:all 0.3s;}
+.timeline-item.green{background:var(--success); color:#fff;}
+.timeline-item.yellow{background:var(--warn); color:#111;}
+.timeline-item.red{background:var(--danger); color:#fff;}
+.link-btn{display:inline-block;margin-top:6px;color:var(--accent);font-weight:600;text-decoration:none;}
+.link-btn:hover{text-decoration:underline;}
+footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
 </style>
 </head>
 <body>
@@ -54,10 +55,8 @@ body.dark .direction-col{background:rgba(255,255,255,0.05);}
       <button class="btn ghost" id="themeToggle">Toggle Theme</button>
     </div>
   </header>
-
   <main class="grid">
-
-    <!-- Weather Card -->
+    <!-- Weather -->
     <section class="card">
       <div class="top-row">
         <div class="left icon-weather" id="weatherIcon">☀️</div>
@@ -73,52 +72,53 @@ body.dark .direction-col{background:rgba(255,255,255,0.05);}
         <div class="pill" id="weatherHumidity">—</div>
       </div>
     </section>
-
-    <!-- Drive Card -->
-    <section class="card commute-section" id="driveCard">
-      <div class="commute-header">
+    <!-- Drive -->
+    <section class="card commute-section">
+      <div class="top-row">
         <div class="left icon-commute">🚗</div>
         <h3>Drive</h3>
       </div>
       <div class="direction-row">
-        <div class="direction-col" id="driveToWorkCol">
-          <div>To Work: <span id="driveToWork">Loading…</span> <span class="pill" id="driveToWorkDelay">—</span></div>
+        <div class="direction-col">
+          <div>To Work: <span id="driveToWork">Loading…</span></div>
           <div class="progress-bar"><div class="progress-fill" id="driveToWorkBar"></div></div>
+          <label><input type="checkbox" id="avoidHighways"> Avoid Highways</label>
+          <a id="driveToWorkBtn" class="link-btn" href="#" target="_blank">Open in Google Maps</a>
         </div>
-        <div class="direction-col" id="driveToHomeCol">
-          <div>To Home: <span id="driveToHome">Loading…</span> <span class="pill" id="driveToHomeDelay">—</span></div>
+        <div class="direction-col">
+          <div>To Home: <span id="driveToHome">Loading…</span></div>
           <div class="progress-bar"><div class="progress-fill" id="driveToHomeBar"></div></div>
+          <a id="driveToHomeBtn" class="link-btn" href="#" target="_blank">Open in Google Maps</a>
         </div>
       </div>
-      <label style="margin-top:6px;"><input type="checkbox" id="avoidHighway"> Avoid Highways</label>
     </section>
-
-    <!-- Transit Card -->
-    <section class="card commute-section" id="transitCard">
-      <div class="commute-header">
+    <!-- Transit -->
+    <section class="card commute-section">
+      <div class="top-row">
         <div class="left icon-commute">🚉</div>
         <h3>Transit (N Line)</h3>
       </div>
       <div class="direction-row">
         <div class="direction-col">
-          <div><strong>Southbound</strong></div>
-          <div>Next Train: <span id="trainToWork">Loading…</span> <span class="pill" id="trainToWorkDelay">—</span></div>
-          <div id="trainToWorkTimeline"></div>
+          <strong>Southbound</strong>
+          <div>Next Trains: <span id="trainToWork">Loading…</span></div>
+          <div class="timeline" id="trainToWorkTimeline"></div>
+          <a href="https://app.rtd-denver.com/route/N/schedule" target="_blank" class="link-btn">View Full Schedule</a>
         </div>
         <div class="direction-col">
-          <div><strong>Northbound</strong></div>
-          <div>Next Train: <span id="trainToHome">Loading…</span> <span class="pill" id="trainToHomeDelay">—</span></div>
-          <div id="trainToHomeTimeline"></div>
+          <strong>Northbound</strong>
+          <div>Next Trains: <span id="trainToHome">Loading…</span></div>
+          <div class="timeline" id="trainToHomeTimeline"></div>
+          <a href="https://app.rtd-denver.com/route/N/schedule" target="_blank" class="link-btn">View Full Schedule</a>
         </div>
       </div>
     </section>
-
   </main>
-
   <footer>Auto-refresh every 10 minutes • Click refresh anytime</footer>
 </div>
 
 <script>
+/* ---------------- Constants ---------------- */
 const OPENWEATHER_API_KEY='1c91f81f2adfd1b633d19842869a1a11';
 const GOOGLE_MAPS_API_KEY='AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
 const HOME='11625 Community Center Drive, Northglenn, CO 80233';
@@ -126,164 +126,107 @@ const WORK='707 17th Street, Denver, CO 80202';
 const N_ORIGIN='112th & Northglenn Station, Northglenn, CO';
 const N_DEST='Denver Union Station, Denver, CO';
 
-const weatherTempEl=document.getElementById('weatherTemp');
-const weatherDescEl=document.getElementById('weatherDesc');
-const weatherIconEl=document.getElementById('weatherIcon');
-const weatherFeelsEl=document.getElementById('weatherFeels');
-const weatherWindEl=document.getElementById('weatherWind');
-const weatherHumidityEl=document.getElementById('weatherHumidity');
-const driveToWorkEl=document.getElementById('driveToWork');
-const driveToHomeEl=document.getElementById('driveToHome');
-const driveToWorkBar=document.getElementById('driveToWorkBar');
-const driveToHomeBar=document.getElementById('driveToHomeBar');
-const driveToWorkDelay=document.getElementById('driveToWorkDelay');
-const driveToHomeDelay=document.getElementById('driveToHomeDelay');
-const trainToWorkEl=document.getElementById('trainToWork');
-const trainToHomeEl=document.getElementById('trainToHome');
-const trainToWorkTimeline=document.getElementById('trainToWorkTimeline');
-const trainToHomeTimeline=document.getElementById('trainToHomeTimeline');
-const trainToWorkDelay=document.getElementById('trainToWorkDelay');
-const trainToHomeDelay=document.getElementById('trainToHomeDelay');
-const dayTimeEl=document.getElementById('dayTime');
+/* ---------------- DOM Elements ---------------- */
+const DOM = {};
+['weatherTemp','weatherDesc','weatherIcon','weatherFeels','weatherWind','weatherHumidity',
+ 'driveToWork','driveToHome','driveToWorkBar','driveToHomeBar',
+ 'trainToWork','trainToHome','trainToWorkTimeline','trainToHomeTimeline','dayTime',
+ 'avoidHighways','driveToWorkBtn','driveToHomeBtn','refreshBtn','themeToggle']
+.forEach(id => DOM[id] = document.getElementById(id));
 
-let directionsService=null;
-let trainIntervals=[];
+let directionsService = null;
+let transitIntervals = {};
 
-function updateDayTime(){
-  const now=new Date();
-  const hours=now.getHours();
-  let part='Morning';
-  if(hours>=12 && hours<17) part='Afternoon';
-  else if(hours>=17) part='Evening';
-  dayTimeEl.textContent=`${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`;
-}
+/* ---------------- Helpers ---------------- */
+function setText(el,text){ if(el) el.textContent=text; }
+function formatTime(d){ return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function getPartOfDay(){ const h=new Date().getHours(); return h<12?'Morning':h<17?'Afternoon':'Evening'; }
+function setProgress(fillEl,mins){ fillEl.style.width=Math.min(Math.max((mins/60)*100,0),100)+'%';
+  fillEl.style.backgroundColor=mins<=20?'var(--success)':mins<=40?'var(--warn)':'var(--danger)';}
 
-async function fetchWeather(){
+/* ---------------- Weather ---------------- */
+async function updateWeather(){
   try{
     const res=await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Denver,US&units=imperial&appid=${OPENWEATHER_API_KEY}`);
     const data=await res.json();
-    const temp=Math.round(data.main.temp)+'°F';
-    const desc=data.weather?.[0]?.description??'—';
-    const icon=data.weather?.[0]?.icon;
-    const feels=Math.round(data.main.feels_like)+'°F';
-    const wind=`${Math.round(data.wind.speed)} mph`;
-    const humidity=`${data.main.humidity}%`;
-    weatherTempEl.textContent=temp;
-    weatherDescEl.textContent=desc[0].toUpperCase()+desc.slice(1);
-    weatherFeelsEl.textContent=`Feels: ${feels}`;
-    weatherWindEl.textContent=`Wind: ${wind}`;
-    weatherHumidityEl.textContent=`Humidity: ${humidity}%`;
-    if(icon){
-      weatherIconEl.textContent='';
+    setText(DOM.weatherTemp,Math.round(data.main.temp)+'°F');
+    setText(DOM.weatherDesc,(data.weather?.[0]?.description||'—').replace(/^./,s=>s.toUpperCase()));
+    setText(DOM.weatherFeels,'Feels: '+Math.round(data.main.feels_like)+'°F');
+    setText(DOM.weatherWind,'Wind: '+Math.round(data.wind.speed)+' mph');
+    setText(DOM.weatherHumidity,'Humidity: '+data.main.humidity+'%');
+    if(data.weather?.[0]?.icon){
+      DOM.weatherIcon.innerHTML='';
       const img=document.createElement('img');
-      img.src=`https://openweathermap.org/img/wn/${icon}@2x.png`;
-      img.alt=desc;
+      img.src=`https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+      img.alt=data.weather[0].description;
       img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px';
-      weatherIconEl.appendChild(img);
+      DOM.weatherIcon.appendChild(img);
     }
-  }catch(err){console.error(err); weatherTempEl.textContent='Error loading weather';}
+  }catch(e){ console.error(e); setText(DOM.weatherTemp,'Error'); }
 }
 
-function getDriveTime(origin,destination,el,bar,delayEl,avoidHighways){
-  if(!directionsService){el.textContent='Maps not ready'; return;}
-  el.textContent='Calculating…';
-  bar.style.width='0%';
-  delayEl.textContent='—';
+/* ---------------- Drive ---------------- */
+function updateDrive(origin,destination,etaEl,fillEl,mapBtnEl){
+  if(!directionsService){ setText(etaEl,'Maps not ready'); return; }
+  setText(etaEl,'Calculating…'); fillEl.style.width='0%';
   directionsService.route({
-    origin,destination,travelMode: google.maps.TravelMode.DRIVING,
+    origin,destination, travelMode: google.maps.TravelMode.DRIVING,
     drivingOptions:{departureTime:new Date(),trafficModel:'bestguess'},
-    avoidHighways
-  },(result,status)=>{
-    if(status!=='OK'){el.textContent='Error'; console.error(status); return;}
-    const leg=result.routes[0].legs[0];
-    const mins=leg.duration_in_traffic?.value/60||leg.duration?.value/60;
-    const baseMins=leg.duration?.value/60;
-    el.textContent=leg.duration_in_traffic?.text||leg.duration.text||'N/A';
-    bar.style.width=Math.min((mins/60)*100,100)+'%';
-    if(mins<=20) bar.style.backgroundColor='var(--success)';
-    else if(mins<=40) bar.style.backgroundColor='var(--warn)';
-    else bar.style.backgroundColor='var(--danger)';
-    const delta=Math.round(mins-baseMins);
-    if(delta>0) { delayEl.textContent='+'+delta+' min'; delayEl.style.backgroundColor='var(--warn)'; }
-    else { delayEl.textContent='On time'; delayEl.style.backgroundColor='var(--success)'; }
+    avoidHighways: DOM.avoidHighways.checked
+  },(res,status)=>{
+    if(status!=='OK'){ setText(etaEl,'Error'); return; }
+    const leg=res.routes[0].legs[0];
+    const mins=(leg.duration_in_traffic?.value||leg.duration?.value)/60;
+    setText(etaEl,leg.duration_in_traffic?.text||leg.duration.text||'N/A');
+    setProgress(fillEl,mins);
+    if(mapBtnEl) mapBtnEl.href=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving${DOM.avoidHighways.checked?'&avoid=highways':''}`;
   });
 }
 
-function updateTrainTimeline(upcoming,timelineEl,delayEl){
-  timelineEl.innerHTML='';
-  upcoming.forEach(u=>{
-    const diff=Math.max(0,u.dep-new Date());
-    const min=Math.floor(diff/60000);
-    const sec=Math.floor((diff%60000)/1000);
-    const item=document.createElement('div'); 
-    item.className='timeline-item';
-    if(min<=5)item.classList.add('red');
-    else if(min<=15)item.classList.add('yellow');
-    else item.classList.add('green');
-    item.textContent=`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} | Next: ${min}m ${sec}s`;
-    timelineEl.appendChild(item);
-  });
-  if(upcoming.length>0){
-    const delayDelta=upcoming[0].delay || 0;
-    if(delayDelta>0) { delayEl.textContent='+'+delayDelta+' min'; delayEl.style.backgroundColor='var(--warn)'; }
-    else { delayEl.textContent='On time'; delayEl.style.backgroundColor='var(--success)'; }
-  }
-}
-
-function getNLine(origin,destination,el,timelineEl,delayEl){
-  if(!directionsService){el.textContent='Maps not ready'; return;}
-  el.textContent='Searching N Line…';
-  timelineEl.innerHTML='';
+/* ---------------- Transit ---------------- */
+function updateTransit(origin,destination,elDisplay,elTimeline){
+  if(!directionsService){ setText(elDisplay,'Maps not ready'); return; }
+  setText(elDisplay,'Calculating…'); elTimeline.innerHTML='';
   directionsService.route({
-    origin,destination,travelMode: google.maps.TravelMode.TRANSIT,
-    transitOptions:{modes:['RAIL']}, provideRouteAlternatives:false
-  },(result,status)=>{
-    if(status!=='OK'){el.textContent='Error'; return;}
-    const leg=result.routes[0].legs[0];
-    const steps=leg.steps.filter(s=>s.transit && s.transit.line && (String(s.transit.line.short_name)==='N' || /N/.test(s.transit.line.name)));
-    if(!steps.length){el.textContent='No N Line trains now'; return;}
-    const upcoming=[];
-    steps.slice(0,3).forEach(step=>{
+    origin,destination, travelMode: google.maps.TravelMode.TRANSIT,
+    transitOptions: {departureTime: new Date()}
+  },(res,status)=>{
+    if(status!=='OK'){ console.error(status,status); setText(elDisplay,'Error'); return; }
+    const legs=res.routes[0].legs[0].steps.filter(s=>s.travel_mode==='TRANSIT');
+    elTimeline.innerHTML='';
+    const times=[];
+    legs.forEach(step=>{
       const dep=new Date(step.transit.departure_time.value);
       const arr=new Date(step.transit.arrival_time.value);
-      upcoming.push({dep,arr,headsign:step.transit.headsign||step.transit.line.short_name});
+      const lineName=step.transit.line.short_name || step.transit.line.name;
+      const div=document.createElement('div');
+      div.className='timeline-item green';
+      div.textContent=`${lineName}: ${formatTime(dep)} → ${formatTime(arr)} (${step.transit.num_stops} stops)`;
+      elTimeline.appendChild(div);
+      times.push(formatTime(dep));
     });
-    el.textContent=upcoming.map(u=>`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`).join(' | ');
-    updateTrainTimeline(upcoming,timelineEl,delayEl);
-    trainIntervals.forEach(i=>clearInterval(i));
-    trainIntervals=[];
-    upcoming.forEach(u=>{
-      const interval=setInterval(()=>updateTrainTimeline(upcoming,timelineEl,delayEl),1000);
-      trainIntervals.push(interval);
-    });
+    setText(elDisplay,times.join(' | '));
   });
 }
 
+/* ---------------- Refresh ---------------- */
 function refreshAll(){
-  updateDayTime();
-  fetchWeather();
-  const avoidHighways=document.getElementById('avoidHighway').checked;
-  getDriveTime(HOME,WORK,driveToWorkEl,driveToWorkBar,driveToWorkDelay,avoidHighways);
-  getDriveTime(WORK,HOME,driveToHomeEl,driveToHomeBar,driveToHomeDelay,avoidHighways);
-  getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkTimeline,trainToWorkDelay);
-  getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeTimeline,trainToHomeDelay);
+  DOM.dayTime.textContent=`${new Date().toLocaleDateString(undefined,{weekday:'long'})}, ${getPartOfDay()}`;
+  updateWeather();
+  updateDrive(HOME,WORK,DOM.driveToWork,DOM.driveToWorkBar,DOM.driveToWorkBtn);
+  updateDrive(WORK,HOME,DOM.driveToHome,DOM.driveToHomeBar,DOM.driveToHomeBtn);
+  updateTransit(N_ORIGIN,N_DEST,DOM.trainToWork,DOM.trainToWorkTimeline);
+  updateTransit(N_DEST,N_ORIGIN,DOM.trainToHome,DOM.trainToHomeTimeline);
 }
 
-document.getElementById('refreshBtn').addEventListener('click',refreshAll);
-document.getElementById('themeToggle').addEventListener('click',()=>document.body.classList.toggle('dark'));
-document.getElementById('avoidHighway').addEventListener('change',refreshAll);
+/* ---------------- Events ---------------- */
+DOM.refreshBtn.addEventListener('click',refreshAll);
+DOM.themeToggle.addEventListener('click',()=>document.body.classList.toggle('dark'));
+DOM.avoidHighways.addEventListener('change',refreshAll);
 
-function initMap(){
-  directionsService=new google.maps.DirectionsService();
-  refreshAll();
-  setInterval(refreshAll,600000); // 10 minutes
-}
-(function loadGoogleMaps(){
-  const script=document.createElement('script');
-  script.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
-  script.async=true; script.defer=true;
-  document.head.appendChild(script);
-})();
+/* ---------------- Google Maps ---------------- */
+function initMap(){ directionsService=new google.maps.DirectionsService(); refreshAll(); setInterval(refreshAll,10*60*1000);}
+(function(){ const script=document.createElement('script'); script.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`; script.async=true; script.defer=true; document.head.appendChild(script);})();
 </script>
 </body>
 </html>
