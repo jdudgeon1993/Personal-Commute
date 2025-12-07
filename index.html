@@ -16,15 +16,14 @@
   --success:#10b981;
   --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
-body.force-dark, @media (prefers-color-scheme: dark){
-  :root{
-    --bg:#0f1724;
-    --card:#111827;
-    --muted:#9ca3af;
-    --accent:#7c89ff;
-    --success:#34d399;
-    --shadow: 0 12px 28px rgba(2,6,23,0.6);
-  }
+body.force-dark{
+  --bg:#0f1724;
+  --card:#111827;
+  --muted:#9ca3af;
+  --accent:#7c89ff;
+  --success:#34d399;
+  --shadow: 0 12px 28px rgba(2,6,23,0.6);
+  color:#f3f6fb;
 }
 
 html,body{height:100%; margin:0; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto; background:var(--bg); color:#0f1724; display:flex; justify-content:center; padding:20px;}
@@ -44,7 +43,7 @@ h1{margin:0; font-size:22px; font-weight:800; letter-spacing:-0.4px;}
 .icon-weather{ background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937; }
 .icon-drive{ background:linear-gradient(135deg,#60a5fa,#4f46e5); }
 .icon-transit{ background:linear-gradient(135deg,#34d399,#10b981); color:#052e16; }
-.small-note{ font-size:12px; color:var(--muted); margin-top:8px; }
+.small-note{ font-size:12px; color:var(--muted); margin-top:4px; }
 .status-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
 .pill{ padding:6px 10px; border-radius:999px; font-weight:600; background:rgba(0,0,0,0.04); color:var(--muted); font-size:13px; }
 footer{ margin-top:12px; color:var(--muted); font-size:13px; text-align:center; }
@@ -55,7 +54,7 @@ footer{ margin-top:12px; color:var(--muted); font-size:13px; text-align:center; 
   <header>
     <div>
       <h1>Commute Dashboard</h1>
-      <div class="small-note">Drive & N Line (preset routes)</div>
+      <div class="small-note" id="dayTime">Loading…</div>
     </div>
     <div class="controls">
       <button class="btn" id="refreshBtn">⟳ Refresh</button>
@@ -149,8 +148,21 @@ const trainToHomeEl = document.getElementById('trainToHome');
 const trainToWorkCountdownEl = document.getElementById('trainToWorkCountdown');
 const trainToHomeCountdownEl = document.getElementById('trainToHomeCountdown');
 
+const dayTimeEl = document.getElementById('dayTime');
+
 let directionsService = null;
 let distanceMatrixService = null;
+let trainIntervals=[];
+
+// ======= Helper =======
+function updateDayTime(){
+  const now = new Date();
+  const hours = now.getHours();
+  let part='Morning';
+  if(hours>=12 && hours<17) part='Afternoon';
+  else if(hours>=17) part='Evening';
+  dayTimeEl.textContent = `${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`;
+}
 
 // ========== Weather ==========
 async function fetchWeather() {
@@ -196,14 +208,17 @@ function getDriveTime(origin,destination,el){
     if(status!=='OK'){el.textContent='Error loading drive time'; console.error(status); return;}
     try{
       const info=response.rows[0].elements[0];
-      el.textContent=info.duration_in_traffic?.text || info.duration?.text || 'N/A';
+      const durationMinutes = info.duration_in_traffic?.value / 60 || info.duration?.value / 60;
+      el.textContent = info.duration_in_traffic?.text || info.duration?.text || 'N/A';
+      // color code
+      if(durationMinutes <= 20) el.style.color='#10b981';
+      else if(durationMinutes <= 40) el.style.color='#facc15';
+      else el.style.color='#ef4444';
     }catch(e){el.textContent='Error loading drive time'; console.error(e);}
   });
 }
 
 // ========== Transit N Line ==========
-let trainIntervals=[];
-
 function getNLine(origin,destination,el,countdownEl){
   if(!directionsService){el.textContent='Maps service not ready'; return;}
   el.textContent='Searching N Line…';
@@ -228,7 +243,7 @@ function getNLine(origin,destination,el,countdownEl){
       // Clear previous countdowns
       trainIntervals.forEach(i=>clearInterval(i));
       trainIntervals=[];
-      upcoming.forEach(u=>{
+      upcoming.forEach((u,index)=>{
         const pill=document.createElement('div');
         pill.className='pill';
         countdownEl.appendChild(pill);
@@ -237,20 +252,22 @@ function getNLine(origin,destination,el,countdownEl){
           const min=Math.floor(diff/60000);
           const sec=Math.floor((diff%60000)/1000);
           pill.textContent=`Next: ${min}m ${sec}s`;
+          if(min <= 5) { pill.style.backgroundColor='#ef4444'; pill.style.color='white'; } // urgent
+          else if(min <=15){ pill.style.backgroundColor='#facc15'; pill.style.color='black'; }
+          else { pill.style.backgroundColor='#10b981'; pill.style.color='white'; }
+          if(index===0) pill.style.fontWeight='700'; // bold first
         }
         updateCountdown();
         const interval=setInterval(updateCountdown,1000);
         trainIntervals.push(interval);
       });
-    }catch(e){
-      console.error(e);
-      el.textContent='Error loading transit';
-    }
+    }catch(e){console.error(e); el.textContent='Error loading transit';}
   });
 }
 
 // ========== Refresh All ==========
 function refreshAll(){
+  updateDayTime();
   fetchWeather();
   getDriveTime(HOME,WORK,driveToWorkEl);
   getDriveTime(WORK,HOME,driveToHomeEl);
