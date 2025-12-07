@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Commute Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
@@ -34,8 +34,7 @@ h1{margin:0; font-size:22px; font-weight:800;}
 .pill{padding:6px 12px; border-radius:999px; font-weight:600; font-size:13px; transition:all 0.3s;}
 .radio-group{display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;}
 .icon-weather{background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937;}
-.icon-drive{background:linear-gradient(135deg,#60a5fa,#4f46e5);}
-.icon-transit{background:linear-gradient(135deg,#34d399,#10b981); color:#052e16;}
+.icon-commute{background:linear-gradient(135deg,#60a5fa,#4f46e5);}
 .icon-alert{background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff;}
 .timeline{display:flex; flex-direction:column; gap:6px;}
 .timeline-item{display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.03); padding:6px 12px; border-radius:12px; font-size:14px; transition:all 0.3s;}
@@ -46,6 +45,8 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
 .commute-section{display:flex; flex-direction:column; gap:12px;}
 .commute-header{display:flex; align-items:center; gap:12px;}
 .commute-header h3{margin:0;font-size:18px;font-weight:700;}
+.direction-row{display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+.direction-col{flex:1; min-width:130px;}
 </style>
 </head>
 <body>
@@ -80,52 +81,42 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
       </div>
     </section>
 
-    <!-- Commute Card: To Work -->
+    <!-- Unified Commute Card -->
     <section class="card commute-section">
       <div class="commute-header">
-        <div class="left icon-drive">🚗</div>
-        <h3>Commute → Work</h3>
+        <div class="left icon-commute">🛣️</div>
+        <h3>Today's Commute</h3>
       </div>
 
-      <div class="status-row">
-        <div>
-          <strong>Drive:</strong> <span id="driveToWork">Loading…</span>
-          <div class="radio-group">
-            <label><input type="radio" name="driveToWorkOpt" value="false" checked> Use Highways</label>
-            <label><input type="radio" name="driveToWorkOpt" value="true"> Avoid Highways</label>
+      <!-- Drive -->
+      <div>
+        <strong>Drive:</strong>
+        <div class="direction-row">
+          <div class="direction-col">
+            <div>To Work: <span id="driveToWork">Loading…</span></div>
+            <div class="radio-group">
+              <label><input type="radio" name="driveOpt" value="false" checked> Use Highways</label>
+              <label><input type="radio" name="driveOpt" value="true"> Avoid Highways</label>
+            </div>
+          </div>
+          <div class="direction-col">
+            <div>To Home: <span id="driveToHome">Loading…</span></div>
           </div>
         </div>
       </div>
 
-      <div class="status-row">
-        <div>
-          <strong>Transit (N Line):</strong> <span id="trainToWork">Loading…</span>
-          <div class="timeline" id="trainToWorkTimeline"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Commute Card: To Home -->
-    <section class="card commute-section">
-      <div class="commute-header">
-        <div class="left icon-drive">🏠</div>
-        <h3>Commute → Home</h3>
-      </div>
-
-      <div class="status-row">
-        <div>
-          <strong>Drive:</strong> <span id="driveToHome">Loading…</span>
-          <div class="radio-group">
-            <label><input type="radio" name="driveToHomeOpt" value="false" checked> Use Highways</label>
-            <label><input type="radio" name="driveToHomeOpt" value="true"> Avoid Highways</label>
+      <!-- Transit -->
+      <div>
+        <strong>Transit (N Line):</strong>
+        <div class="direction-row">
+          <div class="direction-col">
+            <div>To Work: <span id="trainToWork">Loading…</span></div>
+            <div class="timeline" id="trainToWorkTimeline"></div>
           </div>
-        </div>
-      </div>
-
-      <div class="status-row">
-        <div>
-          <strong>Transit (N Line):</strong> <span id="trainToHome">Loading…</span>
-          <div class="timeline" id="trainToHomeTimeline"></div>
+          <div class="direction-col">
+            <div>To Home: <span id="trainToHome">Loading…</span></div>
+            <div class="timeline" id="trainToHomeTimeline"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -195,9 +186,8 @@ async function fetchWeather(){
   }catch(err){console.error(err); weatherTempEl.textContent='Error loading weather';}
 }
 
-function getDriveTime(origin,destination,el,optName){
+function getDriveTime(origin,destination,el,avoidHighways){
   if(!directionsService){el.textContent='Maps service not ready'; return;}
-  const avoidHighways=document.querySelector(`input[name="${optName}"]:checked`).value==='true';
   el.textContent='Calculating…';
   directionsService.route({
     origin,destination,travelMode: google.maps.TravelMode.DRIVING,
@@ -259,16 +249,16 @@ function getNLine(origin,destination,el,timelineEl){
 function refreshAll(){
   updateDayTime();
   fetchWeather();
-  getDriveTime(HOME,WORK,driveToWorkEl,'driveToWorkOpt');
-  getDriveTime(WORK,HOME,driveToHomeEl,'driveToHomeOpt');
+  const avoidHighways=document.querySelector(`input[name="driveOpt"]:checked`).value==='true';
+  getDriveTime(HOME,WORK,driveToWorkEl,avoidHighways);
+  getDriveTime(WORK,HOME,driveToHomeEl,avoidHighways);
   getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkTimeline);
   getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeTimeline);
 }
 
 document.getElementById('refreshBtn').addEventListener('click',refreshAll);
 document.getElementById('themeToggle').addEventListener('click',()=>document.body.classList.toggle('dark'));
-document.querySelectorAll('input[name="driveToWorkOpt"]').forEach(rb=>rb.addEventListener('change',()=>getDriveTime(HOME,WORK,driveToWorkEl,'driveToWorkOpt')));
-document.querySelectorAll('input[name="driveToHomeOpt"]').forEach(rb=>rb.addEventListener('change',()=>getDriveTime(WORK,HOME,driveToHomeEl,'driveToHomeOpt')));
+document.querySelectorAll('input[name="driveOpt"]').forEach(rb=>rb.addEventListener('change',refreshAll));
 
 function initMap(){
   directionsService=new google.maps.DirectionsService();
