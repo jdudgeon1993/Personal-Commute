@@ -36,6 +36,7 @@ h1{margin:0; font-size:22px; font-weight:800;}
 .icon-weather{background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937;}
 .icon-drive{background:linear-gradient(135deg,#60a5fa,#4f46e5);}
 .icon-transit{background:linear-gradient(135deg,#34d399,#10b981); color:#052e16;}
+.icon-alert{background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff;}
 .timeline{display:flex; flex-direction:column; gap:6px;}
 .timeline-item{display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.03); padding:6px 12px; border-radius:12px; font-size:14px; transition:all 0.3s;}
 .timeline-item.green{background:var(--success); color:#fff;}
@@ -57,6 +58,21 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
     </div>
   </header>
   <main class="grid">
+    
+    <!-- Quick Alerts -->
+    <section class="card">
+      <div class="top-row">
+        <div class="left icon-alert">⚠️</div>
+        <div style="flex:1">
+          <h3>Quick Alerts</h3>
+          <div class="muted">Weather & Traffic</div>
+        </div>
+      </div>
+      <div class="status-row" id="alertsRow">
+        <div class="pill">Loading…</div>
+      </div>
+    </section>
+
     <!-- Weather -->
     <section class="card">
       <div class="top-row">
@@ -131,6 +147,7 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
       </div>
       <div class="timeline" id="trainToHomeTimeline"></div>
     </section>
+    
   </main>
   <footer>Auto-refresh every 3 minutes • Click refresh anytime</footer>
 </div>
@@ -156,6 +173,7 @@ const trainToHomeEl=document.getElementById('trainToHome');
 const trainToWorkTimeline=document.getElementById('trainToWorkTimeline');
 const trainToHomeTimeline=document.getElementById('trainToHomeTimeline');
 const dayTimeEl=document.getElementById('dayTime');
+const alertsRow=document.getElementById('alertsRow');
 
 let directionsService=null;
 let trainIntervals=[];
@@ -192,7 +210,28 @@ async function fetchWeather(){
       img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px';
       weatherIconEl.appendChild(img);
     }
+    updateAlerts(data);
   }catch(err){console.error(err); weatherTempEl.textContent='Error loading weather';}
+}
+
+function updateAlerts(weatherData){
+  alertsRow.innerHTML='';
+  // Weather alerts
+  if(weatherData.alerts && weatherData.alerts.length){
+    weatherData.alerts.forEach(alert=>{
+      const pill=document.createElement('div'); pill.className='pill'; pill.textContent=`⚠️ ${alert.event}`;
+      pill.style.backgroundColor='var(--danger)'; pill.style.color='#fff';
+      alertsRow.appendChild(pill);
+    });
+  }else{
+    const pill=document.createElement('div'); pill.className='pill'; pill.textContent='No weather alerts';
+    pill.style.backgroundColor='var(--success)'; pill.style.color='#fff';
+    alertsRow.appendChild(pill);
+  }
+  // Traffic alert placeholder
+  const trafficPill=document.createElement('div'); trafficPill.className='pill'; trafficPill.textContent='No traffic alerts';
+  trafficPill.style.backgroundColor='var(--success)'; trafficPill.style.color='#fff';
+  alertsRow.appendChild(trafficPill);
 }
 
 function getDriveTime(origin,destination,el,optName){
