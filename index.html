@@ -207,24 +207,15 @@
   </div>
 
 <script>
-/*
-  CLIENT-SIDE MAPS SERVICES (no REST fetch to Google)
-  - uses DistanceMatrixService for driving
-  - uses DirectionsService for transit (train-only), filters for N Line
-  - OpenWeather used for weather (public fetch)
-*/
-
-// ========== CONFIG (presets) ==========
 const OPENWEATHER_API_KEY = '1c91f81f2adfd1b633d19842869a1a11';
 const GOOGLE_MAPS_API_KEY = 'AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
 
-// Preset locations (as you provided)
+// Preset locations
 const HOME = '11625 Community Center Drive, Northglenn, CO 80233';
 const WORK = '707 17th Street, Denver, CO 80202';
 const N_ORIGIN = 'Northglenn & 112th Station, Northglenn, CO';
 const N_DEST = 'Denver Union Station, Denver, CO';
 
-// DOM refs
 const weatherTempEl = document.getElementById('weatherTemp');
 const weatherDescEl = document.getElementById('weatherDesc');
 const weatherIconEl = document.getElementById('weatherIcon');
@@ -241,11 +232,10 @@ const trainToHomeEl = document.getElementById('trainToHome');
 const trainToNoteEl = document.getElementById('trainToNote');
 const trainHomeNoteEl = document.getElementById('trainHomeNote');
 
-// Map services (initialized in initMap)
 let directionsService = null;
 let distanceMatrixService = null;
 
-// ========== Weather (OpenWeather) ==========
+// ========== Weather ==========
 async function fetchWeather() {
   try {
     const res = await fetch(
@@ -288,31 +278,21 @@ async function fetchWeather() {
   }
 }
 
-// ========== Driving (DistanceMatrixService) ==========
+// ========== Driving ==========
 function getDriveTime(origin, destination, el) {
-  if (!distanceMatrixService) {
-    el.textContent = 'Maps service not ready';
-    return;
-  }
-
+  if (!distanceMatrixService) { el.textContent = 'Maps service not ready'; return; }
   el.textContent = 'Loading…';
-
   distanceMatrixService.getDistanceMatrix({
     origins: [origin],
     destinations: [destination],
     travelMode: google.maps.TravelMode.DRIVING,
-    drivingOptions: {
-      departureTime: new Date(),
-      trafficModel: 'bestguess'
-    },
+    drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' },
     unitSystem: google.maps.UnitSystem.IMPERIAL
   }, (response, status) => {
     try {
       if (status !== 'OK') throw new Error('DistanceMatrix status ' + status);
       const info = response.rows?.[0]?.elements?.[0];
       if (!info) throw new Error('No element');
-
-      // Prefer duration_in_traffic if available
       const text = info.duration_in_traffic?.text ?? info.duration?.text ?? 'N/A';
       el.textContent = text;
     } catch (e) {
@@ -322,12 +302,9 @@ function getDriveTime(origin, destination, el) {
   });
 }
 
-// ========== Transit (DirectionsService) — filter for N Line ==========
+// ========== Transit (N Line) ==========
 function getNLine(origin, destination, el, noteEl) {
-  if (!directionsService) {
-    el.textContent = 'Maps service not ready';
-    return;
-  }
+  if (!directionsService) { el.textContent = 'Maps service not ready'; return; }
 
   el.textContent = 'Searching N Line…';
   if (noteEl) noteEl.textContent = '';
@@ -337,42 +314,39 @@ function getNLine(origin, destination, el, noteEl) {
     destination,
     travelMode: google.maps.TravelMode.TRANSIT,
     transitOptions: { modes: ['RAIL'] },
-    unitSystem: google.maps.UnitSystem.IMPERIAL
+    unitSystem: google.maps.UnitSystem.IMPERIAL,
+    provideRouteAlternatives: false
   }, (result, status) => {
     try {
       if (status !== 'OK') throw new Error('Directions status ' + status);
       const route = result.routes?.[0];
-      if (!route) throw new Error('No route');
-
-      const leg = route.legs?.[0];
+      const leg = route?.legs?.[0];
       if (!leg) throw new Error('No leg');
 
-      // Find a step that is a transit step for the N Line
       const steps = leg.steps || [];
-      const nStep = steps.find(s =>
+      const nSteps = steps.filter(s =>
         s.transit && s.transit.line && (
           String(s.transit.line.short_name) === 'N' ||
-          (s.transit.line && s.transit.line.name && s.transit.line.name.includes('N Line')) ||
-          (s.transit.line && s.transit.line.name && /\bN\b/.test(s.transit.line.name))
+          (s.transit.line.name && s.transit.line.name.includes('N Line')) ||
+          (s.transit.line.name && /\bN\b/.test(s.transit.line.name))
         )
       );
 
-      if (!nStep) {
-        // If none found — show a helpful fallback: show next transit leg if any
+      if (!nSteps.length) {
         el.textContent = 'No N Line train found for this route right now.';
         if (noteEl) noteEl.textContent = 'Google returned other transit options.';
         return;
       }
 
-      // Display times
-      const dep = nStep.transit.departure_time?.text ?? '—';
-      const arr = nStep.transit.arrival_time?.text ?? '—';
-      const total = leg.duration?.text ?? '—';
-      el.textContent = `Departs ${dep} → Arrives ${arr} (${total})`;
+      const texts = nSteps.map(step => {
+        const dep = step.transit.departure_time?.text ?? 'Unknown';
+        const arr = step.transit.arrival_time?.text ?? 'Unknown';
+        const headsign = step.transit.headsign || step.transit.line.short_name || '';
+        return `${dep} → ${arr} (${headsign})`;
+      });
 
-      // optionally show platform or headsign if available
-      const headsign = nStep.transit.headsign || nStep.transit.line?.short_name || '';
-      if (noteEl && headsign) noteEl.textContent = `Heads to ${headsign}`;
+      el.textContent = texts.join(' | ');
+      if (noteEl) noteEl.textContent = `Total: ${leg.duration?.text ?? '—'}`;
     } catch (err) {
       console.error('Transit error', err);
       el.textContent = 'Error loading transit';
@@ -381,55 +355,35 @@ function getNLine(origin, destination, el, noteEl) {
   });
 }
 
-// ========== Initialization & refresh ==========
+// ========== Refresh All ==========
 function refreshAll() {
   fetchWeather();
-
-  // Drive
   getDriveTime(HOME, WORK, driveToWorkEl);
   getDriveTime(WORK, HOME, driveToHomeEl);
-
-  // Transit (N Line)
   getNLine(N_ORIGIN, N_DEST, trainToWorkEl, trainToNoteEl);
   getNLine(N_DEST, N_ORIGIN, trainToHomeEl, trainHomeNoteEl);
 }
 
-// Hook up manual refresh
 document.getElementById('refreshBtn').addEventListener('click', refreshAll);
-
-// theme toggle (simple)
 document.getElementById('themeToggle').addEventListener('click', () => {
-  // toggle a dark class on body for quick override
   document.documentElement.classList.toggle('force-dark');
-  // small visual feedback: invert root colors (quick hack)
-  if (document.documentElement.classList.contains('force-dark')) {
-    document.body.style.background = '#071126';
-  } else {
-    document.body.style.background = '';
-  }
+  document.body.style.background = document.documentElement.classList.contains('force-dark') ? '#071126' : '';
 });
 
-// ========== Google Maps loader + init ==========
+// ========== Google Maps Initialization ==========
 function initMap() {
-  // create services
   directionsService = new google.maps.DirectionsService();
   distanceMatrixService = new google.maps.DistanceMatrixService();
-
-  // initial refresh
   refreshAll();
-
-  // auto-refresh every 3 minutes
   setInterval(refreshAll, 180000);
 }
 
-// Load Google Maps JS API
 (function loadGoogleMaps(){
   const script = document.createElement('script');
   script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
   script.async = true;
   script.defer = true;
   script.onerror = () => {
-    // If the script fails to load, show errors in cards
     driveToWorkEl.textContent = 'Maps failed to load';
     driveToHomeEl.textContent = 'Maps failed to load';
     trainToWorkEl.textContent = 'Maps failed to load';
