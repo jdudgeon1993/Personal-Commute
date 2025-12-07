@@ -1,215 +1,254 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Weather & Transit Dashboard</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Commute Dashboard – Drive & N Line</title>
+
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
 <style>
-:root {
-    --bg-light: #f5f7fa;
-    --bg-dark: #121212;
-    --card-light: #ffffff;
-    --card-dark: #1e1e1e;
-    --text-light: #1e1e1e;
-    --text-dark: #ffffff;
-    --primary: #4f46e5;
-}
-body {
-    font-family: 'Inter', sans-serif;
-    margin: 0;
-    background-color: var(--bg-light);
-    color: var(--text-light);
-    transition: background 0.3s, color 0.3s;
-}
-body.dark {
-    background-color: var(--bg-dark);
-    color: var(--text-dark);
-}
-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 2rem;
-    background-color: var(--primary);
-    color: white;
-}
-.toggle-btn {
-    cursor: pointer;
-    background: none;
-    border: 2px solid white;
-    border-radius: 8px;
-    padding: 0.3rem 0.8rem;
-    font-weight: 600;
-}
-.container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    padding: 1.5rem;
-}
-.card {
-    background-color: var(--card-light);
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: background 0.3s, transform 0.2s;
-}
-body.dark .card {
-    background-color: var(--card-dark);
-}
-.card:hover {
-    transform: translateY(-3px);
-}
-.card h2 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.2rem;
-}
-.card p {
-    margin: 0.2rem 0;
-}
-.card img {
-    width: 50px;
-    height: 50px;
-}
-.card-content {
-    display: flex;
-    flex-direction: column;
-}
-@media (min-width: 768px) {
-    .container {
-        flex-direction: row;
-        justify-content: space-between;
+    :root {
+        --bg: #f4f6f9;
+        --card: #ffffff;
+        --text: #222;
+        --accent: #4a6cff;
+        --shadow: rgba(0,0,0,0.15);
     }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg: #1c1f26;
+            --card: #262a33;
+            --text: #e6e6e6;
+            --accent: #7a90ff;
+            --shadow: rgba(0,0,0,0.4);
+        }
+    }
+
+    body {
+        font-family: Inter, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .app {
+        width: 100%;
+        max-width: 520px;
+    }
+
+    h1 {
+        text-align: center;
+        font-size: 1.9rem;
+        margin-top: 0;
+        font-weight: 800;
+        letter-spacing: -1px;
+    }
+
     .card {
-        flex: 1;
+        background: var(--card);
+        padding: 20px;
+        border-radius: 22px;
+        box-shadow: 0 10px 25px var(--shadow);
+        margin-bottom: 25px;
+        animation: fadeIn 0.4s ease;
     }
-}
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    label {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-top: 12px;
+        display: block;
+    }
+
+    input {
+        width: 100%;
+        padding: 10px 12px;
+        margin-top: 6px;
+        border-radius: 12px;
+        border: 1px solid #ccc;
+        font-size: 1rem;
+        background: var(--bg);
+        color: var(--text);
+    }
+
+    .tabs {
+        display: flex;
+        margin-bottom: 15px;
+        gap: 10px;
+    }
+
+    .tab {
+        flex: 1;
+        padding: 12px;
+        font-weight: 600;
+        border-radius: 14px;
+        background: var(--card);
+        text-align: center;
+        cursor: pointer;
+        box-shadow: 0 3px 10px var(--shadow);
+        transition: 0.15s;
+    }
+
+    .tab:hover {
+        transform: scale(1.02);
+    }
+
+    .tab.active {
+        background: var(--accent);
+        color: white;
+    }
+
+    .result-box {
+        padding: 15px;
+        margin-top: 20px;
+        border-radius: 14px;
+        font-size: 1.1rem;
+        text-align: center;
+        background: var(--bg);
+    }
+
+    .button {
+        width: 100%;
+        margin-top: 18px;
+        padding: 14px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        border: none;
+        border-radius: 14px;
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+    }
+
+    .button i {
+        margin-right: 8px;
+    }
 </style>
 </head>
+
 <body>
-<header>
-    <h1>My Dashboard</h1>
-    <button class="toggle-btn" id="themeToggle">Dark Mode</button>
-</header>
+<div class="app">
+    <h1>🚇 Commute Dashboard</h1>
 
-<div class="container">
-    <div class="card" id="weatherCard">
-        <img src="" alt="Weather Icon" id="weatherIcon">
-        <div class="card-content">
-            <h2>Weather</h2>
-            <p id="weatherLocation">Loading...</p>
-            <p id="weatherTemp"></p>
-            <p id="weatherDesc"></p>
-        </div>
+    <div class="tabs">
+        <div class="tab active" id="driveTab">🚗 Drive</div>
+        <div class="tab" id="transitTab">🚆 N Line</div>
     </div>
 
-    <div class="card" id="driveCard">
-        <img src="https://img.icons8.com/ios-filled/50/000000/car.png" alt="Drive Icon">
-        <div class="card-content">
-            <h2>Drive Time</h2>
-            <p id="driveTo">Loading...</p>
-            <p id="driveFrom">Loading...</p>
-        </div>
-    </div>
+    <div class="card">
+        <label>From:</label>
+        <input id="from" placeholder="123 Main St, SF">
 
-    <div class="card" id="transitCard">
-        <img src="https://img.icons8.com/ios-filled/50/000000/bus.png" alt="Transit Icon">
-        <div class="card-content">
-            <h2>RTD Line N</h2>
-            <p id="transitTo">Loading...</p>
-            <p id="transitFrom">Loading...</p>
-        </div>
+        <label>To:</label>
+        <input id="to" placeholder="Work address">
+
+        <button class="button" onclick="calculateTime()">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+        </button>
+
+        <div id="result" class="result-box">Enter a location to begin.</div>
     </div>
 </div>
 
 <script>
-// ================= Theme Toggle =================
-const themeBtn = document.getElementById('themeToggle');
-themeBtn.addEventListener('click', () => {
-    document.body.classList.toggle('dark');
-    themeBtn.textContent = document.body.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
-});
+// YOUR API KEY:
+const API_KEY = "AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY";
 
-// ================= Weather ===================
-const weatherApiKey = '1c91f81f2adfd1b633d19842869a1a11';
-const city = 'Denver,US';
-const weatherIcon = document.getElementById('weatherIcon');
+let mode = "drive";
 
-async function fetchWeather() {
+// Tab switching
+document.getElementById("driveTab").onclick = () => {
+    mode = "drive";
+    setActiveTab();
+};
+document.getElementById("transitTab").onclick = () => {
+    mode = "transit";
+    setActiveTab();
+};
+
+function setActiveTab() {
+    document.getElementById("driveTab").classList.remove("active");
+    document.getElementById("transitTab").classList.remove("active");
+
+    if (mode === "drive") document.getElementById("driveTab").classList.add("active");
+    else document.getElementById("transitTab").classList.add("active");
+}
+
+async function calculateTime() {
+    const from = document.getElementById("from").value.trim();
+    const to = document.getElementById("to").value.trim();
+    const resultBox = document.getElementById("result");
+
+    if (!from || !to) {
+        resultBox.textContent = "Please enter both locations.";
+        return;
+    }
+
+    resultBox.textContent = "Loading…";
+
+    let url = "";
+
+    if (mode === "drive") {
+        url =
+            `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(from)}&destinations=${encodeURIComponent(to)}&mode=driving&departure_time=now&key=${API_KEY}`;
+    } else {
+        url =
+            `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&mode=transit&transit_mode=train&departure_time=now&key=${API_KEY}`;
+    }
+
     try {
-        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=imperial&appid=${weatherApiKey}`);
-        const data = await res.json();
-        document.getElementById('weatherLocation').textContent = `${data.name}, ${data.sys.country}`;
-        document.getElementById('weatherTemp').textContent = `Temp: ${Math.round(data.main.temp)}°F`;
-        document.getElementById('weatherDesc').textContent = data.weather[0].description;
-        weatherIcon.src = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (mode === "drive") {
+            const info = data.rows?.[0]?.elements?.[0];
+            if (info?.duration_in_traffic) {
+                resultBox.textContent = `🚗 Drive Time: ${info.duration_in_traffic.text}`;
+            } else {
+                resultBox.textContent = "Unable to fetch driving time.";
+            }
+        } else {
+            // Transit - filter for N Judah train
+            const route = data.routes?.[0];
+            if (!route) {
+                resultBox.textContent = "No transit route found.";
+                return;
+            }
+
+            const legs = route.legs[0];
+            const steps = legs.steps;
+
+            const nLineStep = steps.find(
+                s =>
+                    s.transit_details &&
+                    (s.transit_details.line.short_name === "N" ||
+                     s.transit_details.line.name.includes("N"))
+            );
+
+            if (!nLineStep) {
+                resultBox.textContent = "⚠️ No N Line (N Judah) trains available right now.";
+                return;
+            }
+
+            resultBox.textContent = `🚆 N Line Time: ${legs.duration.text}`;
+        }
     } catch (err) {
-        console.error(err);
-        document.getElementById('weatherLocation').textContent = 'Error loading weather';
+        resultBox.textContent = "Error retrieving commute data.";
     }
 }
-
-// ================= Google Maps Directions =================
-let directionsService;
-function initMap() {
-    directionsService = new google.maps.DirectionsService();
-    fetchDrive();
-    fetchTransit();
-}
-
-const home = '11625 Community Center Drive, Northglenn, CO 80233';
-const work = '707 17th Street, Denver, CO 80202';
-const transitOrigin = 'Northglenn & 112th Station, Northglenn, CO';
-const transitDestination = 'Denver Union Station, Denver, CO';
-
-function fetchDrive() {
-    const driveToReq = { origin: home, destination: work, travelMode: 'DRIVING' };
-    directionsService.route(driveToReq, (res, status) => {
-        if(status==='OK'){
-            document.getElementById('driveTo').textContent = `To Work: ${res.routes[0].legs[0].duration.text}`;
-        }
-    });
-    const driveFromReq = { origin: work, destination: home, travelMode: 'DRIVING' };
-    directionsService.route(driveFromReq, (res, status) => {
-        if(status==='OK'){
-            document.getElementById('driveFrom').textContent = `From Work: ${res.routes[0].legs[0].duration.text}`;
-        }
-    });
-}
-
-function fetchTransit() {
-    const transitToReq = { origin: transitOrigin, destination: transitDestination, travelMode: 'TRANSIT', transitOptions: { modes:['BUS'] } };
-    directionsService.route(transitToReq, (res, status) => {
-        if(status==='OK'){
-            const leg = res.routes[0].legs[0];
-            document.getElementById('transitTo').textContent = `To Union Station: Departs ${leg.departure_time.text}, Duration ${leg.duration.text}`;
-        }
-    });
-    const transitFromReq = { origin: transitDestination, destination: transitOrigin, travelMode: 'TRANSIT', transitOptions: { modes:['BUS'] } };
-    directionsService.route(transitFromReq, (res, status) => {
-        if(status==='OK'){
-            const leg = res.routes[0].legs[0];
-            document.getElementById('transitFrom').textContent = `From Union Station: Departs ${leg.departure_time.text}, Duration ${leg.duration.text}`;
-        }
-    });
-}
-
-// ================= Refresh All =================
-function refreshAll() {
-    fetchWeather();
-    fetchDrive();
-    fetchTransit();
-}
-
-// Initial load
-refreshAll();
-
-// Auto-refresh every 5 minutes
-setInterval(refreshAll, 300000);
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY&callback=initMap" async defer></script>
+
 </body>
 </html>
