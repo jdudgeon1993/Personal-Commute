@@ -7,38 +7,41 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f3f6fb; --card:#fff; --muted:#6b7280; --accent:#4f46e5; --success:#10b981;
-  --shadow:0 8px 24px rgba(15,23,42,0.08);
+  --bg:#f3f6fb; --text:#111827; --card:#fff; --muted:#6b7280; --accent:#4f46e5;
+  --success:#10b981; --warn:#facc15; --danger:#ef4444; --shadow:0 6px 18px rgba(15,23,42,0.08);
 }
-body.force-dark{
-  --bg:#0f1724; --card:#111827; --muted:#9ca3af; --accent:#7c89ff; --success:#34d399;
-  --shadow:0 12px 28px rgba(2,6,23,0.6); color:#f3f6fb;
+body.dark{
+  --bg:#0f1724; --text:#f3f6fb; --card:#1e293b; --muted:#9ca3af;
+  --accent:#7c89ff; --success:#34d399; --warn:#fbbf24; --danger:#f87171; --shadow:0 8px 24px rgba(0,0,0,0.6);
 }
-html,body{height:100%; margin:0; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto; background:var(--bg);}
-.app{max-width:900px; margin:auto; display:flex; flex-direction:column; padding:20px; gap:14px;}
-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto; background:var(--bg); color:var(--text);}
+.app{max-width:600px;margin:auto;padding:16px; display:flex; flex-direction:column; gap:16px;}
+header{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
 h1{margin:0; font-size:22px; font-weight:800;}
 .controls{display:flex; gap:8px;}
-.btn{padding:8px 12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:var(--shadow);}
-.btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(0,0,0,0.06);}
-.grid{display:grid; grid-template-columns:1fr; gap:14px;}
-@media(min-width:900px){.grid{grid-template-columns:1fr 1fr;}}
-.card{background:var(--card); border-radius:14px; padding:16px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:12px;}
-.card .top-row{display:flex; gap:12px; align-items:center;}
-.card .left{width:56px; height:56px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff;}
-.card h3{margin:0; font-size:16px;}
+.btn{padding:8px 14px; border-radius:12px; border:none; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:var(--shadow); transition:transform 0.2s;}
+.btn:hover{transform:translateY(-2px);}
+.btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(0,0,0,0.08);}
+.grid{display:grid; gap:16px;}
+.card{background:var(--card); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow); transition:transform 0.2s, box-shadow 0.2s;}
+.card:hover{transform:translateY(-2px); box-shadow:0 12px 24px rgba(15,23,42,0.15);}
+.top-row{display:flex; align-items:center; gap:14px;}
+.left{width:56px; height:56px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff; flex-shrink:0;}
+.big{font-weight:700; font-size:18px; margin-top:4px;}
 .muted{color:var(--muted); font-size:13px;}
-.big{font-weight:700; font-size:18px; margin-top:6px;}
+.status-row{display:flex; gap:10px; flex-wrap:wrap;}
+.pill{padding:6px 12px; border-radius:999px; font-weight:600; font-size:13px; transition:all 0.3s;}
+.radio-group{display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;}
 .icon-weather{background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937;}
 .icon-drive{background:linear-gradient(135deg,#60a5fa,#4f46e5);}
 .icon-transit{background:linear-gradient(135deg,#34d399,#10b981); color:#052e16;}
-.small-note{font-size:12px; color:var(--muted);}
-.status-row{display:flex; gap:10px; flex-wrap:wrap;}
-.pill{padding:6px 10px; border-radius:999px; font-weight:600; background:rgba(0,0,0,0.04); color:var(--muted); font-size:13px;}
-footer{margin-top:12px; color:var(--muted); font-size:13px; text-align:center;}
-.map-container{height:140px; border-radius:12px; overflow:hidden; display:flex; justify-content:center; align-items:center; background:#e5e7eb;}
-.radio-group{display:flex; gap:12px; margin-top:6px;}
-.map-container img{width:100%; height:100%; object-fit:cover; border-radius:12px;}
+.timeline{display:flex; flex-direction:column; gap:6px;}
+.timeline-item{display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.03); padding:6px 12px; border-radius:12px; font-size:14px; transition:all 0.3s;}
+.timeline-item.green{background:var(--success); color:#fff;}
+.timeline-item.yellow{background:var(--warn); color:#111;}
+.timeline-item.red{background:var(--danger); color:#fff;}
+footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
 </style>
 </head>
 <body>
@@ -46,7 +49,7 @@ footer{margin-top:12px; color:var(--muted); font-size:13px; text-align:center;}
   <header>
     <div>
       <h1>Commute Dashboard</h1>
-      <div class="small-note" id="dayTime">Loading…</div>
+      <div class="muted" id="dayTime">Loading…</div>
     </div>
     <div class="controls">
       <button class="btn" id="refreshBtn">⟳ Refresh</button>
@@ -85,7 +88,6 @@ footer{margin-top:12px; color:var(--muted); font-size:13px; text-align:center;}
         <label><input type="radio" name="driveToWorkOpt" value="false" checked> Use Highways</label>
         <label><input type="radio" name="driveToWorkOpt" value="true"> Avoid Highways</label>
       </div>
-      <div class="map-container" id="mapToWork"></div>
     </section>
 
     <!-- Drive Home -->
@@ -102,9 +104,9 @@ footer{margin-top:12px; color:var(--muted); font-size:13px; text-align:center;}
         <label><input type="radio" name="driveToHomeOpt" value="false" checked> Use Highways</label>
         <label><input type="radio" name="driveToHomeOpt" value="true"> Avoid Highways</label>
       </div>
-      <div class="map-container" id="mapToHome"></div>
     </section>
-<!-- Transit to Work -->
+
+    <!-- Transit to Work -->
     <section class="card">
       <div class="top-row">
         <div class="left icon-transit">🚆</div>
@@ -114,7 +116,7 @@ footer{margin-top:12px; color:var(--muted); font-size:13px; text-align:center;}
           <div class="big" id="trainToWork">Loading…</div>
         </div>
       </div>
-      <div class="status-row" id="trainToWorkCountdown"></div>
+      <div class="timeline" id="trainToWorkTimeline"></div>
     </section>
 
     <!-- Transit Home -->
@@ -127,188 +129,152 @@ footer{margin-top:12px; color:var(--muted); font-size:13px; text-align:center;}
           <div class="big" id="trainToHome">Loading…</div>
         </div>
       </div>
-      <div class="status-row" id="trainToHomeCountdown"></div>
+      <div class="timeline" id="trainToHomeTimeline"></div>
     </section>
   </main>
   <footer>Auto-refresh every 3 minutes • Click refresh anytime</footer>
 </div>
 
 <script>
-const OPENWEATHER_API_KEY = '1c91f81f2adfd1b633d19842869a1a11';
-const GOOGLE_MAPS_API_KEY = 'AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
+const OPENWEATHER_API_KEY='1c91f81f2adfd1b633d19842869a1a11';
+const GOOGLE_MAPS_API_KEY='AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
+const HOME='11625 Community Center Drive, Northglenn, CO 80233';
+const WORK='707 17th Street, Denver, CO 80202';
+const N_ORIGIN='Northglenn & 112th Station, Northglenn, CO';
+const N_DEST='Denver Union Station, Denver, CO';
 
-// Preset locations
-const HOME = '11625 Community Center Drive, Northglenn, CO 80233';
-const WORK = '707 17th Street, Denver, CO 80202';
-const N_ORIGIN = 'Northglenn & 112th Station, Northglenn, CO';
-const N_DEST = 'Denver Union Station, Denver, CO';
-
-// Elements
-const weatherTempEl = document.getElementById('weatherTemp');
-const weatherDescEl = document.getElementById('weatherDesc');
-const weatherIconEl = document.getElementById('weatherIcon');
-const weatherFeelsEl = document.getElementById('weatherFeels');
-const weatherWindEl = document.getElementById('weatherWind');
-const weatherHumidityEl = document.getElementById('weatherHumidity');
-
-const driveToWorkEl = document.getElementById('driveToWork');
-const driveToHomeEl = document.getElementById('driveToHome');
-
-const trainToWorkEl = document.getElementById('trainToWork');
-const trainToHomeEl = document.getElementById('trainToHome');
-const trainToWorkCountdownEl = document.getElementById('trainToWorkCountdown');
-const trainToHomeCountdownEl = document.getElementById('trainToHomeCountdown');
-
-const mapToWorkEl = document.getElementById('mapToWork');
-const mapToHomeEl = document.getElementById('mapToHome');
-
-const dayTimeEl = document.getElementById('dayTime');
+const weatherTempEl=document.getElementById('weatherTemp');
+const weatherDescEl=document.getElementById('weatherDesc');
+const weatherIconEl=document.getElementById('weatherIcon');
+const weatherFeelsEl=document.getElementById('weatherFeels');
+const weatherWindEl=document.getElementById('weatherWind');
+const weatherHumidityEl=document.getElementById('weatherHumidity');
+const driveToWorkEl=document.getElementById('driveToWork');
+const driveToHomeEl=document.getElementById('driveToHome');
+const trainToWorkEl=document.getElementById('trainToWork');
+const trainToHomeEl=document.getElementById('trainToHome');
+const trainToWorkTimeline=document.getElementById('trainToWorkTimeline');
+const trainToHomeTimeline=document.getElementById('trainToHomeTimeline');
+const dayTimeEl=document.getElementById('dayTime');
 
 let directionsService=null;
 let trainIntervals=[];
 
-// ======= Helper =======
 function updateDayTime(){
-  const now = new Date();
-  const hours = now.getHours();
+  const now=new Date();
+  const hours=now.getHours();
   let part='Morning';
   if(hours>=12 && hours<17) part='Afternoon';
   else if(hours>=17) part='Evening';
-  dayTimeEl.textContent = `${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`;
+  dayTimeEl.textContent=`${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`;
 }
 
-// ========== Weather ==========
-async function fetchWeather() {
-  try {
-    const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Denver,US&units=imperial&appid=${OPENWEATHER_API_KEY}`);
-    const data = await res.json();
-    const temp = Math.round(data.main.temp) + '°F';
-    const desc = data.weather?.[0]?.description ?? '—';
-    const icon = data.weather?.[0]?.icon;
-    const feels = Math.round(data.main.feels_like) + '°F';
-    const wind = `${Math.round(data.wind.speed)} mph`;
-    const humidity = `${data.main.humidity}%`;
-    weatherTempEl.textContent = temp;
-    weatherDescEl.textContent = desc[0].toUpperCase() + desc.slice(1);
-    weatherFeelsEl.textContent = `Feels: ${feels}`;
-    weatherWindEl.textContent = `Wind: ${wind}`;
-    weatherHumidityEl.textContent = `Humidity: ${humidity}`;
+async function fetchWeather(){
+  try{
+    const res=await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Denver,US&units=imperial&appid=${OPENWEATHER_API_KEY}`);
+    const data=await res.json();
+    const temp=Math.round(data.main.temp)+'°F';
+    const desc=data.weather?.[0]?.description??'—';
+    const icon=data.weather?.[0]?.icon;
+    const feels=Math.round(data.main.feels_like)+'°F';
+    const wind=`${Math.round(data.wind.speed)} mph`;
+    const humidity=`${data.main.humidity}%`;
+    weatherTempEl.textContent=temp;
+    weatherDescEl.textContent=desc[0].toUpperCase()+desc.slice(1);
+    weatherFeelsEl.textContent=`Feels: ${feels}`;
+    weatherWindEl.textContent=`Wind: ${wind}`;
+    weatherHumidityEl.textContent=`Humidity: ${humidity}`;
     if(icon){
-      weatherIconEl.textContent = '';
-      const img = document.createElement('img');
+      weatherIconEl.textContent='';
+      const img=document.createElement('img');
       img.src=`https://openweathermap.org/img/wn/${icon}@2x.png`;
-      img.alt = desc;
+      img.alt=desc;
       img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px';
       weatherIconEl.appendChild(img);
     }
-  } catch(err){
-    console.error(err);
-    weatherTempEl.textContent = 'Error loading weather';
-  }
+  }catch(err){console.error(err); weatherTempEl.textContent='Error loading weather';}
 }
 
-// ========== Drive Static Map ==========
-function getStaticMapURL(origin,destination){
-  return `https://maps.googleapis.com/maps/api/staticmap?size=300x140&path=color:0x4f46e5|weight:5|${encodeURIComponent(origin)}|${encodeURIComponent(destination)}&markers=color:green|label:H|${encodeURIComponent(origin)}&markers=color:red|label:W|${encodeURIComponent(destination)}&key=${GOOGLE_MAPS_API_KEY}`;
-}
-
-function getDriveTime(origin,destination,el,mapEl,optName){
+function getDriveTime(origin,destination,el,optName){
   if(!directionsService){el.textContent='Maps service not ready'; return;}
-  const avoidHighways = document.querySelector(`input[name="${optName}"]:checked`).value==='true';
+  const avoidHighways=document.querySelector(`input[name="${optName}"]:checked`).value==='true';
   el.textContent='Calculating…';
-
   directionsService.route({
     origin,destination,travelMode: google.maps.TravelMode.DRIVING,
     drivingOptions:{departureTime:new Date(),trafficModel:'bestguess'},
     avoidHighways
   },(result,status)=>{
-    if(status!=='OK'){el.textContent='Error loading drive time'; console.error(status); return;}
-    try{
-      const leg = result.routes[0].legs[0];
-      const durationMinutes = leg.duration_in_traffic?.value / 60 || leg.duration?.value / 60;
-      el.textContent = leg.duration_in_traffic?.text || leg.duration.text || 'N/A';
-      if(durationMinutes <= 20) el.style.color='#10b981';
-      else if(durationMinutes <= 40) el.style.color='#facc15';
-      else el.style.color='#ef4444';
-      mapEl.innerHTML = `<img src="${getStaticMapURL(origin,destination)}" alt="Drive map">`;
-    } catch(e){el.textContent='Error loading drive time'; console.error(e);}
+    if(status!=='OK'){el.textContent='Error'; console.error(status); return;}
+    const leg=result.routes[0].legs[0];
+    const mins=leg.duration_in_traffic?.value/60||leg.duration?.value/60;
+    el.textContent=leg.duration_in_traffic?.text||leg.duration.text||'N/A';
+    el.style.color=mins<=20?'var(--success)':mins<=40?'var(--warn)':'var(--danger)';
   });
 }
 
-// ========== Transit N Line ==========
-function getNLine(origin,destination,el,countdownEl){
+function updateTrainTimeline(upcoming,timelineEl){
+  timelineEl.innerHTML='';
+  upcoming.forEach(u=>{
+    const diff=Math.max(0,u.dep-new Date());
+    const min=Math.floor(diff/60000);
+    const sec=Math.floor((diff%60000)/1000);
+    const item=document.createElement('div'); item.className='timeline-item';
+    if(min<=5)item.classList.add('red');
+    else if(min<=15)item.classList.add('yellow');
+    else item.classList.add('green');
+    item.textContent=`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} | Next: ${min}m ${sec}s`;
+    timelineEl.appendChild(item);
+  });
+}
+
+function getNLine(origin,destination,el,timelineEl){
   if(!directionsService){el.textContent='Maps service not ready'; return;}
   el.textContent='Searching N Line…';
-  countdownEl.innerHTML='';
+  timelineEl.innerHTML='';
   directionsService.route({
-    origin,destination, travelMode: google.maps.TravelMode.TRANSIT,
+    origin,destination,travelMode: google.maps.TravelMode.TRANSIT,
     transitOptions:{modes:['RAIL']}, provideRouteAlternatives:false
   },(result,status)=>{
-    try{
-      if(status!=='OK') throw new Error('Directions status '+status);
-      const leg=result.routes[0].legs[0];
-      const steps=leg.steps.filter(s=>s.transit && s.transit.line && (String(s.transit.line.short_name)==='N' || /N/.test(s.transit.line.name)));
-      if(!steps.length){el.textContent='No N Line trains now'; return;}
-      const upcoming=[];
-      steps.slice(0,3).forEach(step=>{
-        const dep=new Date(step.transit.departure_time.value);
-        const arr=new Date(step.transit.arrival_time.value);
-        upcoming.push({dep,arr,headsign:step.transit.headsign||step.transit.line.short_name});
-      });
-      el.textContent=upcoming.map(u=>`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} (${u.headsign})`).join(' | ');
-
-      trainIntervals.forEach(i=>clearInterval(i));
-      trainIntervals=[];
-      upcoming.forEach((u,index)=>{
-        const pill=document.createElement('div');
-        pill.className='pill';
-        countdownEl.appendChild(pill);
-        function updateCountdown(){
-          const diff=Math.max(0,u.dep-new Date());
-          const min=Math.floor(diff/60000);
-          const sec=Math.floor((diff%60000)/1000);
-          pill.textContent=`Next: ${min}m ${sec}s`;
-          if(min <= 5) { pill.style.backgroundColor='#ef4444'; pill.style.color='white'; }
-          else if(min <=15){ pill.style.backgroundColor='#facc15'; pill.style.color='black'; }
-          else { pill.style.backgroundColor='#10b981'; pill.style.color='white'; }
-          if(index===0) pill.style.fontWeight='700';
-        }
-        updateCountdown();
-        const interval=setInterval(updateCountdown,1000);
-        trainIntervals.push(interval);
-      });
-    }catch(e){console.error(e); el.textContent='Error loading transit';}
+    if(status!=='OK'){el.textContent='Error'; return;}
+    const leg=result.routes[0].legs[0];
+    const steps=leg.steps.filter(s=>s.transit && s.transit.line && (String(s.transit.line.short_name)==='N' || /N/.test(s.transit.line.name)));
+    if(!steps.length){el.textContent='No N Line trains now'; return;}
+    const upcoming=[];
+    steps.slice(0,3).forEach(step=>{
+      const dep=new Date(step.transit.departure_time.value);
+      const arr=new Date(step.transit.arrival_time.value);
+      upcoming.push({dep,arr,headsign:step.transit.headsign||step.transit.line.short_name});
+    });
+    el.textContent=upcoming.map(u=>`${u.dep.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → ${u.arr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} (${u.headsign})`).join(' | ');
+    updateTrainTimeline(upcoming,timelineEl);
+    trainIntervals.forEach(i=>clearInterval(i));
+    trainIntervals=[];
+    upcoming.forEach(u=>{
+      const interval=setInterval(()=>updateTrainTimeline(upcoming,timelineEl),1000);
+      trainIntervals.push(interval);
+    });
   });
 }
 
-// ========== Refresh All ==========
 function refreshAll(){
   updateDayTime();
   fetchWeather();
-  getDriveTime(HOME,WORK,driveToWorkEl,mapToWorkEl,'driveToWorkOpt');
-  getDriveTime(WORK,HOME,driveToHomeEl,mapToHomeEl,'driveToHomeOpt');
-  getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkCountdownEl);
-  getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeCountdownEl);
+  getDriveTime(HOME,WORK,driveToWorkEl,'driveToWorkOpt');
+  getDriveTime(WORK,HOME,driveToHomeEl,'driveToHomeOpt');
+  getNLine(N_ORIGIN,N_DEST,trainToWorkEl,trainToWorkTimeline);
+  getNLine(N_DEST,N_ORIGIN,trainToHomeEl,trainToHomeTimeline);
 }
 
 document.getElementById('refreshBtn').addEventListener('click',refreshAll);
-document.getElementById('themeToggle').addEventListener('click',()=>document.body.classList.toggle('force-dark'));
+document.getElementById('themeToggle').addEventListener('click',()=>document.body.classList.toggle('dark'));
+document.querySelectorAll('input[name="driveToWorkOpt"]').forEach(rb=>rb.addEventListener('change',()=>getDriveTime(HOME,WORK,driveToWorkEl,'driveToWorkOpt')));
+document.querySelectorAll('input[name="driveToHomeOpt"]').forEach(rb=>rb.addEventListener('change',()=>getDriveTime(WORK,HOME,driveToHomeEl,'driveToHomeOpt')));
 
-// Radio buttons recalc on change
-document.querySelectorAll('input[name="driveToWorkOpt"]').forEach(rb=>{
-  rb.addEventListener('change',()=>getDriveTime(HOME,WORK,driveToWorkEl,mapToWorkEl,'driveToWorkOpt'));
-});
-document.querySelectorAll('input[name="driveToHomeOpt"]').forEach(rb=>{
-  rb.addEventListener('change',()=>getDriveTime(WORK,HOME,driveToHomeEl,mapToHomeEl,'driveToHomeOpt'));
-});
-
-// ========== Google Maps Init ==========
 function initMap(){
   directionsService=new google.maps.DirectionsService();
   refreshAll();
-  setInterval(refreshAll,180000); // refresh every 3 mins
+  setInterval(refreshAll,180000);
 }
-
 (function loadGoogleMaps(){
   const script=document.createElement('script');
   script.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
