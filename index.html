@@ -116,10 +116,12 @@ body.dark .direction-col{background:rgba(255,255,255,0.05);}
         <div class="direction-col">
           <div><strong>Southbound</strong></div>
           <div>Next Train: <span id="trainToWork">Loading…</span></div>
+          <div class="timeline" id="trainToWorkTimeline"></div>
         </div>
         <div class="direction-col">
           <div><strong>Northbound</strong></div>
           <div>Next Train: <span id="trainToHome">Loading…</span></div>
+          <div class="timeline" id="trainToHomeTimeline"></div>
         </div>
       </div>
     </section>
@@ -146,6 +148,10 @@ const GOOGLE_MAPS_API_KEY='AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
 const HOME='11625 Community Center Drive, Northglenn, CO 80233';
 const WORK='707 17th Street, Denver, CO 80202';
 
+// N Line preset schedules (24h format)
+const N_LINE_SOUTHBOUND = ["06:30","07:00","07:30","08:00","08:20","08:40"];
+const N_LINE_NORTHBOUND = ["16:10","16:30","16:50","17:10","17:30","17:50"];
+
 const weatherTempEl=document.getElementById('weatherTemp');
 const weatherDescEl=document.getElementById('weatherDesc');
 const weatherIconEl=document.getElementById('weatherIcon');
@@ -158,14 +164,12 @@ const driveToWorkBar=document.getElementById('driveToWorkBar');
 const driveToHomeBar=document.getElementById('driveToHomeBar');
 const trainToWorkEl=document.getElementById('trainToWork');
 const trainToHomeEl=document.getElementById('trainToHome');
+const trainToWorkTimeline=document.getElementById('trainToWorkTimeline');
+const trainToHomeTimeline=document.getElementById('trainToHomeTimeline');
 const dayTimeEl=document.getElementById('dayTime');
 const alertsText=document.getElementById('alertsText');
 
 let directionsService=null;
-
-// Personal N-Line Schedule
-const N_LINE_SOUTHBOUND = ["06:10","06:30","06:50","07:10","07:30","07:50"];
-const N_LINE_NORTHBOUND = ["16:10","16:30","16:50","17:10","17:30","17:50"];
 
 function updateDayTime(){
   const now=new Date();
@@ -223,24 +227,24 @@ function getDriveTime(origin,destination,el,bar,avoidHighways){
   });
 }
 
-// Convert schedule to Date objects
+// Train countdown helpers
 function getNextTrain(scheduleArray){
   const now=new Date();
-  const todayTrains = scheduleArray.map(t=>{
-    const [h,m] = t.split(':').map(Number);
+  const todayTrains = scheduleArray.map(t => {
+    const [h, m] = t.split(':').map(Number);
     const dt = new Date();
-    dt.setHours(h,m,0,0);
+    dt.setHours(h, m, 0, 0);
     return dt;
   });
-  return todayTrains.find(train=>train>now) || todayTrains[todayTrains.length-1];
+  return todayTrains.find(train => train > now) || todayTrains[todayTrains.length-1];
 }
 
-// Update countdown and suggested leave time
-function updateTrainCountdown(el,scheduleArray,leaveBufferMinutes){
-  const nextTrain = getNextTrain(scheduleArray);
-  const now = new Date();
+function updateTrainCountdown(el, timelineEl, scheduleArray, bufferMinutes){
+  const nextTrain=getNextTrain(scheduleArray);
+  const now=new Date();
   const diffMs = nextTrain - now;
-  const leaveTime = new Date(nextTrain - leaveBufferMinutes*60000);
+  const leaveTime = new Date(nextTrain - bufferMinutes*60000);
+  timelineEl.innerHTML='';
   if(diffMs <= 0){
     el.textContent = 'Departing now';
     return;
@@ -248,12 +252,14 @@ function updateTrainCountdown(el,scheduleArray,leaveBufferMinutes){
   const mins = Math.floor(diffMs/60000);
   const secs = Math.floor((diffMs%60000)/1000);
   el.textContent = `${mins}m ${secs}s | Leave by: ${leaveTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
-}
-
-function refreshTrains(){
-  updateTrainCountdown(trainToWorkEl,N_LINE_SOUTHBOUND,20); // leave 20 min before arrival
-  const homeLeaveBuffer = (new Date().getDay()===5)?60:30; // Fri 4:30 PM leave earlier
-  updateTrainCountdown(trainToHomeEl,N_LINE_NORTHBOUND,homeLeaveBuffer);
+  // timeline item for visual reference
+  const item=document.createElement('div');
+  item.className='timeline-item';
+  if(mins<=5)item.classList.add('red');
+  else if(mins<=15)item.classList.add('yellow');
+  else item.classList.add('green');
+  item.textContent = `Train: ${nextTrain.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → Leave by: ${leaveTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  timelineEl.appendChild(item);
 }
 
 function refreshAll(){
@@ -262,7 +268,10 @@ function refreshAll(){
   const avoidHighways=document.querySelector(`input[name="driveOpt"]:checked`).value==='true';
   getDriveTime(HOME,WORK,driveToWorkEl,driveToWorkBar,avoidHighways);
   getDriveTime(WORK,HOME,driveToHomeEl,driveToHomeBar,avoidHighways);
-  refreshTrains();
+  const southBuffer=20;
+  const homeBuffer = (new Date().getDay()===5)?60:30; // Friday early leave
+  updateTrainCountdown(trainToWorkEl,trainToWorkTimeline,N_LINE_SOUTHBOUND,southBuffer);
+  updateTrainCountdown(trainToHomeEl,trainToHomeTimeline,N_LINE_NORTHBOUND,homeBuffer);
   alertsText.textContent="No alerts at this time";
 }
 
@@ -273,17 +282,16 @@ document.querySelectorAll('input[name="driveOpt"]').forEach(rb=>rb.addEventListe
 function initMap(){
   directionsService=new google.maps.DirectionsService();
   refreshAll();
-  setInterval(refreshAll,600000); // auto refresh every 10 min
+  setInterval(refreshAll,600000); // 10 min
+  setInterval(refreshAll,1000);   // countdown refresh
 }
+
 (function loadGoogleMaps(){
   const script=document.createElement('script');
   script.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
   script.async=true; script.defer=true;
   document.head.appendChild(script);
 })();
-
-// Countdown update interval
-setInterval(refreshTrains,1000);
 </script>
 </body>
 </html>
