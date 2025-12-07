@@ -36,8 +36,8 @@ h1{margin:0; font-size:24px; font-weight:800;}
 .icon-weather{background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937;}
 .icon-commute{background:linear-gradient(135deg,#60a5fa,#4f46e5);}
 .icon-alert{background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff;}
-.timeline{display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;}
-.timeline-item{display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.03); padding:6px 12px; border-radius:12px; font-size:14px; transition:all 0.3s;}
+.timeline{display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;}
+.timeline-item{display:flex; justify-content:space-between; align-items:center; padding:6px 12px; border-radius:12px; font-size:14px; font-weight:600; transition:all 0.3s;}
 .timeline-item.green{background:var(--success); color:#fff;}
 .timeline-item.yellow{background:var(--warn); color:#111;}
 .timeline-item.red{background:var(--danger); color:#fff;}
@@ -45,8 +45,9 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
 .commute-section{display:flex; flex-direction:column; gap:16px;}
 .commute-header{display:flex; align-items:center; gap:12px;}
 .commute-header h3{margin:0;font-size:18px;font-weight:700;}
-.direction-row{display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;}
-.direction-col{flex:1; min-width:160px;}
+.direction-row{display:flex; justify-content:space-between; flex-wrap:wrap; gap:24px;}
+.direction-col{flex:1; min-width:160px; display:flex; flex-direction:column; gap:12px; padding:12px; border-radius:16px; background:rgba(0,0,0,0.03);}
+body.dark .direction-col{background:rgba(255,255,255,0.05);}
 .progress-bar{height:8px; border-radius:8px; background:rgba(0,0,0,0.1); margin-top:4px; overflow:hidden;}
 .progress-fill{height:100%; width:0%; background:var(--success); transition:width 0.6s ease, background 0.6s ease;}
 </style>
@@ -113,11 +114,13 @@ footer{font-size:12px;color:var(--muted); text-align:center; margin-top:16px;}
       </div>
       <div class="direction-row">
         <div class="direction-col">
-          <div>To Work: <span id="trainToWork">Loading…</span></div>
+          <div><strong>To Work</strong></div>
+          <div>Next Train: <span id="trainToWork">Loading…</span></div>
           <div class="timeline" id="trainToWorkTimeline"></div>
         </div>
         <div class="direction-col">
-          <div>To Home: <span id="trainToHome">Loading…</span></div>
+          <div><strong>To Home</strong></div>
+          <div>Next Train: <span id="trainToHome">Loading…</span></div>
           <div class="timeline" id="trainToHomeTimeline"></div>
         </div>
       </div>
@@ -234,7 +237,8 @@ function updateTrainTimeline(upcoming,timelineEl){
     const diff=Math.max(0,u.dep-new Date());
     const min=Math.floor(diff/60000);
     const sec=Math.floor((diff%60000)/1000);
-    const item=document.createElement('div'); item.className='timeline-item';
+    const item=document.createElement('div'); 
+    item.className='timeline-item';
     if(min<=5)item.classList.add('red');
     else if(min<=15)item.classList.add('yellow');
     else item.classList.add('green');
