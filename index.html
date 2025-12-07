@@ -1,360 +1,588 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Commute Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-    :root {
-        --bg: #f3f3f7;
-        --card: #ffffff;
-        --text: #2b2b2b;
-        --subtext: #666;
-        --accent: #4a90e2;
-        --accent-soft: rgba(74,144,226,0.12);
-        --border: #e5e5e5;
+:root{
+  --bg:#f0f2f5; --text:#111827; --card:#fff; --muted:#6b7280; --accent:#4f46e5;
+  --success:#10b981; --warn:#facc15; --danger:#ef4444; --shadow:0 6px 18px rgba(15,23,42,0.08);
+  --status-gray:#9ca3af;
+}
+body.dark{
+  --bg:#0f1724; --text:#f3f6fb; --card:#1e293b; --muted:#9ca3af;
+  --accent:#7c89ff; --success:#34d399; --warn:#fbbf24; --danger:#f87171; --shadow:0 8px 24px rgba(0,0,0,0.6);
+  --status-gray:#475569;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto; background:var(--bg); color:var(--text);}
+.app{max-width:960px;margin:auto;padding:18px; display:flex; flex-direction:column; gap:18px;}
+header{display:flex; justify-content:space-between; align-items:center; gap:12px;}
+.title-block{display:flex; flex-direction:column;}
+h1{margin:0; font-size:22px; font-weight:800;}
+.muted{color:var(--muted); font-size:13px;}
+.controls{display:flex; gap:8px; align-items:center;}
+.btn{padding:8px 14px; border-radius:12px; border:none; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:var(--shadow); transition:all 0.18s;}
+.btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(0,0,0,0.06);}
+.grid{display:grid; gap:16px;}
+/* responsive: stacked on mobile, two-column >=1000px */
+@media (min-width:1000px){ .grid{grid-template-columns:1fr 1fr;} }
+.card{position:relative; background:var(--card); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow); border:1px solid rgba(0,0,0,0.04); transition:transform .18s, box-shadow .18s;}
+.card:hover{transform:translateY(-4px); box-shadow:0 18px 36px rgba(15,23,42,0.08);}
+.card .status-accent{position:absolute; top:0; right:0; width:10px; height:100%; border-radius:0 16px 16px 0; background:var(--status-gray); transition:background .3s;}
+.commute-header{display:flex; align-items:center; gap:12px;}
+.icon{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;}
+.icon.weather{background:linear-gradient(135deg,#ffd166,#ff9a66); color:#1f2937;}
+.icon.drive{background:linear-gradient(135deg,#60a5fa,#4f46e5);}
+.icon.transit{background:linear-gradient(135deg,#34d399,#10b981); color:#072014;}
+.header-sub{font-size:13px;color:var(--muted);}
+.section{margin-top:8px;padding-top:10px;border-top:1px solid rgba(0,0,0,0.04);}
+body.dark .section{border-top-color:rgba(255,255,255,0.04);}
+.direction-row{display:flex; gap:16px; flex-wrap:wrap;}
+.direction-col{flex:1; min-width:180px; background:rgba(0,0,0,0.03); padding:12px;border-radius:12px; display:flex; flex-direction:column; gap:8px;}
+body.dark .direction-col{background:rgba(255,255,255,0.03);}
+.small-label{font-size:13px;color:var(--muted);}
+.big-value{font-size:18px;font-weight:700;}
+.progress-bar{height:8px;border-radius:8px;background:rgba(0,0,0,0.08);overflow:hidden;}
+.progress-fill{height:100%; width:0%; background:var(--success); transition:width .6s ease, background .4s ease;}
+.radio-seg{display:flex;border-radius:10px; overflow:hidden; border:1px solid rgba(0,0,0,0.06); width:100%; max-width:320px;}
+body.dark .radio-seg{border:1px solid rgba(255,255,255,0.04);}
+.radio-seg button{flex:1;padding:8px 10px;border:0;background:transparent;cursor:pointer;font-weight:600;color:var(--muted);}
+.radio-seg button.active{background:var(--accent); color:#fff;}
+.timeline{display:flex;flex-direction:column;gap:8px;max-height:200px;overflow:auto;padding-right:4px;}
+.timeline-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:10px;font-weight:700;}
+.timeline-item.green{background:var(--success);color:#fff;}
+.timeline-item.yellow{background:var(--warn);color:#111;}
+.timeline-item.red{background:var(--danger);color:#fff;}
+.footer-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:6px;}
+.small{font-size:13px;color:var(--muted);}
 
-        /* Dark theme */
-        --bg-dark: #0f0f10;
-        --card-dark: #1a1b1e;
-        --text-dark: #ededed;
-        --subtext-dark: #999;
-        --border-dark: #2a2a2a;
-    }
-
-    body {
-        margin: 0;
-        font-family: "Inter", sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        transition: background 0.3s, color 0.3s;
-    }
-    body.dark {
-        background: var(--bg-dark);
-        color: var(--text-dark);
-    }
-
-    h2 {
-        margin: 0;
-        font-weight: 700;
-        font-size: 1.35rem;
-    }
-
-    .container {
-        max-width: 1100px;
-        margin: auto;
-        padding: 20px;
-    }
-
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 20px;
-    }
-    @media (min-width: 800px) {
-        .dashboard-grid {
-            grid-template-columns: 1fr 1fr;
-        }
-    }
-
-    .card {
-        position: relative;
-        background: var(--card);
-        border-radius: 14px;
-        padding: 18px 20px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.07);
-        border: 1px solid var(--border);
-        transition: background 0.3s, border 0.3s;
-    }
-    body.dark .card {
-        background: var(--card-dark);
-        border: 1px solid var(--border-dark);
-    }
-
-    /* Right side status bar */
-    .status-bar {
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 8px;
-        height: 100%;
-        border-radius: 0 14px 14px 0;
-        background: gray; /* default */
-    }
-
-    /* Radio segmented control */
-    .route-options {
-        margin-top: 10px;
-        display: flex;
-        gap: 8px;
-    }
-    .route-options label {
-        flex: 1;
-        background: var(--accent-soft);
-        padding: 8px 10px;
-        border-radius: 8px;
-        text-align: center;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: 0.25s;
-        border: 1px solid transparent;
-    }
-    body.dark .route-options label {
-        background: rgba(255,255,255,0.06);
-    }
-    .route-options input {
-        display: none;
-    }
-    .route-options input:checked + label {
-        background: var(--accent);
-        color: white;
-        border-color: rgba(0,0,0,0.15);
-    }
-
-    .section {
-        margin-top: 16px;
-        border-top: 1px solid var(--border);
-        padding-top: 14px;
-    }
-    body.dark .section {
-        border-color: var(--border-dark);
-    }
-
-    .row {
-        display: flex;
-        justify-content: space-between;
-        margin: 6px 0;
-    }
-
-    .label {
-        font-size: 0.9rem;
-        color: var(--subtext);
-    }
-    body.dark .label {
-        color: var(--subtext-dark);
-    }
-
-    .value {
-        font-weight: 600;
-    }
-
-    /* Theme toggle */
-    .theme-toggle {
-        text-align: right;
-        margin-bottom: 15px;
-    }
-    .theme-toggle button {
-        padding: 8px 14px;
-        border-radius: 8px;
-        border: none;
-        background: var(--accent);
-        color: white;
-        cursor: pointer;
-        font-size: 0.9rem;
-    }
+/* last-updated pill */
+.updated-pill{padding:6px 10px;border-radius:999px;background:rgba(0,0,0,0.04);font-size:13px;color:var(--muted);}
+body.dark .updated-pill{background:rgba(255,255,255,0.03);color:var(--muted);}
 </style>
 </head>
 <body>
-
-<div class="container">
-
-    <div class="theme-toggle">
-        <button onclick="toggleTheme()">Toggle Theme</button>
+<div class="app">
+  <header>
+    <div class="title-block">
+      <h1>Commute Dashboard</h1>
+      <div class="muted" id="dayTime">Loading…</div>
     </div>
+    <div class="controls">
+      <button class="btn" id="refreshBtn" title="Refresh now">⟳ Refresh</button>
+      <button class="btn ghost" id="themeToggle" title="Toggle theme">Toggle</button>
+    </div>
+  </header>
 
-    <div class="dashboard-grid">
+  <main class="grid">
 
-        <!-- DRIVE CARD -->
-        <div class="card" id="driveCard">
-            <div class="status-bar" id="driveStatus"></div>
+    <!-- Weather Card -->
+    <section class="card" id="weatherCard">
+      <div class="status-accent" id="weatherAccent"></div>
+      <div class="commute-header">
+        <div class="icon weather">☀️</div>
+        <div>
+          <div style="font-weight:700">Weather — Denver</div>
+          <div class="header-sub" id="weatherDesc">Loading…</div>
+        </div>
+      </div>
 
-            <h2>Drive</h2>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <div class="big-value" id="weatherTemp">—</div>
+        <div class="small-label" id="weatherFeels">—</div>
+      </div>
 
-            <!-- Route options -->
-            <div class="route-options">
-                <input type="radio" name="route" id="fast" checked value="best">
-                <label for="fast">Fastest Route</label>
+      <div class="section" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div class="pill small updated-pill" id="weatherWind">Wind —</div>
+        <div class="pill small updated-pill" id="weatherHumidity">Humidity —</div>
+      </div>
+    </section>
 
-                <input type="radio" name="route" id="noHighway" value="avoidHighways">
-                <label for="noHighway">Avoid Highways</label>
-            </div>
+    <!-- Drive Card -->
+    <section class="card" id="driveCard">
+      <div class="status-accent" id="driveAccent"></div>
+      <div class="commute-header">
+        <div class="icon drive">🚗</div>
+        <div>
+          <div style="font-weight:700">Drive</div>
+          <div class="header-sub">Home ↔ Work</div>
+        </div>
+      </div>
 
-            <div class="section">
-                <div class="label">To Work (Home → Downtown)</div>
-                <div class="row">
-                    <div class="label">ETA:</div>
-                    <div class="value" id="driveToWork">Loading…</div>
-                </div>
-            </div>
+      <!-- segmented radio under header (clean placement) -->
+      <div style="margin-top:6px;">
+        <div class="radio-seg" role="tablist" id="driveToggle">
+          <button data-val="best" class="active" id="seg-fast">Fastest</button>
+          <button data-val="avoidHighways" id="seg-avoid">Avoid Highways</button>
+        </div>
+      </div>
 
-            <div class="section">
-                <div class="label">To Home (Downtown → Home)</div>
-                <div class="row">
-                    <div class="label">ETA:</div>
-                    <div class="value" id="driveToHome">Loading…</div>
-                </div>
-            </div>
+      <div class="section">
+        <div class="small-label">Southbound — To Work (Home → Work)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="small-label">ETA</div>
+          <div class="big-value" id="driveToWork">Loading…</div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="driveToWorkBar"></div></div>
+      </div>
+
+      <div class="section">
+        <div class="small-label">Northbound — To Home (Work → Home)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="small-label">ETA</div>
+          <div class="big-value" id="driveToHome">Loading…</div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="driveToHomeBar"></div></div>
+      </div>
+    </section>
+
+    <!-- Transit Card -->
+    <section class="card" id="transitCard">
+      <div class="status-accent" id="transitAccent"></div>
+      <div class="commute-header">
+        <div class="icon transit">🚉</div>
+        <div>
+          <div style="font-weight:700">Transit — N Line</div>
+          <div class="header-sub">112th & Northglenn ↔ Denver Union Station</div>
+        </div>
+      </div>
+
+      <div class="section direction-row">
+        <div class="direction-col">
+          <div class="small-label" style="font-weight:700">Southbound</div>
+          <div class="small-label" id="sbRouteDesc" style="margin-bottom:6px;">112th & Northglenn → Denver Union Station</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="small-label">Next</div>
+            <div class="big-value" id="trainToWork">Loading…</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+            <div class="small-label">Countdown</div>
+            <div class="big-value" id="trainToWorkCountdown">—</div>
+          </div>
+          <div class="timeline" id="trainToWorkTimeline"></div>
         </div>
 
-        <!-- TRANSIT CARD -->
-        <div class="card" id="transitCard">
-            <div class="status-bar" id="transitStatus"></div>
-
-            <h2>N Line Transit</h2>
-
-            <div class="section">
-                <div class="label">Southbound (112th → Union Station)</div>
-                <div class="row">
-                    <div class="label">Next Train:</div>
-                    <div class="value" id="sbNext">Loading…</div>
-                </div>
-                <div class="row">
-                    <div class="label">Countdown:</div>
-                    <div class="value" id="sbCountdown">—</div>
-                </div>
-            </div>
-
-            <div class="section">
-                <div class="label">Northbound (Union Station → 112th)</div>
-                <div class="row">
-                    <div class="label">Next Train:</div>
-                    <div class="value" id="nbNext">Loading…</div>
-                </div>
-                <div class="row">
-                    <div class="label">Countdown:</div>
-                    <div class="value" id="nbCountdown">—</div>
-                </div>
-            </div>
+        <div class="direction-col">
+          <div class="small-label" style="font-weight:700">Northbound</div>
+          <div class="small-label" id="nbRouteDesc" style="margin-bottom:6px;">Denver Union Station → 112th & Northglenn</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="small-label">Next</div>
+            <div class="big-value" id="trainToHome">Loading…</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+            <div class="small-label">Countdown</div>
+            <div class="big-value" id="trainToHomeCountdown">—</div>
+          </div>
+          <div class="timeline" id="trainToHomeTimeline"></div>
         </div>
+      </div>
+    </section>
 
-    </div>
+    <!-- Alerts Card -->
+    <section class="card" id="alertsCard">
+      <div class="status-accent" id="alertsAccent"></div>
+      <div class="commute-header">
+        <div class="icon" style="background:linear-gradient(135deg,#ef4444,#f59e0b)">⚠️</div>
+        <div>
+          <div style="font-weight:700">Alerts</div>
+          <div class="header-sub">Weather & Transit notices</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div id="alertsText" class="small">No alerts at this time</div>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="footer-row">
+    <div class="small updated-pill" id="lastUpdated">Updated: —</div>
+    <div class="small muted">Auto-refresh: 10 minutes</div>
+  </div>
 </div>
 
 <script>
-/* -------------------------------
-   SETTINGS
--------------------------------- */
-const WEATHER_API = "REPLACE_WITH_YOUR_OPENWEATHER_KEY";
-const GOOGLE_KEY = "REPLACE_WITH_YOUR_GOOGLE_MAPS_KEY";
+/* -----------------------------
+   Config & Addresses (replace keys if necessary)
+------------------------------*/
+const OPENWEATHER_API_KEY = '1c91f81f2adfd1b633d19842869a1a11';
+const GOOGLE_MAPS_API_KEY = 'AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
 
-// Addresses
-const home = "11625 Community Center Dr, Northglenn CO 80233";
-const work = "707 17th St, Denver CO 80202";
+const HOME = '11625 Community Center Drive Northglenn CO 80233';
+const WORK = '707 17th Street Denver CO 80202';
+const N_ORIGIN = '112th & Northglenn Station, Northglenn, CO';
+const N_DEST = 'Denver Union Station, Denver, CO';
 
-const station112 = "112th & York Pkwy Station, Northglenn CO";
-const union = "Denver Union Station, Denver CO";
+const TRAIN_LABELS = {
+  SOUTHBOUND: '112th & Northglenn → Denver Union Station',
+  NORTHBOUND: 'Denver Union Station → 112th & Northglenn'
+};
 
-/* -------------------------------
-   THEME TOGGLE
--------------------------------- */
-function toggleTheme() {
-    document.body.classList.toggle("dark");
+/* -----------------------------
+   Elements
+------------------------------*/
+const dayTimeEl = document.getElementById('dayTime');
+const lastUpdatedEl = document.getElementById('lastUpdated');
+
+const weatherTempEl = document.getElementById('weatherTemp');
+const weatherDescEl = document.getElementById('weatherDesc');
+const weatherFeelsEl = document.getElementById('weatherFeels');
+const weatherWindEl = document.getElementById('weatherWind');
+const weatherHumidityEl = document.getElementById('weatherHumidity');
+
+const driveToWorkEl = document.getElementById('driveToWork');
+const driveToHomeEl = document.getElementById('driveToHome');
+const driveToWorkBar = document.getElementById('driveToWorkBar');
+const driveToHomeBar = document.getElementById('driveToHomeBar');
+
+const segFastBtn = document.getElementById('seg-fast');
+const segAvoidBtn = document.getElementById('seg-avoid');
+
+const driveAccent = document.getElementById('driveAccent');
+const transitAccent = document.getElementById('transitAccent');
+
+const trainToWorkEl = document.getElementById('trainToWork');
+const trainToHomeEl = document.getElementById('trainToHome');
+const trainToWorkCountdown = document.getElementById('trainToWorkCountdown');
+const trainToHomeCountdown = document.getElementById('trainToHomeCountdown');
+const trainToWorkTimeline = document.getElementById('trainToWorkTimeline');
+const trainToHomeTimeline = document.getElementById('trainToHomeTimeline');
+
+const alertsText = document.getElementById('alertsText');
+const alertsAccent = document.getElementById('alertsAccent');
+
+let directionsService = null;
+let workTrainInterval = null;
+let homeTrainInterval = null;
+
+/* -----------------------------
+   Utilities
+------------------------------*/
+function updateDayTime(){
+  const now = new Date();
+  const hours = now.getHours();
+  let part = 'Morning';
+  if(hours >= 12 && hours < 17) part = 'Afternoon';
+  else if(hours >= 17) part = 'Evening';
+  dayTimeEl.textContent = `${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`;
 }
 
-/* -------------------------------
-   DRIVE TIME FETCHER
--------------------------------- */
-async function fetchDrive(from, to, routingPref) {
-    const avoid = routingPref === "avoidHighways" ? "&avoid=highways" : "";
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}${avoid}&departure_time=now&key=${GOOGLE_KEY}`;
+function setLastUpdated(){
+  const now = new Date();
+  lastUpdatedEl.textContent = `Updated: ${now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+}
 
-    const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+/* -----------------------------
+   Weather
+------------------------------*/
+async function fetchWeather(){
+  try{
+    const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Denver,US&units=imperial&appid=${OPENWEATHER_API_KEY}`);
+    if(!res.ok) throw new Error('Weather fetch failed');
+    const data = await res.json();
+    const temp = Math.round(data.main.temp)+'°F';
+    const desc = data.weather?.[0]?.description ?? '—';
+    const icon = data.weather?.[0]?.icon;
+    const feels = Math.round(data.main.feels_like)+'°F';
+    const wind = `${Math.round(data.wind.speed)} mph`;
+    const humidity = `${data.main.humidity}%`;
+    weatherTempEl.textContent = temp;
+    weatherDescEl.textContent = desc[0]?.toUpperCase() + desc.slice(1);
+    weatherFeelsEl.textContent = `Feels: ${feels}`;
+    weatherWindEl.textContent = `Wind: ${wind}`;
+    weatherHumidityEl.textContent = `Humidity: ${humidity}`;
+    // alerts (OpenWeather may provide alerts in other endpoints - placeholder)
+    // Update small visual
+  }catch(e){
+    console.error(e);
+    weatherTempEl.textContent = 'Error';
+    weatherDescEl.textContent = 'Weather unavailable';
+  }
+}
 
-    try {
-        const r = await fetch(proxy);
-        const data = await r.json();
+/* -----------------------------
+   Drive (Maps JS DirectionsService)
+------------------------------*/
+function setDriveBarColor(barEl, mins){
+  // thresholds: <=20 green, <=40 yellow, else red
+  if(mins == null || isNaN(mins)) {
+    barEl.style.width = '0%';
+    barEl.style.backgroundColor = 'rgba(156,163,175,0.6)'; // gray
+    return;
+  }
+  const pct = Math.min(Math.max((mins / 60) * 100, 0), 100);
+  barEl.style.width = pct + '%';
+  if(mins <= 20) barEl.style.backgroundColor = 'var(--success)';
+  else if(mins <= 40) barEl.style.backgroundColor = 'var(--warn)';
+  else barEl.style.backgroundColor = 'var(--danger)';
+}
 
-        if (!data.routes || !data.routes[0] || !data.routes[0].legs) return null;
+function setCardAccent(cardAccentEl,mins,kind){
+  // kind: 'drive' or 'transit'
+  if(mins == null || isNaN(mins)) {
+    cardAccentEl.style.background = 'var(--status-gray)';
+    return;
+  }
+  if(mins <= 20) cardAccentEl.style.background = 'var(--success)';
+  else if(mins <= 40) cardAccentEl.style.background = 'var(--warn)';
+  else cardAccentEl.style.background = 'var(--danger)';
+}
 
-        return data.routes[0].legs[0].duration_in_traffic.text;
-    } catch (e) {
-        return null;
+function getDriveTime(origin, destination, el, barEl, avoidHighways){
+  if(!directionsService){ el.textContent = 'Maps not ready'; return; }
+  el.textContent = 'Calculating…';
+  barEl.style.width = '0%';
+  directionsService.route({
+    origin, destination, travelMode: google.maps.TravelMode.DRIVING,
+    drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' },
+    avoidHighways: avoidHighways
+  }, (result, status) => {
+    if(status !== 'OK'){
+      console.warn('Directions error', status);
+      el.textContent = 'Error';
+      setDriveBarColor(barEl, null);
+      return;
     }
+    const leg = result.routes[0].legs[0];
+    const mins = Math.round((leg.duration_in_traffic?.value ?? leg.duration.value) / 60);
+    el.textContent = leg.duration_in_traffic?.text ?? leg.duration.text ?? 'N/A';
+    setDriveBarColor(barEl, mins);
+    // set overall drive accent by using average of both directions later
+  });
 }
 
-/* -------------------------------
-   TRANSIT TIME (Simplified Demo)
--------------------------------- */
-function getFakeTrainTime(offsetMin) {
+/* -----------------------------
+   Transit (DirectionsService with transit & simple timeline)
+------------------------------*/
+function updateTrainTimelineDOM(upcoming, timelineEl){
+  timelineEl.innerHTML = '';
+  upcoming.forEach(u => {
     const now = new Date();
-    now.setMinutes(now.getMinutes() + offsetMin);
-    return now;
+    const diffMs = Math.max(0, u.dep - now);
+    const minutes = Math.floor(diffMs / 60000);
+    const item = document.createElement('div');
+    item.className = 'timeline-item';
+    if(minutes <= 5) item.classList.add('red');
+    else if(minutes <= 15) item.classList.add('yellow');
+    else item.classList.add('green');
+    const timeText = u.dep.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    item.textContent = `${timeText}  —  ${minutes}m`;
+    timelineEl.appendChild(item);
+  });
 }
 
-function formatTime(d) {
-    return d.toLocaleTimeString([], {hour: "numeric", minute:"2-digit"});
+function getNLine(origin, destination, label, elNext, elCountdown, timelineEl){
+  if(!directionsService){ elNext.textContent = 'Maps not ready'; return; }
+  elNext.textContent = 'Searching…';
+  timelineEl.innerHTML = '';
+  directionsService.route({
+    origin, destination, travelMode: google.maps.TravelMode.TRANSIT,
+    transitOptions: { modes: [ 'RAIL' ] }, provideRouteAlternatives: false
+  }, (result, status) => {
+    if(status !== 'OK'){ console.warn('Transit directions error', status); elNext.textContent = 'Error'; return; }
+    try{
+      const leg = result.routes[0].legs[0];
+      // filter steps for rail / N line
+      const steps = leg.steps.filter(s => s.transit && s.transit.line && (String(s.transit.line.short_name) === 'N' || /N/.test(s.transit.line.name)));
+      if(!steps.length){ elNext.textContent = 'No N Line trains now'; return; }
+      const upcoming = [];
+      steps.slice(0,5).forEach(step => {
+        const dep = new Date(step.transit.departure_time.value);
+        const arr = new Date(step.transit.arrival_time.value);
+        upcoming.push({ dep, arr, headsign: step.transit.headsign || step.transit.line.short_name });
+      });
+      // show next one at top
+      const next = upcoming[0];
+      elNext.textContent = `${next.dep.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} → ${next.arr.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+      // set countdown now and start interval updating countdown (return previous cleared by caller)
+      function updateCountdownDisplay(){
+        const now = new Date();
+        const diff = Math.max(0, next.dep - now);
+        const mins = Math.floor(diff / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        elCountdown.textContent = `${mins}m ${secs}s`;
+      }
+      updateCountdownDisplay();
+      updateTrainTimelineDOM(upcoming, timelineEl);
+      return { upcoming, updateCountdownDisplay };
+    }catch(e){
+      console.error(e);
+      elNext.textContent = 'Transit parse error';
+    }
+  });
 }
 
-function countdown(d) {
-    const diff = (d - new Date())/60000;
-    return Math.max(0, diff).toFixed(0) + " min";
+/* -----------------------------
+   Overall refresh logic & intervals
+------------------------------*/
+let workCountdownInterval = null;
+let homeCountdownInterval = null;
+
+async function refreshAll(){
+  updateDayTime();
+  setLastUpdated();
+
+  // weather
+  fetchWeather();
+
+  // drive settings
+  const avoidHighways = segAvoidBtn.classList.contains('active');
+
+  // drive times (calls DirectionsService -> requires maps js loaded)
+  getDriveTime(HOME, WORK, driveToWorkEl, driveToWorkBar, avoidHighways);
+  getDriveTime(WORK, HOME, driveToHomeEl, driveToHomeBar, avoidHighways);
+
+  // transit - Southbound (112th -> Union)
+  // We'll call getNLine which does a route() and returns upcoming structure via callback pattern.
+  // Because DirectionsService.route is async via callback, we wrap in a Promise to get countdown updater.
+  function nlinePromise(origin, dest, elNext, elCountdown, timelineEl){
+    return new Promise((resolve) => {
+      directionsService.route({
+        origin: origin,
+        destination: dest,
+        travelMode: google.maps.TravelMode.TRANSIT,
+        transitOptions: { modes: ['RAIL'] }, provideRouteAlternatives:false
+      }, (result, status) => {
+        if(status !== 'OK'){ resolve({ error: true }); return; }
+        const leg = result.routes[0].legs[0];
+        const steps = leg.steps.filter(s => s.transit && s.transit.line && (String(s.transit.line.short_name) === 'N' || /N/.test(s.transit.line.name)));
+        if(!steps.length){ elNext.textContent = 'No N Line trains now'; resolve({ none:true }); return; }
+        const upcoming = [];
+        steps.slice(0,5).forEach(step => {
+          const dep = new Date(step.transit.departure_time.value);
+          const arr = new Date(step.transit.arrival_time.value);
+          upcoming.push({dep, arr});
+        });
+        const next = upcoming[0];
+        elNext.textContent = `${next.dep.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} → ${next.arr.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+        // initial timeline
+        updateTrainTimelineDOM(upcoming, timelineEl);
+        // resolver provides data for countdown updater & min until next
+        resolve({ upcoming, next });
+      });
+    });
+  }
+
+  // Clear previous intervals
+  if(workCountdownInterval){ clearInterval(workCountdownInterval); workCountdownInterval = null; }
+  if(homeCountdownInterval){ clearInterval(homeCountdownInterval); homeCountdownInterval = null; }
+
+  // Southbound
+  const sbRes = await nlinePromise(N_ORIGIN, N_DEST, trainToWorkEl, trainToWorkCountdown, trainToWorkTimeline);
+  if(sbRes && sbRes.next){
+    workCountdownInterval = setInterval(()=> {
+      const diff = Math.max(0, sbRes.next.dep - new Date());
+      const mins = Math.floor(diff/60000);
+      const secs = Math.floor((diff%60000)/1000);
+      trainToWorkCountdown.textContent = `${mins}m ${secs}s`;
+      // update accent color for transit based on earliest next (we will also consider northbound below)
+      setCardAccent(transitAccent, mins, 'transit');
+    }, 1000);
+  } else {
+    trainToWorkCountdown.textContent = '—';
+  }
+
+  // Northbound
+  const nbRes = await nlinePromise(N_DEST, N_ORIGIN, trainToHomeEl, trainToHomeCountdown, trainToHomeTimeline);
+  if(nbRes && nbRes.next){
+    homeCountdownInterval = setInterval(()=> {
+      const diff = Math.max(0, nbRes.next.dep - new Date());
+      const mins = Math.floor(diff/60000);
+      const secs = Math.floor((diff%60000)/1000);
+      trainToHomeCountdown.textContent = `${mins}m ${secs}s`;
+      // combine min with southbound to set transit accent as the earliest wait
+      const sbMin = sbRes && sbRes.next ? Math.floor((sbRes.next.dep - new Date())/60000) : Infinity;
+      const earliest = Math.min(sbMin, mins);
+      setCardAccent(transitAccent, earliest, 'transit');
+    }, 1000);
+  } else {
+    trainToHomeCountdown.textContent = '—';
+  }
+
+  // If both drive directions have valid mins, set driveAccent to average (or worst)
+  // We fetch raw displayed text and attempt to parse minutes from 'xx mins' text returned by Maps.
+  function parseMinutesFromText(txt){
+    if(!txt || typeof txt !== 'string') return null;
+    const m = txt.match(/(\d+)\s*min/);
+    if(m) return parseInt(m[1],10);
+    const mm = txt.match(/(\d+)\s*h/); // hours fallback
+    if(mm) return parseInt(mm[1],10)*60;
+    return null;
+  }
+  // small timeout to let directions callbacks fill values
+  setTimeout(()=>{
+    const a = parseMinutesFromText(driveToWorkEl.textContent);
+    const b = parseMinutesFromText(driveToHomeEl.textContent);
+    // choose worst-case for accent readability (if either heavy -> red)
+    const candidate = [a,b].filter(v=>v!=null);
+    if(candidate.length){
+      const worst = Math.max(...candidate);
+      setCardAccent(driveAccent, worst, 'drive');
+    } else {
+      driveAccent.style.background = 'var(--status-gray)';
+    }
+  }, 800);
 }
 
-/* -------------------------------
-   DRIVE + TRANSIT UPDATE
--------------------------------- */
-async function updateDashboard() {
-    const mode = document.querySelector("input[name='route']:checked").value;
-
-    // DRIVE
-    const toWork = await fetchDrive(home, work, mode);
-    const toHome = await fetchDrive(work, home, mode);
-
-    document.getElementById("driveToWork").textContent = toWork || "—";
-    document.getElementById("driveToHome").textContent = toHome || "—";
-
-    updateDriveStatusBar(toWork, toHome);
-
-    // TRANSIT (Fake demo until GTFS or Maps Transit API is used)
-    const sb = getFakeTrainTime(5);
-    const nb = getFakeTrainTime(12);
-
-    document.getElementById("sbNext").textContent = formatTime(sb);
-    document.getElementById("nbNext").textContent = formatTime(nb);
-
-    document.getElementById("sbCountdown").textContent = countdown(sb);
-    document.getElementById("nbCountdown").textContent = countdown(nb);
-
-    updateTransitStatusBar(sb, nb);
+/* -----------------------------
+   Segmented control handlers
+------------------------------*/
+function setSegmentActive(val){
+  if(val === 'best'){
+    segFastBtn.classList.add('active');
+    segAvoidBtn.classList.remove('active');
+  } else {
+    segFastBtn.classList.remove('active');
+    segAvoidBtn.classList.add('active');
+  }
 }
 
-/* -------------------------------
-   STATUS BAR COLOR LOGIC
--------------------------------- */
-function updateDriveStatusBar(toWork, toHome) {
-    const bar = document.getElementById("driveStatus");
-
-    let val = toWork || toHome;
-    if (!val) { bar.style.background = "gray"; return; }
-
-    let mins = parseInt(val);
-    if (mins < 25) bar.style.background = "green";
-    else if (mins < 40) bar.style.background = "yellow";
-    else bar.style.background = "red";
-}
-
-function updateTransitStatusBar(sb, nb) {
-    const bar = document.getElementById("transitStatus");
-    const soonest = sb < nb ? sb : nb;
-
-    const mins = (soonest - new Date()) / 60000;
-
-    if (mins < 7) bar.style.background = "green";
-    else if (mins < 12) bar.style.background = "yellow";
-    else bar.style.background = "red";
-}
-
-/* -------------------------------
-   AUTO-REFRESH
--------------------------------- */
-setInterval(updateDashboard, 600000); // 10 min
-updateDashboard();
-
-/* On toggle radio update */
-document.querySelectorAll("input[name='route']").forEach(el => {
-    el.addEventListener("change", updateDashboard);
+/* -----------------------------
+   Wiring up theme, refresh, init map
+------------------------------*/
+document.getElementById('refreshBtn').addEventListener('click', ()=> {
+  refreshAll();
 });
-</script>
 
+document.getElementById('themeToggle').addEventListener('click', ()=> {
+  document.body.classList.toggle('dark');
+});
+
+/* segmented buttons */
+segFastBtn.addEventListener('click', ()=>{ setSegmentActive('best'); refreshAll(); });
+segAvoidBtn.addEventListener('click', ()=>{ setSegmentActive('avoidHighways'); refreshAll(); });
+
+/* init map and start periodic refresh */
+function initMapAndStart(){
+  directionsService = new google.maps.DirectionsService();
+  // initial load
+  refreshAll();
+  // auto refresh every 10 minutes
+  setInterval(refreshAll, 600000); // 600000 ms = 10 minutes
+}
+
+/* load Google Maps JS API (calls initMapAndStart when loaded) */
+(function loadMaps(){
+  const s = document.createElement('script');
+  s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMapAndStart`;
+  s.async = true;
+  s.defer = true;
+  window.initMapAndStart = initMapAndStart;
+  document.head.appendChild(s);
+})();
+
+/* set initial UI state */
+setSegmentActive('best');
+updateDayTime();
+setLastUpdated();
+
+// small safety: if maps fails to load within 8s, still show last-updated and allow refresh
+setTimeout(()=> { if(!directionsService) { console.warn('Maps script not yet ready.'); setLastUpdated(); } }, 8000);
+
+</script>
 </body>
 </html>
