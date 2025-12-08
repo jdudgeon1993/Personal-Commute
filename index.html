@@ -3,671 +3,1088 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Commute Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap" rel="stylesheet">
-    
+    <title>Sleek Commuter Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
-        /* UPDATED CSS STYLES - RTD Blue Theme */
-        :root{
-            --bg:#f9f9fc; /* Soft white background */
-            --text:#0b1220; 
-            --card:#ffffff; 
-            --muted:#6b7280; 
-            --accent:#004792; /* Deep RTD Blue */
-            --success:#10b981; 
-            --warn:#f59e0b; 
-            --danger:#ef4444; 
-            --shadow:0 10px 30px rgba(6,12,34,0.08);
+        /* -------------------------------------
+           GLOBAL THEME & TYPOGRAPHY
+           ------------------------------------- */
+        :root {
+            --background: #fcfcfc;
+            --surface: #ffffff;
+            --text: #1a1a1a;
+            --muted: #6b7280; 
+            --border: #e5e7eb; 
+            --success: #10b981; 
+            --warn: #f59e0b; 
+            --danger: #ef4444; 
+            --accent: #3b82f6; 
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --accent-rgb: 59, 130, 246; 
+            --text-rgb: 26, 26, 26;     
+            --warn-rgb: 245, 158, 11;   
         }
-        body.dark{
-            --bg:#071126; 
-            --text:#e6eef8; 
-            --card:#0f1724; 
-            --muted:#9aa6b2; 
-            --accent:#4a86e8; /* Lighter Blue for contrast in dark mode */
-            --shadow:0 12px 36px rgba(0,0,0,0.6);
-        }
-        *{box-sizing:border-box}
-        body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial}
-        .app{max-width:820px;margin:20px auto;padding:18px;display:flex;flex-direction:column;gap:18px}
-        .header{display:flex;justify-content:space-between;align-items:center}
-        .title{font-size:22px;font-weight:800;margin:0}
-        .sub{color:var(--muted);font-size:13px}
-        .controls{display:flex;gap:8px;align-items:center}
-        .btn{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer;box-shadow:var(--shadow); transition: background 0.3s;}
-        .btn:hover{filter: brightness(1.1);}
-        .btn.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06);color:var(--muted)}
-        body.dark .btn.ghost{border-color: rgba(255,255,255,0.1);}
-        .grid{display:grid;gap:16px}
-        .card{background:var(--card);border-radius:14px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px}
-        .row{display:flex;align-items:center;gap:12px}
-        .left-icon{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
-        .weather-icon{background:linear-gradient(135deg,#ffd166,#ff9a66);color:#111}
-        .commute-icon{background:linear-gradient(135deg,#60a5fa,#4f46e5)}
-        .title-sm{font-weight:700}
-        .metric-large{font-weight:900;font-size:24px} 
-        .schedule-metric{font-weight:900;font-size:32px; color: var(--accent);} /* Extra large for leave time */
-        .small-muted{color:var(--muted);font-size:13px}
-        .direction-row{display:flex;gap:12px;flex-wrap:wrap}
-        .col{flex:1;min-width:220px;background:rgba(0,0,0,0.02);padding:12px;border-radius:10px;display:flex;flex-direction:column;gap:10px}
-        body.dark .col{background:rgba(255,255,255,0.03);}
-        .progress-bar{height:8px;background:rgba(0,0,0,0.06);border-radius:8px;overflow:hidden}
-        .progress-fill{height:100%;width:0%;background:var(--success);transition:width .5s linear,background .3s}
-        .transit-large{font-size:36px;font-weight:800;text-align:center;margin:6px 0;color:var(--accent)}
-        .transit-details{display:flex;justify-content:space-between;font-weight:700}
-        .link-btn{padding:8px 10px;border-radius:8px;background:transparent;border:1px solid rgba(0,0,0,0.06);color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;text-align:center; transition: border-color 0.3s;}
-        .link-btn:hover{border-color: var(--accent); color: var(--accent);}
-        body.dark .link-btn{border-color: rgba(255,255,255,0.1);}
-        .footer{color:var(--muted);text-align:center;font-size:13px;margin-top:6px}
-        .note{font-size:12px;color:var(--muted)}
 
-        /* Directional Accent Bars */
-        .col-accent-sb { border-left: 4px solid var(--accent); } /* Deep Blue */
-        .col-accent-nb { border-left: 4px solid var(--warn); } /* Amber/Yellow */
+        .dark {
+            --background: #181a20;
+            --surface: #20232a;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --border: #374151;
+            --success: #4ade80; 
+            --warn: #fbbf24; 
+            --danger: #f87171; 
+            --accent: #60a5fa; 
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --accent-rgb: 96, 165, 250; 
+            --text-rgb: 229, 231, 235;
+            --warn-rgb: 251, 191, 36;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 30px;
+            background-color: var(--background);
+            color: var(--text);
+            transition: background-color 0.4s, color 0.4s;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-height: 100vh;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--surface);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s, border-color 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
         
-        /* Next Train List Styling */
-        .next-schedules-list { 
-            font-size: 14px; 
-            margin-top: 10px; 
-            padding-top: 5px; 
-            border-top: 1px solid rgba(0,0,0,0.1); 
-            display: flex; 
-            flex-wrap: wrap;
+        .dark .card:hover {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .card-header-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            background-color: var(--accent);
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-title-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .header-card {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center; 
+            padding: 0 10px 0 0; 
+            background-color: transparent; 
+            box-shadow: none; 
+            border: none; 
+        }
+        
+        .header-card > div:first-child {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        #commuteTitle {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: var(--text);
+            line-height: 1;
+        }
+
+        #headerSubtitle {
+            font-size: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+            margin-top: 5px;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: row; 
+            align-items: center; 
+            gap: 15px; 
+        }
+
+        .controls button {
+            background-color: var(--accent);
+            color: white; 
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s, opacity 0.3s, color 0.3s;
+            font-weight: 600;
+            width: auto;
+            min-width: 120px;
+        }
+        
+        #themeToggle {
+            background-color: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 10px;
+            min-width: auto;
+            width: 45px;
+            height: 45px;
+            font-size: 1.2rem;
+        }
+        
+        .controls button:hover, #themeToggle:hover {
+            opacity: 0.9;
+        }
+
+        .schedule-data-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+        }
+
+        .schedule-data-column {
+            flex: 1;
+            background-color: rgba(var(--text-rgb), 0.03); 
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .schedule-data-column:nth-child(2) {
+            background-color: rgba(var(--accent-rgb), 0.05); 
+            flex-grow: 0;
+        }
+
+        .schedule-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        #requiredDepartureTime {
+            font-size: 2.2rem; 
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -1px;
+            display: block;
+            margin-top: 0;
+            color: var(--text); 
+        }
+        
+        #targetArrivalDisplay {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent);
+            line-height: 1.1;
+        }
+
+        #departureNote {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-top: 10px;
             color: var(--muted);
         }
-        body.dark .next-schedules-list {
-            border-top-color: rgba(255,255,255,0.1);
+
+        .current-time-block {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
         }
+
+        #currentTimeBig {
+            font-size: 2.5rem;
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -1px;
+        }
+        
+        .current-time-block button {
+            width: 100%;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        
+        #currentTimeDisplay, #dayTime, #targetArrivalTime, #scheduleStatus {
+            display: none;
+        }
+        
+        .weather-info {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        #weatherTemp {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--danger);
+            line-height: 1;
+        }
+
+        .weather-details {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--muted);
+        }
+        
+        #weatherIcon img {
+             filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.2));
+             transition: filter 0.3s;
+        }
+        
+        .drive-item {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            transition: border-color 0.3s;
+        }
+        
+        .drive-item:last-of-type {
+            border-bottom: none;
+            margin-bottom: 10px;
+        }
+        
+        .drive-header {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: var(--text);
+            transition: color 0.3s;
+        }
+
+        .drive-eta {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text);
+            display: inline-block;
+            margin-right: 10px;
+            transition: color 0.3s;
+        }
+        
+        .drive-normal {
+            font-size: 0.9rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .drive-fill-container {
+            height: 10px;
+            background-color: var(--border);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+            transition: background-color 0.3s;
+        }
+
+        .drive-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease-out, background-color 0.5s;
+        }
+        
+        .transit-direction {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+            transition: border-color 0.3s;
+        }
+
+        .transit-direction h3 {
+            margin: 0 0 10px 0;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--text);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: color 0.3s;
+        }
+        
+        .prediction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            font-size: 1rem;
+            background-color: rgba(var(--text-rgb), 0.03); 
+            transition: background-color 0.3s;
+        }
+        
+        .prediction-item.next-up {
+            background-color: rgba(var(--accent-rgb), 0.1);
+        }
+        
+        .schedule-time {
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+        
+        .schedule-countdown {
+            color: var(--success);
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .schedule-arriving {
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .schedule-departing {
+            color: var(--danger);
+            font-weight: 900;
+            font-size: 1.1rem;
+            animation: pulse-red 1s infinite alternate;
+        }
+        
+        @keyframes pulse-red {
+            from { opacity: 1; }
+            to { opacity: 0.7; }
+        }
+
+        .schedule-no-service {
+            color: var(--muted);
+            font-style: italic;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .transit-map-link {
+            text-decoration: none;
+            color: var(--accent);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        #alerts-card {
+            grid-column: 1 / -1; 
+            display: none; 
+            border-left: 5px solid var(--warn);
+            background-color: rgba(var(--warn-rgb), 0.1); 
+            transition: background-color 0.3s, border-left-color 0.3s;
+        }
+
+        .alert-header {
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: var(--warn);
+            transition: color 0.3s;
+        }
+
+        .alert-item {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+            align-items: flex-start;
+        }
+
+        .alert-icon {
+            flex-shrink: 0;
+            font-size: 1.1em;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .control-group input[type="checkbox"] {
+            transform: scale(1.1);
+            accent-color: var(--accent);
+            transition: accent-color 0.3s;
+        }
+
     </style>
 </head>
 <body>
 
-<div class="app">
-    <header class="header">
+    <div class="header-card">
         <div>
-            <h1 class="title">Commute Dashboard</h1>
-            <div class="sub" id="dayTime">Loading…</div>
+            <div id="commuteTitle">Commute Dashboard</div>
+            <div id="headerSubtitle">Monday, Afternoon</div>
         </div>
         <div class="controls">
-            <button id="refreshBtn" class="btn">Refresh Now</button>
-            <button id="themeToggle" class="btn ghost">☀️/🌙</button>
+            <button id="refreshBtn">Refresh Now</button>
+            <button id="themeToggle">🌓</button>
         </div>
-    </header>
+    </div>
+    
+    <div id="alerts-card" class="card">
+        </div>
 
-    <main class="grid">
+    <div class="dashboard-grid">
         
-        <section class="card">
-            <div class="row">
-                <div class="left-icon commute-icon" style="background: linear-gradient(135deg, #ef4444, #f59e0b);">⏰</div>
-                <div style="flex:1">
-                    <div class="title-sm">Today's Schedule</div>
-                    <div class="metric-large" id="scheduleStatus">—</div>
+        <div class="card" id="workScheduleCard">
+            
+            <div class="card-header-group">
+                <div class="card-icon">⏰</div>
+                <div>
+                    <div class="schedule-label">Today's Schedule</div>
+                    <div class="card-title-text">Work: <span id="scheduleTimeWindow">08:00 - 17:30</span></div>
+                </div>
+                <div id="targetArrivalTime"></div> 
+                <div id="scheduleStatus"></div>
+                <div id="dayTime"></div>
+                <div id="currentTimeDisplay"></div>
+            </div>
+
+            <div class="schedule-data-group">
+                <div class="schedule-data-column">
+                    <div class="schedule-label">Required Drive Departure Time</div>
+                    <span id="requiredDepartureTime">N/A</span>
+                    <div id="departureNote">No required departure time (non-work or past arrival target).</div>
+                </div>
+                
+                <div class="schedule-data-column">
+                    <div class="schedule-label" style="text-align: right;">Target Arrival:</div>
+                    <div id="targetArrivalDisplay" style="text-align: right;">07:30 AM</div>
                 </div>
             </div>
 
-            <div class="direction-row">
-                <div class="col" style="flex: 2; min-width: 300px;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-                        <div class="title-sm">Required Drive Departure Time</div>
-                        <div class="small-muted">Target Arrival: <span id="targetArrivalTime">—</span></div>
-                    </div>
-                    <div class="schedule-metric" id="requiredDepartureTime">—</div>
-                    <div class="small-muted" id="departureNote">—</div>
-                </div>
-
-                <div class="col" style="flex: 1; min-width: 150px;">
-                    <div class="title-sm">Current Time</div>
-                    <div class="metric-large" id="currentTimeDisplay" style="font-weight: 700;">—</div>
-                    <a id="openWorkBtn" class="link-btn" href="#" target="_blank" style="margin-top: auto;">Open Work Map</a>
-                </div>
+            <div class="current-time-block">
+                <div class="schedule-label">Current Time</div>
+                <div id="currentTimeBig" style="margin-bottom: 10px;">03:52 PM</div>
+                <button id="openWorkMapBtn">Open Work Map</button>
             </div>
-        </section>
-
-        <section class="card">
-            <div class="row">
-                <div class="left-icon commute-icon">🚗</div>
-                <div style="flex:1">
-                    <div class="title-sm">Live Traffic Conditions</div>
-                    <div class="small-muted">Home ↔ Work (presets)</div>
-                </div>
-                <div style="min-width:160px;text-align:right">
-                    <label><input type="checkbox" id="avoidHighway"> Avoid Highways</label>
-                </div>
+            
+        </div>
+        
+        <div class="card" id="driveTimesCard">
+            <div class="card-header-group">
+                <div class="card-icon" style="background-color: var(--warn);">🚗</div>
+                <div class="card-title-text">Drive Times</div>
             </div>
 
-            <div class="direction-row">
-                <div class="col">
-                    <div style="display:flex;align-items:baseline;justify-content:space-between;">
-                        <div style="display:flex;align-items:baseline;gap:8px;">
-                            <div class="title-sm"><strong>To Work</strong></div>
-                            <div class="metric-large" id="driveToWorkETA">Loading…</div>
-                        </div>
-                        <div class="small-muted" id="driveToWorkNormal" style="font-size:14px;">(Normal: —)</div> 
-                    </div>
-                    <div class="progress-bar"><div id="driveToWorkFill" class="progress-fill" style="width:0%"></div></div>
-                    <div style="display:flex;gap:8px;">
-                        <div style="flex:1"></div>
-                        <div class="small-muted" id="driveToWorkNote">Last updated: —</div>
-                    </div>
-                </div>
-
-                <div class="col">
-                    <div style="display:flex;align-items:baseline;justify-content:space-between;">
-                        <div style="display:flex;align-items:baseline;gap:8px;">
-                            <div class="title-sm"><strong>To Home</strong></div>
-                            <div class="metric-large" id="driveToHomeETA">Loading…</div>
-                        </div>
-                        <div class="small-muted" id="driveToHomeNormal" style="font-size:14px;">(Normal: —)</div>
-                    </div>
-                    <div class="progress-bar"><div id="driveToHomeFill" class="progress-fill" style="width:0%"></div></div>
-                    <div style="display:flex;gap:8px;">
-                        <div style="flex:1"></div>
-                        <div class="small-muted" id="driveToHomeNote">Last updated: —</div>
-                    </div>
-                </div>
+            <div style="margin-bottom: 15px;">
+                <label for="avoidHighway" class="control-group">
+                    <input type="checkbox" id="avoidHighway" checked> Avoid Highways (Favor Slower Routes)
+                </label>
             </div>
-        </section>
 
-        <section class="card">
-            <div class="row">
-                <div class="left-icon commute-icon">🚉</div>
-                <div style="flex:1">
-                    <div class="title-sm">Transit — N Line (Scheduled Countdown)</div>
-                    <div class="small-muted">112th & Northglenn Station ↔ Denver Union Station</div>
+            <div class="drive-item">
+                <div class="drive-header">To Work (Home → Office)</div>
+                <div class="drive-fill-container">
+                    <div id="driveToWorkFill" class="drive-fill"></div>
+                </div>
+                <span id="driveToWorkETA" class="drive-eta">Calculating...</span>
+                <span id="driveToWorkNormal" class="drive-normal"></span>
+                <div id="driveToWorkNote" style="font-size: 0.8em; color: var(--muted); margin-top: 5px;"></div>
+                <a id="openWorkBtn" class="transit-map-link" target="_blank" href="#">Open in Maps ↗</a>
+            </div>
+
+            <div class="drive-item">
+                <div class="drive-header">To Home (Office → Home)</div>
+                <div class="drive-fill-container">
+                    <div id="driveToHomeFill" class="drive-fill"></div>
+                </div>
+                <span id="driveToHomeETA" class="drive-eta">Calculating...</span>
+                <span id="driveToHomeNormal" class="drive-normal"></span>
+                <div id="driveToHomeNote" style="font-size: 0.8em; color: var(--muted); margin-top: 5px;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header-group">
+                <div class="card-icon" style="background-color: var(--accent);">🚆</div>
+                <div class="card-title-text">N Line Transit Schedule</div>
+            </div>
+            
+            <div id="currentDayScheduleSummary" style="font-size: 0.95rem; color: var(--muted); margin-bottom: 15px;">--</div>
+
+            <div class="transit-direction">
+                <h3>Southbound (112th → Union Station)
+                    <a id="sbMapBtn" class="transit-map-link" target="_blank" href="#">View Route ↗</a>
+                </h3>
+                <div id="sb-window" style="font-size: 0.9rem; color: var(--muted); margin-bottom: 5px;">--</div>
+                <div id="sb-predictions">
+                    <div class="schedule-no-service">Loading schedule...</div>
                 </div>
             </div>
 
-            <div class="direction-row">
-                <div class="col col-accent-sb" id="sbCol">
-                    <div style="display:flex;justify-content:space-between;align-items:center">
-                        <div><strong>Southbound (To Denver)</strong></div>
-                        <a id="sbMapBtn" class="link-btn" href="#" target="_blank">Open Map</a>
-                    </div>
-                    <div class="transit-large" id="sbCountdown">—</div>
-                    <div class="transit-details">
-                        <div id="sbDep">Depart —</div>
-                        <div id="sbArr">Arrive —</div>
-                        <div id="sbDur">—</div>
-                    </div>
-                    <div class="next-schedules-list">
-                        <span style="font-weight:700; color: var(--text); padding-right: 5px;">Next:</span> 
-                        <span id="sbNextTimes" class="small-muted">—</span>
-                    </div>
-                </div>
-
-                <div class="col col-accent-nb" id="nbCol">
-                    <div style="display:flex;justify-content:space-between;align-items:center">
-                        <div><strong>Northbound (To Northglenn)</strong></div>
-                        <a id="nbMapBtn" class="link-btn" href="#" target="_blank">Open Map</a>
-                    </div>
-                    <div class="transit-large" id="nbCountdown">—</div>
-                    <div class="transit-details">
-                        <div id="nbDep">Depart —</div>
-                        <div id="nbArr">Arrive —</div>
-                        <div id="nbDur">—</div>
-                    </div>
-                    <div class="next-schedules-list">
-                        <span style="font-weight:700; color: var(--text); padding-right: 5px;">Next:</span> 
-                        <span id="nbNextTimes" class="small-muted">—</span>
-                    </div>
+            <div class="transit-direction">
+                <h3>Northbound (Union Station → 112th)
+                    <a id="nbMapBtn" class="transit-map-link" target="_blank" href="#">View Route ↗</a>
+                </h3>
+                <div id="nb-window" style="font-size: 0.9rem; color: var(--muted); margin-bottom: 5px;">--</div>
+                <div id="nb-predictions">
+                    <div class="schedule-no-service">Loading schedule...</div>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <section class="card">
-            <div class="row">
-                <div class="left-icon weather-icon">☀️</div>
-                <div style="flex:1">
-                    <div class="title-sm">Current Weather (Denver)</div>
-                    <div class="metric-large" id="weatherTemp">—</div>
-                </div>
-                <div style="text-align:right">
-                    <div id="weatherDesc" class="title-sm">—</div>
-                    <div class="small-muted" id="weatherFeels">—</div>
-                    <div class="small-muted" id="weatherWind">—</div>
-                    <div class="small-muted" id="weatherHumidity">—</div>
-                </div>
+        <div class="card">
+            <div class="card-header-group">
+                <div class="card-icon" style="background-color: var(--success);">☁️</div>
+                <div class="card-title-text">Denver Weather</div>
+            </div>
+            <div class="weather-info">
                 <div id="weatherIcon"></div>
+                <div>
+                    <div id="weatherTemp">--°F</div>
+                    <div id="weatherDesc" style="font-weight: 600;">Loading...</div>
+                </div>
+                <div class="weather-details">
+                    <span id="weatherFeels"></span>
+                    <span id="weatherWind"></span>
+                    <span id="weatherHumidity"></span>
+                </div>
             </div>
-        </section>
-    </main>
+        </div>
 
-    <footer class="footer">
-        <p>Data from OpenWeatherMap and Google Maps Directions Service (Schedules only).</p>
-    </footer>
-</div>
+    </div>
 
-<script>
-/* -------------------------
-   API KEYS (your keys)
-   ------------------------- */
-// NOTE: Replace these placeholders with your actual keys
-const OPENWEATHER_API_KEY = '1c91f81f2adfd1b633d19842869a1a11';
-const GOOGLE_MAPS_API_KEY  = 'AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY';
+    <script>
+        // Use a single CONFIG object for easy updates
+        const CONFIG = {
+            // API KEYS
+            OPENWEATHER_API_KEY: '1c91f81f2adfd1b633d19842869a1a11',
+            GOOGLE_MAPS_API_KEY: 'AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY',
+            
+            // ADDRESSES
+            HOME_ADDR: '11625 Community Center Drive, Northglenn, CO 80233',
+            WORK_ADDR: '707 17th Street, Denver, CO 80202',
+            N_ORIGIN: '112th & Northglenn Station, Northglenn, CO',
+            N_DEST: 'Denver Union Station, Denver, CO',
+            
+            // CONSTANTS
+            BASELINE_DRIVE_MINS: 25, 
+            ARRIVAL_BUFFER_MINS: 30, // Arrive this many minutes before work start
+            MAX_PREDICTIONS: 3,
+            OPENWEATHER_CITY_ID: 5419384,
 
-/* Preset addresses/stations (Google-friendly strings) */
-const HOME_ADDR = '11625 Community Center Drive, Northglenn, CO 80233';
-const WORK_ADDR = '707 17th Street, Denver, CO 80202';
-const N_ORIGIN  = '112th & Northglenn Station, Northglenn, CO';
-const N_DEST    = 'Denver Union Station, Denver, CO';
+            // WORK SCHEDULE (HH:MM strings)
+            // Day: 0=Sunday, 1=Monday... 6=Saturday
+            WORK_SCHEDULE: {
+                1: { start: '08:00', end: '17:30' }, 
+                2: { start: '08:00', end: '17:30' }, 
+                3: { start: '08:00', end: '17:30' }, 
+                4: { start: '08:00', end: '17:30' }, 
+                5: { start: '08:00', end: '16:30' }, 
+                0: null, 
+                6: null  
+            },
+            
+            // RTD SCHEDULE (N Line)
+            RTD_SCHEDULES: {
+                'MT': { start_sb: { h: 4, m: 46 }, end_sb: { h: 22, m: 16 }, start_nb: { h: 5, m: 26 }, end_nb: { h: 22, m: 56 }, sbMinutes: [16, 46], nbMinutes: [26, 56] },
+                'F': { start_sb: { h: 4, m: 46 }, end_sb: { h: 22, m: 46 }, start_nb: { h: 5, m: 26 }, end_nb: { h: 23, m: 26 }, sbMinutes: [16, 46], nbMinutes: [26, 56] },
+                'SAT': { start_sb: { h: 5, m: 46 }, end_sb: { h: 23, m: 16 }, start_nb: { h: 6, m: 26 }, end_nb: { h: 23, m: 56 }, sbMinutes: [16, 46], nbMinutes: [26, 56] },
+                'SUN': { start_sb: { h: 5, m: 46 }, end_sb: { h: 21, m: 46 }, start_nb: { h: 6, m: 26 }, end_nb: { h: 22, m: 26 }, sbMinutes: [16, 46], nbMinutes: [26, 56] }
+            },
+            
+            // ALERTS (Hardcoded for demo)
+            ALERTS: []
+        };
 
-// Drive Time Constants
-const BASELINE_DRIVE_MINS = 25; 
-const ARRIVAL_BUFFER_MINS = 30; // Arrive 30 minutes before work starts
-
-// Define Weekly Work Schedule (military time string 'HH:MM')
-// Day: 0=Sunday, 1=Monday... 6=Saturday
-const WORK_SCHEDULE = {
-    1: { start: '08:00', end: '17:30' }, // Monday
-    2: { start: '08:00', end: '17:30' }, // Tuesday
-    3: { start: '08:00', end: '17:30' }, // Wednesday
-    4: { start: '08:00', end: '17:30' }, // Thursday
-    5: { start: '08:00', end: '16:30' }, // Friday
-    0: null, // Sunday
-    6: null  // Saturday
-};
-
-/* -------------------------
-   DOM refs (ALL DEFINITIONS ARE HERE)
-    --- FIX: All elements must be linked via document.getElementById() ---
-   ------------------------- */
-const dayTimeEl = document.getElementById('dayTime');
-const currentTimeDisplay = document.getElementById('currentTimeDisplay');
-const scheduleStatus = document.getElementById('scheduleStatus');
-const targetArrivalTime = document.getElementById('targetArrivalTime');
-const requiredDepartureTime = document.getElementById('requiredDepartureTime');
-const departureNote = document.getElementById('departureNote');
-const openWorkBtn = document.getElementById('openWorkBtn');
-
-// Weather Refs
-const weatherTempEl = document.getElementById('weatherTemp');
-const weatherDescEl = document.getElementById('weatherDesc');
-const weatherIconEl = document.getElementById('weatherIcon');
-const weatherFeelsEl = document.getElementById('weatherFeels');
-const weatherWindEl = document.getElementById('weatherWind');
-const weatherHumidityEl = document.getElementById('weatherHumidity');
-
-// Drive Time Refs
-const driveToWorkETA = document.getElementById('driveToWorkETA');
-const driveToWorkNormal = document.getElementById('driveToWorkNormal');
-const driveToHomeETA = document.getElementById('driveToHomeETA');
-const driveToHomeNormal = document.getElementById('driveToHomeNormal');
-const driveToWorkFill = document.getElementById('driveToWorkFill');
-const driveToHomeFill = document.getElementById('driveToHomeFill');
-const driveToWorkNote = document.getElementById('driveToWorkNote');
-const driveToHomeNote = document.getElementById('driveToHomeNote');
-const avoidCheckbox = document.getElementById('avoidHighway');
-
-// Transit Refs
-const sbCountdownEl = document.getElementById('sbCountdown');
-const sbDepEl = document.getElementById('sbDep');
-const sbArrEl = document.getElementById('sbArr');
-const sbDurEl = document.getElementById('sbDur');
-const sbMapBtn = document.getElementById('sbMapBtn');
-const nbCountdownEl = document.getElementById('nbCountdown');
-const nbDepEl = document.getElementById('nbDep');
-const nbArrEl = document.getElementById('nbArr');
-const nbDurEl = document.getElementById('nbDur');
-const nbMapBtn = document.getElementById('nbMapBtn');
-const sbNextTimes = document.getElementById('sbNextTimes');
-const nbNextTimes = document.getElementById('nbNextTimes');
-
-
-let directionsService = null;
-
-/* helpers */
-function safeSet(el,txt){ if(el) el.textContent = txt ?? '—'; }
-function formatTime(d){ return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
-function clearIv(iv){ if(iv) clearInterval(iv); }
-
-function setDayTime(){ 
-    const now=new Date(); 
-    const h=now.getHours(); 
-    let part='Morning'; 
-    if(h>=12 && h<17) part='Afternoon'; 
-    else if(h>=17) part='Evening'; 
-    dayTimeEl.textContent = `${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`; 
-    currentTimeDisplay.textContent = formatTime(now); // Update current time display
-}
-
-/* -------------------------
-   Weather (OpenWeather)
-   ------------------------- */
-async function loadWeather(){
-  try{
-    const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Denver,US&units=imperial&appid=${OPENWEATHER_API_KEY}`);
-    if(!res.ok) throw new Error('weather fetch failed');
-    const d = await res.json();
-    safeSet(weatherTempEl, Math.round(d.main.temp) + '°F');
-    const desc = d.weather?.[0]?.description ?? '';
-    safeSet(weatherDescEl, desc ? (desc[0].toUpperCase()+desc.slice(1)) : '—');
-    safeSet(weatherFeelsEl, 'Feels: ' + Math.round(d.main.feels_like) + '°F');
-    safeSet(weatherWindEl, 'Wind: ' + Math.round(d.wind.speed) + ' mph');
-    safeSet(weatherHumidityEl, 'Humidity: ' + d.main.humidity + '%');
-    if(d.weather?.[0]?.icon){
-      weatherIconEl.innerHTML = '';
-      const img = document.createElement('img');
-      img.src = `https://openweathermap.org/img/wn/${d.weather[0].icon}@2x.png`;
-      img.alt = desc;
-      img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px';
-      weatherIconEl.appendChild(img);
-    }
-  }catch(err){ console.error(err); safeSet(weatherTempEl,'Error'); }
-}
-
-/* -------------------------
-   Schedule Logic
-   ------------------------- */
-
-function getScheduleForToday() {
-    const now = new Date();
-    const day = now.getDay(); // 0 (Sunday) to 6 (Saturday)
-    const schedule = WORK_SCHEDULE[day];
-    
-    if (!schedule) {
-        safeSet(scheduleStatus, 'Non-Work Day');
-        return null;
-    }
-    
-    // Parse work start time (e.g., '08:00')
-    const [h, m] = schedule.start.split(':').map(Number);
-    const targetArrival = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m - ARRIVAL_BUFFER_MINS, 0);
-
-    // If target arrival time has passed (plus 30 min grace period), don't show departure guidance
-    const currentTime = now.getTime();
-    if (currentTime > targetArrival.getTime() + (30 * 60 * 1000)) { 
-        safeSet(scheduleStatus, `Work: ${schedule.start} - ${schedule.end}`); // Still show schedule, but mark as in progress
-        safeSet(targetArrivalTime, formatTime(targetArrival));
-        return null; // Return null to signal no active target
-    }
-
-    safeSet(scheduleStatus, `Work: ${schedule.start} - ${schedule.end}`);
-    safeSet(targetArrivalTime, formatTime(targetArrival));
-    
-    return targetArrival;
-}
+        // DOM REFERENCES - Consolidated for efficiency
+        const DOM_REFS = {
+            headerSubtitle: document.getElementById('headerSubtitle'),
+            scheduleTimeWindow: document.getElementById('scheduleTimeWindow'),
+            targetArrivalDisplay: document.getElementById('targetArrivalDisplay'),
+            currentTimeBig: document.getElementById('currentTimeBig'),
+            openWorkMapBtn: document.getElementById('openWorkMapBtn'),
+            requiredDepartureTime: document.getElementById('requiredDepartureTime'),
+            departureNote: document.getElementById('departureNote'),
+            openWorkBtn: document.getElementById('openWorkBtn'),
+            currentDayScheduleSummary: document.getElementById('currentDayScheduleSummary'),
+            weatherTempEl: document.getElementById('weatherTemp'),
+            weatherDescEl: document.getElementById('weatherDesc'),
+            weatherIconEl: document.getElementById('weatherIcon'),
+            weatherFeelsEl: document.getElementById('weatherFeels'),
+            weatherWindEl: document.getElementById('weatherWind'),
+            weatherHumidityEl: document.getElementById('weatherHumidity'),
+            driveToWorkETA: document.getElementById('driveToWorkETA'),
+            driveToWorkNormal: document.getElementById('driveToWorkNormal'),
+            driveToHomeETA: document.getElementById('driveToHomeETA'),
+            driveToHomeNormal: document.getElementById('driveToHomeNormal'),
+            driveToWorkFill: document.getElementById('driveToWorkFill'),
+            driveToHomeFill: document.getElementById('driveToHomeFill'),
+            driveToWorkNote: document.getElementById('driveToWorkNote'),
+            driveToHomeNote: document.getElementById('driveToHomeNote'),
+            avoidCheckbox: document.getElementById('avoidHighway'),
+            sbWindowEl: document.getElementById('sb-window'),
+            nbWindowEl: document.getElementById('nb-window'),
+            sbPredictionsContainer: document.getElementById('sb-predictions'),
+            nbPredictionsContainer: document.getElementById('nb-predictions'),
+            alertsCard: document.getElementById('alerts-card'),
+            refreshBtn: document.getElementById('refreshBtn'),
+            themeToggle: document.getElementById('themeToggle')
+        };
 
 
-/* -------------------------
-   Drive (DirectionsService)
-   ------------------------- */
-function updateDrive(origin,destination,etaEl,normalEl,fillEl,noteEl,targetArrival){
-  if(!directionsService){ safeSet(etaEl,'Maps not ready'); return; }
-  safeSet(etaEl,'Calculating…');
-  safeSet(normalEl, `(Normal: ${BASELINE_DRIVE_MINS} mins)`);
-  fillEl.style.width='0%';
-  
-  directionsService.route({
-    origin, destination,
-    travelMode: google.maps.TravelMode.DRIVING,
-    drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' },
-    avoidHighways: !!avoidCheckbox.checked
-  }, (result, status) => { 
-    if(status !== google.maps.DirectionsStatus.OK || !result.routes.length){ 
-      console.error('Drive error', status, result); 
-      safeSet(etaEl,'Error: No Route Found'); 
-      fillEl.style.width = '100%';
-      fillEl.style.background = 'var(--muted)';
-      return; 
-    }
-    
-    const leg = result.routes[0].legs[0];
-    // Duration in seconds -> minutes
-    const mins = (leg.duration_in_traffic?.value || leg.duration?.value)/60;
-    
-    // --- Traffic Delay Delta Calculation ---
-    const delayMins = Math.round(mins - BASELINE_DRIVE_MINS);
-    let delayText = '';
+        let directionsService = null;
+        let traffic_interval = null; 
+        let transit_interval = null; 
 
-    if (delayMins > 0) {
-        delayText = ` (+${delayMins} min delay)`;
-    } else if (delayMins < 0) {
-        delayText = ` (${Math.abs(delayMins)} min faster)`;
-    } else {
-        delayText = ` (On schedule)`;
-    }
-    
-    safeSet(etaEl, (leg.duration_in_traffic?.text || leg.duration?.text || 'N/A') + delayText);
-    
-    // Progress bar color/width logic
-    const pct = Math.min(Math.round((mins / BASELINE_DRIVE_MINS) * 100), 100);
-    fillEl.style.width = pct + '%';
-    
-    if(mins <= BASELINE_DRIVE_MINS + 5) fillEl.style.background = 'var(--success)';
-    else if(mins <= BASELINE_DRIVE_MINS + 15) fillEl.style.background = 'var(--warn)';
-    else fillEl.style.background = 'var(--danger)';
-    
-    if(noteEl) noteEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
-
-    // --- Schedule Card Integration ---
-    if (targetArrival && destination === WORK_ADDR) {
-        // Calculate the required departure time: Target Arrival - Travel Duration (in milliseconds)
-        const requiredDepartureMs = targetArrival.getTime() - (mins * 60 * 1000);
-        const requiredDeparture = new Date(requiredDepartureMs);
-        const now = new Date();
-        const diffMs = requiredDeparture.getTime() - now.getTime();
-        const diffMins = Math.ceil(diffMs / 60000);
-
-        safeSet(requiredDepartureTime, formatTime(requiredDeparture));
-
-        if (diffMins > 30) {
-            safeSet(departureNote, `You have ${diffMins} minutes until you must leave.`);
-            requiredDepartureTime.style.color = 'var(--accent)';
-        } else if (diffMins > 0) {
-            safeSet(departureNote, `You MUST leave in ${diffMins} minutes to arrive on time!`);
-            requiredDepartureTime.style.color = 'var(--warn)';
-        } else {
-            safeSet(departureNote, `🔴 Leave IMMEDIATELY or you will be late.`);
-            requiredDepartureTime.style.color = 'var(--danger)';
+        /* -------------------------
+           Helpers and Time
+           ------------------------- */
+        // Consolidated helper for setting content
+        function safeSet(el, txt, html=false){ 
+            if(!el) return;
+            if(html) el.innerHTML = txt ?? '—';
+            else el.textContent = txt ?? '—'; 
         }
-    } else if (destination === WORK_ADDR) {
-        // Not a work day or target missed
-        safeSet(requiredDepartureTime, 'N/A');
-        safeSet(departureNote, 'No required departure time (non-work or past arrival target).');
-        requiredDepartureTime.style.color = 'var(--muted)';
-    }
-  });
-}
 
-/* -------------------------
-   Transit: next-N-train finder
-   ------------------------- */
+        // Time formatters
+        const formatTime = (d) => d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); 
+        const formatTimeShort = (d) => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12: true}).replace(/\s/g, ''); 
+        
+        const getCssVariable = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-// Auto-refresh countdown function
-function startCountdown(date, displayEl, direction){
-  if (displayEl._iv) clearInterval(displayEl._iv);
+        function setDayTime(){ 
+            const now = new Date(); 
+            const h = now.getHours(); 
+            let part = (h >= 17) ? 'Evening' : (h >= 12) ? 'Afternoon' : 'Morning'; 
+            safeSet(DOM_REFS.headerSubtitle, `${now.toLocaleDateString(undefined,{weekday:'long'})}, ${part}`); 
+            safeSet(DOM_REFS.currentTimeBig, formatTime(now));
+        }
 
-  function tick(){
-    const diff = date - new Date();
-    const mm = Math.floor(diff/60000);
-    const ss = Math.floor((diff%60000)/1000);
-    
-    if(diff <= 0){
-      displayEl.textContent = 'Departing now';
-      clearInterval(displayEl._iv);
-      setTimeout(() => {
-        updateNextTrain(direction);
-      }, 5000); // 5 seconds wait before refreshing
-      return;
-    }
-    
-    const mmStr = mm < 10 ? '0'+mm : ''+mm;
-    const ssStr = ss < 10 ? '0'+ss : ''+ss;
-    displayEl.textContent = `${mmStr}:${ssStr}`;
-  }
-  
-  tick();
-  displayEl._iv = setInterval(tick, 1000);
-}
+        /* -------------------------
+           Weather (OpenWeather 2.5)
+           ------------------------- */
+        async function loadWeather(){
+          try{
+            const url = `https://api.openweathermap.org/data/2.5/weather?id=${CONFIG.OPENWEATHER_CITY_ID}&units=imperial&appid=${CONFIG.OPENWEATHER_API_KEY}`;
+            const res = await fetch(url);
+            if(!res.ok) throw new Error('weather fetch failed: HTTP ' + res.status);
+            const d = await res.json();
+            
+            const current = d;
+            safeSet(DOM_REFS.weatherTempEl, Math.round(current.main.temp) + '°F');
+            const desc = current.weather?.[0]?.description ?? '';
+            safeSet(DOM_REFS.weatherDescEl, desc ? (desc[0].toUpperCase()+desc.slice(1)) : '—');
+            safeSet(DOM_REFS.weatherFeelsEl, 'Feels: ' + Math.round(current.main.feels_like) + '°F');
+            safeSet(DOM_REFS.weatherWindEl, 'Wind: ' + Math.round(current.wind.speed) + ' mph');
+            safeSet(DOM_REFS.weatherHumidityEl, 'Humidity: ' + current.main.humidity + '%');
+            
+            if(current.weather?.[0]?.icon){
+              DOM_REFS.weatherIconEl.innerHTML = '';
+              const img = document.createElement('img');
+              img.src = `https://openweathermap.org/img/wn/${current.weather[0].icon}@2x.png`;
+              img.alt = desc;
+              img.style.width='56px'; img.style.height='56px'; img.style.borderRadius='8px';
+              DOM_REFS.weatherIconEl.appendChild(img);
+            }
 
-// Function to find the top 3 scheduled candidates (array)
-async function findNextNTrain(origin, destination, direction){
-  if(!directionsService) return null;
-  return new Promise((resolve) => {
-    directionsService.route({
-      origin,
-      destination,
-      travelMode: google.maps.TravelMode.TRANSIT,
-      transitOptions: { 
-        modes: [google.maps.TransitMode.RAIL], 
-        // FIX: Using the correct API constant for routing preference
-        routingPreference: google.maps.TransitRoutePreference.LESS_TRANSFERS 
-      }, 
-      provideRouteAlternatives: true
-    }, (result, status) => { 
-      if(status !== google.maps.DirectionsStatus.OK || !result?.routes?.length){ 
-        console.error('findNextNTrain error STATUS:', status, 'RESULT:', result);
-        resolve(null); 
-        return; 
-      }
-      
-      const now = new Date();
-      const candidates = [];
-      
-      result.routes.forEach(route => {
-        const leg = route.legs && route.legs[0];
-        if(!leg) return;
-        const steps = leg.steps || [];
-        steps.forEach(step => {
-          if(!step.transit || !step.transit.line) return;
-          const shortName = (step.transit.line.short_name || '').toString();
-          
-          if(shortName.toUpperCase() !== 'N') return;
-          
-          const depTime = step.transit.departure_time && step.transit.departure_time.value;
-          const arrTime = step.transit.arrival_time && step.transit.arrival_time.value;
+          }catch(err){ 
+            console.error('Weather error:', err); 
+            safeSet(DOM_REFS.weatherTempEl,'Error'); 
+          }
+        }
 
-          if(!depTime) return;
-          
-          const depDate = new Date(depTime);
-          const arrDate = arrTime ? new Date(arrTime) : new Date(depDate.getTime() + (step.duration?.value ? step.duration.value * 1000 : 25 * 60000));
-          
-          if(depDate <= now) return;
-          
-          candidates.push({dep: depDate, arr: arrDate, headsign: step.transit.headsign || step.transit.line.name});
-        });
-      });
-      
-      if(!candidates.length){ resolve(null); return; }
-      
-      candidates.sort((a,b)=>a.dep - b.dep);
-      resolve(candidates.slice(0, 3)); 
-    });
-  });
-}
+        /* -------------------------
+           Schedule Logic (Work)
+           ------------------------- */
 
-// Function to update the display for one direction (sb or nb)
-async function updateNextTrain(direction){
-  const origin = direction === 'sb' ? N_ORIGIN : N_DEST;
-  const destination = direction === 'sb' ? N_DEST : N_ORIGIN;
-  const countdownEl = direction === 'sb' ? sbCountdownEl : nbCountdownEl;
-  const depEl = direction === 'sb' ? sbDepEl : nbDepEl;
-  const arrEl = direction === 'sb' ? sbArrEl : nbArrEl;
-  const durEl = direction === 'sb' ? sbDurEl : nbDurEl;
-  const mapBtn = direction === 'sb' ? sbMapBtn : nbMapBtn;
-  const nextTimesEl = direction === 'sb' ? sbNextTimes : nbNextTimes;
+        function getScheduleForToday() {
+            const now = new Date();
+            const day = now.getDay();
+            const schedule = CONFIG.WORK_SCHEDULE[day];
+            const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            
+            if (!schedule) {
+                safeSet(DOM_REFS.scheduleTimeWindow, `${dayNames[day]} (No Work)`);
+                safeSet(DOM_REFS.requiredDepartureTime, 'N/A');
+                safeSet(DOM_REFS.targetArrivalDisplay, '--:--');
+                safeSet(DOM_REFS.departureNote, 'No required departure time (non-work day).');
+                DOM_REFS.requiredDepartureTime.style.color = getCssVariable('--muted');
+                return null;
+            }
+            
+            const [h, m] = schedule.start.split(':').map(Number);
+            const workStartTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
 
-  if (countdownEl._iv) clearInterval(countdownEl._iv);
-
-  safeSet(countdownEl, 'Searching…');
-  safeSet(depEl, 'Depart —');
-  safeSet(arrEl, 'Arrive —');
-  safeSet(durEl, '—');
-  safeSet(nextTimesEl, '—');
-
-  try{
-    const candidates = await findNextNTrain(origin, destination, direction); 
-    
-    if(!candidates || candidates.length === 0){
-      safeSet(countdownEl,'No trains found');
-      safeSet(nextTimesEl, 'No upcoming trains scheduled.');
-      return;
-    }
-    
-    const candidate = candidates[0];
-    const dep = candidate.dep;
-    const arr = candidate.arr;
-    const durMin = Math.round((arr - dep)/60000);
-    
-    safeSet(depEl, 'Depart ' + formatTime(dep));
-    safeSet(arrEl, 'Arrive ' + formatTime(arr));
-    safeSet(durEl, durMin + ' min');
-    
-    if(mapBtn) {
-      mapBtn.href = `https://www.google.com/maps/dir/${encodeURIComponent(origin)}/${encodeURIComponent(destination)}?api=1&travelmode=transit&transit_mode=rail`;
-    }
-    
-    startCountdown(dep, countdownEl, direction); 
-    
-    const nextDepartures = candidates.slice(1).map(c => formatTime(c.dep)).join(' • ');
-    
-    if (nextDepartures) {
-      safeSet(nextTimesEl, nextDepartures);
-    } else {
-      safeSet(nextTimesEl, 'No further immediate schedules.');
-    }
-    
-  }catch(err){
-    console.error('updateNextTrain error', err);
-    safeSet(countdownEl, 'Error');
-    safeSet(nextTimesL, 'Error loading schedules.');
-  }
-}
+            // Calculate Target Arrival (Work Start - Buffer Time)
+            const requiredTargetArrival = new Date(workStartTime.getTime() - (CONFIG.ARRIVAL_BUFFER_MINS * 60 * 1000));
+            
+            safeSet(DOM_REFS.scheduleTimeWindow, `${schedule.start} - ${schedule.end}`);
+            safeSet(DOM_REFS.targetArrivalDisplay, formatTimeShort(requiredTargetArrival)); 
+            
+            // If current time is past work start + grace period, no required departure needed
+            if (now.getTime() > workStartTime.getTime() + (30 * 60 * 1000)) { 
+                safeSet(DOM_REFS.requiredDepartureTime, 'N/A');
+                safeSet(DOM_REFS.departureNote, 'No required departure time (work in progress).');
+                DOM_REFS.requiredDepartureTime.style.color = getCssVariable('--muted');
+                return null;
+            }
+            
+            return requiredTargetArrival;
+        }
 
 
-/* -------------------------
-   Full refresh
-   ------------------------- */
-function refreshAll(){
-  setDayTime();
-  loadWeather();
-  
-  // Get today's required arrival time
-  const targetArrival = getScheduleForToday();
+        /* -------------------------
+           Drive (DirectionsService)
+           ------------------------- */
+        function updateDrive(origin,destination,etaEl,normalEl,fillEl,noteEl,targetArrival,isMorning){
+          if(!directionsService){ safeSet(etaEl,'Maps not ready'); return; }
+          safeSet(etaEl,'Calculating…');
+          safeSet(normalEl, `(Normal: ${CONFIG.BASELINE_DRIVE_MINS} mins)`);
+          fillEl.style.width='0%';
+          
+          const isAvoidingHighways = DOM_REFS.avoidCheckbox.checked;
 
-  // Update drive times, passing the new targetArrival time for the To Work calculation
-  updateDrive(HOME_ADDR, WORK_ADDR, driveToWorkETA, driveToWorkNormal, driveToWorkFill, driveToWorkNote, targetArrival);
-  // Homebound route does not need target time
-  updateDrive(WORK_ADDR, HOME_ADDR, driveToHomeETA, driveToHomeNormal, driveToHomeFill, driveToHomeNote, null);
-  
-  // Set the map link for the schedule card
-  const avoidParam = avoidCheckbox.checked ? '&avoid=highways' : '';
-  openWorkBtn.href = `https://www.google.com/maps/dir/${encodeURIComponent(HOME_ADDR)}/${encodeURIComponent(WORK_ADDR)}?api=1&travelmode=driving${avoidParam}`;
-  
-  // transit: both directions
-  updateNextTrain('sb');
-  updateNextTrain('nb');
-}
+          directionsService.route({
+            origin, destination,
+            travelMode: google.maps.TravelMode.DRIVING,
+            drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' },
+            avoidHighways: !!isAvoidingHighways
+          }, (result, status) => { 
+            if(status !== google.maps.DirectionsStatus.OK || !result.routes.length){ 
+              console.error('Drive error', status, result); 
+              safeSet(etaEl,'Error: No Route Found'); 
+              fillEl.style.width = '100%';
+              fillEl.style.background = getCssVariable('--muted');
+              return; 
+            }
+            
+            const leg = result.routes[0].legs[0];
+            const mins = (leg.duration_in_traffic?.value || leg.duration?.value)/60;
+            
+            const delayMins = Math.round(mins - CONFIG.BASELINE_DRIVE_MINS);
+            let delayText = (delayMins > 0) ? ` (+${delayMins} min delay)` : (delayMins < 0) ? ` (${Math.abs(delayMins)} min faster)` : ` (On schedule)`;
+            
+            safeSet(etaEl, (leg.duration_in_traffic?.text || leg.duration?.text || 'N/A') + delayText);
+            
+            const pct = Math.min(Math.round((mins / CONFIG.BASELINE_DRIVE_MINS) * 100), 100);
+            fillEl.style.width = pct + '%';
+            
+            const { success: successColor, warn: warnColor, danger: dangerColor } = {
+                success: getCssVariable('--success'),
+                warn: getCssVariable('--warn'),
+                danger: getCssVariable('--danger')
+            };
 
-/* events & intervals */
-document.getElementById('refreshBtn').addEventListener('click', refreshAll);
-document.getElementById('themeToggle').addEventListener('click', ()=>document.body.classList.toggle('dark'));
-avoidCheckbox.addEventListener('change', ()=> refreshAll());
+            fillEl.style.background = (mins <= CONFIG.BASELINE_DRIVE_MINS + 5) ? successColor : 
+                                    (mins <= CONFIG.BASELINE_DRIVE_MINS + 15) ? warnColor : dangerColor;
+            
+            if(noteEl) safeSet(noteEl, 'Last updated: ' + new Date().toLocaleTimeString());
 
-// Update time every second for the clock and to keep departure countdown accurate
-setInterval(setDayTime, 1000); 
-setInterval(loadWeather, 10*60*1000);
-// Automatic traffic/schedule refresh every 3 minutes (more frequent for critical departure time)
-setInterval(()=>{ if(directionsService) refreshAll(); }, 3*60*1000); 
+            if (isMorning && targetArrival) {
+                const requiredDepartureMs = targetArrival.getTime() - (mins * 60 * 1000) + (CONFIG.ARRIVAL_BUFFER_MINS * 60 * 1000); // Re-add the buffer as a part of real-time calc
+                const requiredDeparture = new Date(requiredDepartureMs);
+                const now = new Date();
+                const diffMins = Math.ceil((requiredDeparture.getTime() - now.getTime()) / 60000);
 
-/* initialize Google Maps JS and DirectionsService */
-function initMaps(){
-  directionsService = new google.maps.DirectionsService();
-  refreshAll();
-}
-(function loadMaps(){
-  const s = document.createElement('script');
-  s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMaps`;
-  s.async = true;
-  s.defer = true;
-  window.initMaps = initMaps;
-  document.head.appendChild(s);
-})();
+                safeSet(DOM_REFS.requiredDepartureTime, formatTimeShort(requiredDeparture));
 
-/* initial load */
-setDayTime();
-loadWeather();
-</script>
+                if (diffMins > 30) {
+                    safeSet(DOM_REFS.departureNote, `You have ${diffMins} minutes until you must leave.`);
+                    DOM_REFS.requiredDepartureTime.style.color = getCssVariable('--accent');
+                } else if (diffMins > 0) {
+                    safeSet(DOM_REFS.departureNote, `You **MUST** leave in ${diffMins} minutes to arrive on time!`, true);
+                    DOM_REFS.requiredDepartureTime.style.color = warnColor;
+                } else {
+                    safeSet(DOM_REFS.departureNote, `🔴 Leave **IMMEDIATELY** or you will be late.`, true);
+                    DOM_REFS.requiredDepartureTime.style.color = dangerColor;
+                }
+            } else if (isMorning && !targetArrival) {
+                safeSet(DOM_REFS.requiredDepartureTime, 'N/A');
+                safeSet(DOM_REFS.departureNote, 'No required departure time (non-work or past arrival target).');
+                DOM_REFS.requiredDepartureTime.style.color = getCssVariable('--muted');
+            }
+          });
+        }
 
+
+        /* -------------------------------------------
+           Transit: RTD Scheduled Countdown 
+           ------------------------------------------- */
+
+        function getRTDScheduleForToday() {
+            const now = new Date();
+            const day = now.getDay(); 
+            const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            
+            let key = (day >= 1 && day <= 4) ? 'MT' : (day === 5) ? 'F' : (day === 6) ? 'SAT' : 'SUN';
+            
+            safeSet(DOM_REFS.currentDayScheduleSummary, `${dayNames[day]} Schedule is Active. Trains run every 30 minutes.`);
+            
+            return CONFIG.RTD_SCHEDULES[key];
+        }
+
+        function formatCountdown(targetTime) {
+            const diffMs = targetTime.getTime() - new Date().getTime();
+            const DEPARTED_GRACE_MS = -7000;
+            const DEPARTURE_START_MS = 15000;
+            const TRAIN_ARRIVING_END_MS = (14 * 60 * 1000) + 45000; 
+            const TRAIN_ARRIVING_START_MS = 15 * 60 * 1000;
+
+            if (diffMs <= DEPARTED_GRACE_MS) return "Departed";
+            if (diffMs <= DEPARTURE_START_MS && diffMs > DEPARTED_GRACE_MS) return "Departure";
+            if (diffMs > TRAIN_ARRIVING_END_MS && diffMs <= TRAIN_ARRIVING_START_MS) return "Train Arriving";
+            
+            const diffSeconds = Math.floor(diffMs / 1000);
+            const minutes = Math.floor(diffSeconds / 60);
+            const seconds = diffSeconds % 60;
+            
+            return (minutes < 1 && diffSeconds > DEPARTURE_START_MS / 1000) ? `${diffSeconds}s` : `${minutes}m ${seconds}s`;
+        }
+
+        function getServiceDates(schedule, direction) {
+            const now = new Date();
+            const start = schedule[direction === 'nb' ? 'start_nb' : 'start_sb'];
+            const end = schedule[direction === 'nb' ? 'end_nb' : 'end_sb'];
+
+            return {
+                startOfDay: new Date(now.getFullYear(), now.getMonth(), now.getDate(), start.h, start.m, 0),
+                endOfDay: new Date(now.getFullYear(), now.getMonth(), now.getDate(), end.h, end.m, 0)
+            };
+        }
+
+        function getNextThreeDepartures(scheduledMinutes, schedule, direction) {
+            const now = new Date();
+            let departures = [];
+            const { startOfDay, endOfDay } = getServiceDates(schedule, direction);
+
+            if (now.getTime() < startOfDay.getTime() || now.getTime() > endOfDay.getTime() + 60000) {
+                 return { departures: [], nextStart: startOfDay };
+            }
+
+            for (let i = 0; i < 3; i++) {
+                const hourToCheck = now.getHours() + i;
+                
+                scheduledMinutes.forEach(targetMinute => {
+                    let departure = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hourToCheck, targetMinute, 0);
+                    
+                    if (departure.getTime() >= now.getTime() - 7000 && departure.getTime() <= endOfDay.getTime()) { 
+                        departures.push(departure);
+                    }
+                });
+            }
+            
+            return {
+                departures: departures.sort((a, b) => a.getTime() - b.getTime()).slice(0, CONFIG.MAX_PREDICTIONS),
+                nextStart: startOfDay
+            };
+        }
+
+        function updateTransit() {
+            const schedule = getRTDScheduleForToday();
+            
+            if (!schedule) {
+                safeSet(DOM_REFS.sbWindowEl, 'No Scheduled Service.');
+                safeSet(DOM_REFS.nbWindowEl, 'No Scheduled Service.');
+                safeSet(DOM_REFS.sbPredictionsContainer, `<div class="schedule-no-service">No RTD Schedule Found for Today.</div>`, true);
+                safeSet(DOM_REFS.nbPredictionsContainer, `<div class="schedule-no-service">No RTD Schedule Found for Today.</div>`, true);
+                return;
+            }
+
+            // Update Service Window Displays
+            const formatWindow = (start, end) => `Service Window: ${formatTime(start)} - ${formatTime(end)}`;
+            const { startOfDay: nbStart, endOfDay: nbEnd } = getServiceDates(schedule, 'nb');
+            safeSet(DOM_REFS.nbWindowEl, formatWindow(nbStart, nbEnd));
+            const { startOfDay: sbStart, endOfDay: sbEnd } = getServiceDates(schedule, 'sb');
+            safeSet(DOM_REFS.sbWindowEl, formatWindow(sbStart, sbEnd));
+
+
+            // Render Predictions
+            const renderPredictions = (container, scheduledMinutes, direction, mapBtn) => {
+                const { departures, nextStart } = getNextThreeDepartures(scheduledMinutes, schedule, direction);
+                
+                // Map link setup
+                const origin = direction === 'sb' ? CONFIG.N_ORIGIN : CONFIG.N_DEST;
+                const destination = direction === 'sb' ? CONFIG.N_DEST : CONFIG.N_ORIGIN;
+                mapBtn.href = `https://www.google.com/maps/dir/${encodeURIComponent(origin)}/${encodeURIComponent(destination)}/@40.0, -105.0,11z/data=!4m2!4m1!3e3`;
+
+                if (departures.length === 0) {
+                    const message = (nextStart.getTime() > new Date().getTime()) ? `Service begins at ${formatTime(nextStart)}.` : `Service has ended for today.`;
+                    safeSet(container, `<div class="schedule-no-service">${message}</div>`, true);
+                    return;
+                }
+
+                let html = '';
+                departures.forEach((departureTime, index) => {
+                    const countdownText = formatCountdown(departureTime);
+                    let [countdownDisplay, countdownElementClass] = (countdownText === "Departure") ? [countdownText, 'schedule-departing'] :
+                                                                  (countdownText === "Train Arriving") ? [countdownText, 'schedule-arriving'] :
+                                                                  [`in ${countdownText}`, 'schedule-countdown'];
+                    
+                    // Handle 'Departed' status separately for display text
+                    if(countdownText === "Departed") countdownDisplay = countdownText;
+
+                    html += `
+                        <div class="prediction-item ${index === 0 ? 'next-up' : ''}">
+                            <span class="schedule-time">${formatTimeShort(departureTime)}</span>
+                            <span class="${countdownElementClass}">${countdownDisplay}</span>
+                        </div>
+                    `;
+                });
+                safeSet(container, html, true);
+            };
+
+            renderPredictions(DOM_REFS.sbPredictionsContainer, schedule.sbMinutes, 'sb', document.getElementById('sbMapBtn'));
+            renderPredictions(DOM_REFS.nbPredictionsContainer, schedule.nbMinutes, 'nb', document.getElementById('nbMapBtn'));
+        }
+
+        function renderAlerts() {
+            if (CONFIG.ALERTS.length === 0) {
+                DOM_REFS.alertsCard.style.display = 'none'; 
+                return;
+            }
+
+            DOM_REFS.alertsCard.style.display = 'block';
+
+            let alertsHtml = '<div class="alert-header">⚠️ Service Alerts</div>';
+            
+            CONFIG.ALERTS.forEach(alert => {
+                const icon = (alert.type === 'DELAY') ? '⏳' : (alert.type === 'ADVISORY') ? '📢' : 'ℹ️';
+                alertsHtml += `<div class="alert-item"><span class="alert-icon">${icon}</span><span><strong>${alert.type}:</strong> ${alert.message}</span></div>`;
+            });
+            
+            safeSet(DOM_REFS.alertsCard, alertsHtml, true);
+        }
+
+        /* -------------------------
+           Full refresh Handlers
+           ------------------------- */
+        function refreshTrafficAndSchedule() {
+            const targetArrival = getScheduleForToday();
+
+            if (directionsService) {
+                updateDrive(CONFIG.HOME_ADDR, CONFIG.WORK_ADDR, DOM_REFS.driveToWorkETA, DOM_REFS.driveToWorkNormal, DOM_REFS.driveToWorkFill, DOM_REFS.driveToWorkNote, targetArrival, true);
+                updateDrive(CONFIG.WORK_ADDR, CONFIG.HOME_ADDR, DOM_REFS.driveToHomeETA, DOM_REFS.driveToHomeNormal, DOM_REFS.driveToHomeFill, DOM_REFS.driveToHomeNote, null, false);
+            }
+
+            // Map Link Update
+            const avoidParam = DOM_REFS.avoidCheckbox.checked ? '&avoid=highways' : '';
+            const mapUrl = `https://www.google.com/maps/dir/${encodeURIComponent(CONFIG.HOME_ADDR)}/${encodeURIComponent(CONFIG.WORK_ADDR)}?api=1&travelmode=driving${avoidParam}`;
+            
+            DOM_REFS.openWorkMapBtn.onclick = () => window.open(mapUrl, '_blank');
+            DOM_REFS.openWorkBtn.href = mapUrl;
+        }
+
+        function initialAndStaticLoad() {
+            setDayTime();
+            loadWeather();
+            renderAlerts();
+        }
+
+
+        /* -------------------------
+           Events & Intervals
+           ------------------------- */
+
+        function updateRgbVariables() {
+            const isDark = document.body.classList.contains('dark');
+            const accent = isDark ? '#60a5fa' : '#3b82f6'; 
+            const text = isDark ? '#e5e7eb' : '#1a1a1a';
+            const warn = isDark ? '#fbbf24' : '#f59e0b';
+
+            function hexToRgb(hex) {
+                const bigint = parseInt(hex.replace('#', ''), 16);
+                return `${(bigint >> 16) & 255}, ${(bigint >> 8) & 255}, ${bigint & 255}`;
+            }
+
+            document.documentElement.style.setProperty('--accent-rgb', hexToRgb(accent));
+            document.documentElement.style.setProperty('--text-rgb', hexToRgb(text));
+            document.documentElement.style.setProperty('--warn-rgb', hexToRgb(warn));
+        }
+
+        function setupEventsAndIntervals() {
+            // Event Listeners
+            DOM_REFS.refreshBtn.addEventListener('click', () => {
+                initialAndStaticLoad();
+                refreshTrafficAndSchedule();
+            });
+
+            DOM_REFS.themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark');
+                updateRgbVariables();
+            });
+
+            DOM_REFS.avoidCheckbox.addEventListener('change', refreshTrafficAndSchedule);
+
+            // Intervals
+            setInterval(setDayTime, 1000); 
+            transit_interval = setInterval(updateTransit, 1000);
+            setInterval(loadWeather, 10 * 60 * 1000);
+        }
+
+        function startTrafficInterval() {
+            traffic_interval = setInterval(refreshTrafficAndSchedule, 3 * 60 * 1000);
+        }
+
+        /* -------------------------
+           Google Maps Initialization
+           ------------------------- */
+        function initMaps(){
+          directionsService = new google.maps.DirectionsService();
+          
+            refreshTrafficAndSchedule();
+            startTrafficInterval();
+        }
+
+        (function loadMaps(){
+            const s = document.createElement('script');
+            s.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMaps`;
+            s.async = true;
+            s.defer = true;
+            s.setAttribute('loading', 'async');
+            window.initMaps = initMaps;
+            document.head.appendChild(s);
+        })();
+
+        /* Initial load and setup */
+        updateRgbVariables();
+        initialAndStaticLoad();
+        setupEventsAndIntervals();
+    </script>
 </body>
 </html>
