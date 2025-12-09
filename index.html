@@ -247,18 +247,18 @@
             cursor: pointer;
         }
         
-        #currentTimeDisplay, #dayTime, #targetArrivalTime, #scheduleStatus {
-            display: none;
-        }
-        
+        /* Weather in Schedule Card Styling */
         .weather-info {
             display: flex;
             align-items: center;
             gap: 24px;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
         }
 
         #weatherTemp {
-            font-size: 3.5rem;
+            font-size: 3rem; 
             font-weight: 800;
             color: var(--danger);
             line-height: 1;
@@ -267,8 +267,8 @@
         .weather-details {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            font-size: 1rem;
+            gap: 5px; 
+            font-size: 0.9rem;
             font-weight: 500;
             color: var(--muted);
         }
@@ -276,6 +276,8 @@
         #weatherIcon img {
              filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.2));
              transition: filter 0.3s;
+             width: 50px; 
+             height: 50px;
         }
         
         .drive-item {
@@ -379,6 +381,19 @@
             font-size: 1.1rem;
         }
 
+        .schedule-critical {
+            font-weight: 900;
+            font-size: 1.1rem;
+            color: var(--warn); 
+            animation: pulse-critical 2s infinite alternate;
+        }
+        
+        @keyframes pulse-critical {
+            from { color: var(--warn); transform: scale(1.0); }
+            50% { color: var(--danger); transform: scale(1.05); }
+            to { color: var(--warn); transform: scale(1.0); }
+        }
+
         .schedule-departing {
             color: var(--danger);
             font-weight: 900;
@@ -397,14 +412,34 @@
             padding: 15px;
             text-align: center;
         }
-
-        .transit-map-link {
-            text-decoration: none;
-            color: var(--accent);
-            font-size: 0.85rem;
-            font-weight: 600;
+        
+        #transitMapBtn {
+            width: 100%;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin-top: 20px; 
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.3s, opacity 0.3s;
         }
         
+        #driveToWorkBtn {
+            width: 100%;
+            background-color: var(--warn); 
+            color: var(--text); 
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-top: 15px; 
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.3s, opacity 0.3s, color 0.3s;
+        }
+
+
         #alerts-card {
             grid-column: 1 / -1; 
             display: none; 
@@ -418,7 +453,10 @@
             font-size: 1.2rem;
             margin-bottom: 10px;
             color: var(--warn);
-            transition: color 0.3s;
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
         }
 
         .alert-item {
@@ -449,10 +487,60 @@
             accent-color: var(--accent);
             transition: accent-color 0.3s;
         }
+        
+        /* COLLAPSIBLE STYLES */
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            /* margin-bottom: 20px; - Removed, handled by card-header-group now */
+        }
+
+        .collapsible-icon {
+            transition: transform 0.3s;
+            font-size: 1.5rem;
+            line-height: 1;
+            margin-left: 15px; /* Ensure space between title and icon */
+        }
+        
+        .card[data-collapsed="true"] .collapsible-icon {
+            transform: rotate(-90deg); /* Arrow points right (▶) */
+        }
+        
+        .card[data-collapsed="true"] .card-content {
+            display: none;
+        }
+        
+        .card[data-collapsed="false"] .collapsible-icon {
+            transform: rotate(0deg); /* Arrow points down (▼) */
+        }
+        
+        /* Specific header style overrides for better visual flow on collapsible cards */
+        /* Default state: full margin/padding/border */
+        #driveTimesCard .card-header-group, 
+        #transitCard .card-header-group {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Collapsed state: removes the extra space and border */
+        .card[data-collapsed="true"] #driveHeader .card-header-group,
+        .card[data-collapsed="true"] #transitHeader .card-header-group {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        /* Handle the Alerts card specific classes for collapse */
+        #alerts-card[data-collapsed="true"] .card-content {
+            display: none !important;
+        }
 
     </style>
 </head>
-<body>
+<body class="dark">
 
     <div class="header-card">
         <div>
@@ -465,8 +553,14 @@
         </div>
     </div>
     
-    <div id="alerts-card" class="card">
+    <div id="alerts-card" class="card" data-collapsed="true">
+        <div id="alertsHeader" class="alert-header">
+            <span>⚠️ Service Alerts</span>
+            <span class="collapsible-icon" data-target="alerts-card">▶</span>
         </div>
+        <div class="card-content" id="alertsContent">
+            </div>
+    </div>
 
     <div class="dashboard-grid">
         
@@ -478,10 +572,19 @@
                     <div class="schedule-label">Today's Schedule</div>
                     <div class="card-title-text">Work: <span id="scheduleTimeWindow">08:00 - 17:30</span></div>
                 </div>
-                <div id="targetArrivalTime"></div> 
-                <div id="scheduleStatus"></div>
-                <div id="dayTime"></div>
-                <div id="currentTimeDisplay"></div>
+            </div>
+
+            <div class="weather-info">
+                <div id="weatherIcon"></div>
+                <div>
+                    <div id="weatherTemp">--°F</div>
+                    <div id="weatherDesc" style="font-weight: 600;">Loading...</div>
+                </div>
+                <div class="weather-details">
+                    <span id="weatherFeels"></span>
+                    <span id="weatherWind"></span>
+                    <span id="weatherHumidity"></span>
+                </div>
             </div>
 
             <div class="schedule-data-group">
@@ -505,85 +608,78 @@
             
         </div>
         
-        <div class="card" id="driveTimesCard">
-            <div class="card-header-group">
-                <div class="card-icon" style="background-color: var(--warn);">🚗</div>
-                <div class="card-title-text">Drive Times</div>
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <label for="avoidHighway" class="control-group">
-                    <input type="checkbox" id="avoidHighway" checked> Avoid Highways (Favor Slower Routes)
-                </label>
-            </div>
-
-            <div class="drive-item">
-                <div class="drive-header">To Work (Home → Office)</div>
-                <div class="drive-fill-container">
-                    <div id="driveToWorkFill" class="drive-fill"></div>
+        <div class="card" id="driveTimesCard" data-collapsed="true">
+            <div id="driveHeader" class="collapsible-header">
+                <div class="card-header-group">
+                    <div class="card-icon" style="background-color: var(--warn);">🚗</div>
+                    <div class="card-title-text">Drive Times</div>
                 </div>
-                <span id="driveToWorkETA" class="drive-eta">Calculating...</span>
-                <span id="driveToWorkNormal" class="drive-normal"></span>
-                <div id="driveToWorkNote" style="font-size: 0.8em; color: var(--muted); margin-top: 5px;"></div>
-                <a id="openWorkBtn" class="transit-map-link" target="_blank" href="#">Open in Maps ↗</a>
+                <span class="collapsible-icon" data-target="driveTimesCard">▶</span>
             </div>
 
-            <div class="drive-item">
-                <div class="drive-header">To Home (Office → Home)</div>
-                <div class="drive-fill-container">
-                    <div id="driveToHomeFill" class="drive-fill"></div>
+            <div class="card-content">
+                <div style="margin-bottom: 15px;">
+                    <label for="avoidHighway" class="control-group">
+                        <input type="checkbox" id="avoidHighway" checked> Avoid Highways (Favor Slower Routes)
+                    </label>
                 </div>
-                <span id="driveToHomeETA" class="drive-eta">Calculating...</span>
-                <span id="driveToHomeNormal" class="drive-normal"></span>
-                <div id="driveToHomeNote" style="font-size: 0.8em; color: var(--muted); margin-top: 5px;"></div>
+
+                <div class="drive-item">
+                    <div class="drive-header">To Work (Home → Office)</div>
+                    <div class="drive-fill-container">
+                        <div id="driveToWorkFill" class="drive-fill"></div>
+                    </div>
+                    <span id="driveToWorkETA" class="drive-eta">Calculating...</span>
+                    <span id="driveToWorkNormal" class="drive-normal"></span>
+                    <div id="driveToWorkNote" style="font-size: 0.8em; color: var(--muted); margin-top: 5px;"></div>
+                </div>
+
+                <div class="drive-item">
+                    <div class="drive-header">To Home (Office → Home)</div>
+                    <div class="drive-fill-container">
+                        <div id="driveToHomeFill" class="drive-fill"></div>
+                    </div>
+                    <span id="driveToHomeETA" class="drive-eta">Calculating...</span>
+                    <span id="driveToHomeNormal" class="drive-normal"></span>
+                    <div id="driveToHomeNote" style="font-size: 0.8em; color: var(--muted); margin-top: 5px;"></div>
+                </div>
+                
+                <button id="driveToWorkBtn">View Live Traffic</button>
+                <a id="openWorkBtn" style="display: none;"></a> 
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header-group">
-                <div class="card-icon" style="background-color: var(--accent);">🚆</div>
-                <div class="card-title-text">N Line Transit Schedule</div>
-            </div>
-            
-            <div id="currentDayScheduleSummary" style="font-size: 0.95rem; color: var(--muted); margin-bottom: 15px;">--</div>
-
-            <div class="transit-direction">
-                <h3>Southbound (112th → Union Station)
-                    <a id="sbMapBtn" class="transit-map-link" target="_blank" href="#">View Route ↗</a>
-                </h3>
-                <div id="sb-window" style="font-size: 0.9rem; color: var(--muted); margin-bottom: 5px;">--</div>
-                <div id="sb-predictions">
-                    <div class="schedule-no-service">Loading schedule...</div>
+        <div class="card" id="transitCard" data-collapsed="true">
+            <div id="transitHeader" class="collapsible-header">
+                <div class="card-header-group">
+                    <div class="card-icon" style="background-color: var(--accent);">🚆</div>
+                    <div class="card-title-text">N Line Transit Schedule</div>
                 </div>
+                <span class="collapsible-icon" data-target="transitCard">▶</span>
             </div>
 
-            <div class="transit-direction">
-                <h3>Northbound (Union Station → 112th)
-                    <a id="nbMapBtn" class="transit-map-link" target="_blank" href="#">View Route ↗</a>
-                </h3>
-                <div id="nb-window" style="font-size: 0.9rem; color: var(--muted); margin-bottom: 5px;">--</div>
-                <div id="nb-predictions">
-                    <div class="schedule-no-service">Loading schedule...</div>
-                </div>
-            </div>
-        </div>
+            <div class="card-content">
+                <div id="currentDayScheduleSummary" style="font-size: 0.95rem; color: var(--muted); margin-bottom: 15px;">--</div>
 
-        <div class="card">
-            <div class="card-header-group">
-                <div class="card-icon" style="background-color: var(--success);">☁️</div>
-                <div class="card-title-text">Denver Weather</div>
-            </div>
-            <div class="weather-info">
-                <div id="weatherIcon"></div>
-                <div>
-                    <div id="weatherTemp">--°F</div>
-                    <div id="weatherDesc" style="font-weight: 600;">Loading...</div>
+                <div class="transit-direction">
+                    <h3>Southbound (112th → Union Station)</h3>
+                    <div id="sb-window" style="font-size: 0.9rem; color: var(--muted); margin-bottom: 5px;">--</div>
+                    <div id="sb-predictions">
+                        <div class="schedule-no-service">Loading schedule...</div>
+                    </div>
                 </div>
-                <div class="weather-details">
-                    <span id="weatherFeels"></span>
-                    <span id="weatherWind"></span>
-                    <span id="weatherHumidity"></span>
+
+                <div class="transit-direction">
+                    <h3>Northbound (Union Station → 112th)</h3>
+                    <div id="nb-window" style="font-size: 0.9rem; color: var(--muted); margin-bottom: 5px;">--</div>
+                    <div id="nb-predictions">
+                        <div class="schedule-no-service">Loading schedule...</div>
+                    </div>
                 </div>
+                
+                <button id="transitMapBtn">Open Transit Map</button>
+                <a id="sbMapBtn" style="display: none;"></a> 
+                <a id="nbMapBtn" style="display: none;"></a>
             </div>
         </div>
 
@@ -607,6 +703,7 @@
             ARRIVAL_BUFFER_MINS: 30, // Arrive this many minutes before work start
             MAX_PREDICTIONS: 3,
             OPENWEATHER_CITY_ID: 5419384,
+            CRITICAL_TRANSIT_SECONDS: 300, // 5 minutes = 300 seconds
 
             // WORK SCHEDULE (HH:MM strings)
             // Day: 0=Sunday, 1=Monday... 6=Saturday
@@ -629,7 +726,12 @@
             },
             
             // ALERTS (Hardcoded for demo)
-            ALERTS: []
+            ALERTS: [
+                /* Example alerts (uncomment to see them displayed)
+                { type: 'DELAY', message: 'N Line running 15 minutes late due to signal issues near 88th.' },
+                { type: 'ADVISORY', message: 'I-25 Southbound has heavy congestion this afternoon.' }
+                */
+            ]
         };
 
         // DOM REFERENCES - Consolidated for efficiency
@@ -638,17 +740,20 @@
             scheduleTimeWindow: document.getElementById('scheduleTimeWindow'),
             targetArrivalDisplay: document.getElementById('targetArrivalDisplay'),
             currentTimeBig: document.getElementById('currentTimeBig'),
-            openWorkMapBtn: document.getElementById('openWorkMapBtn'),
+            openWorkMapBtn: document.getElementById('openWorkMapBtn'), 
             requiredDepartureTime: document.getElementById('requiredDepartureTime'),
             departureNote: document.getElementById('departureNote'),
-            openWorkBtn: document.getElementById('openWorkBtn'),
+            openWorkBtn: document.getElementById('openWorkBtn'), 
+            driveToWorkBtn: document.getElementById('driveToWorkBtn'), 
             currentDayScheduleSummary: document.getElementById('currentDayScheduleSummary'),
+            // WEATHER ELEMENTS (MOVED)
             weatherTempEl: document.getElementById('weatherTemp'),
             weatherDescEl: document.getElementById('weatherDesc'),
             weatherIconEl: document.getElementById('weatherIcon'),
             weatherFeelsEl: document.getElementById('weatherFeels'),
             weatherWindEl: document.getElementById('weatherWind'),
             weatherHumidityEl: document.getElementById('weatherHumidity'),
+            // END WEATHER
             driveToWorkETA: document.getElementById('driveToWorkETA'),
             driveToWorkNormal: document.getElementById('driveToWorkNormal'),
             driveToHomeETA: document.getElementById('driveToHomeETA'),
@@ -662,9 +767,19 @@
             nbWindowEl: document.getElementById('nb-window'),
             sbPredictionsContainer: document.getElementById('sb-predictions'),
             nbPredictionsContainer: document.getElementById('nb-predictions'),
+            transitMapBtn: document.getElementById('transitMapBtn'), 
+            sbMapBtn: document.getElementById('sbMapBtn'), 
+            nbMapBtn: document.getElementById('nbMapBtn'), 
             alertsCard: document.getElementById('alerts-card'),
+            alertsHeader: document.getElementById('alertsHeader'),
+            alertsContent: document.getElementById('alertsContent'),
             refreshBtn: document.getElementById('refreshBtn'),
-            themeToggle: document.getElementById('themeToggle')
+            themeToggle: document.getElementById('themeToggle'),
+            // NEW COLLAPSIBLE CARD HEADERS
+            driveHeader: document.getElementById('driveHeader'),
+            transitHeader: document.getElementById('transitHeader'),
+            driveCard: document.getElementById('driveTimesCard'),
+            transitCard: document.getElementById('transitCard')
         };
 
 
@@ -719,7 +834,6 @@
               const img = document.createElement('img');
               img.src = `https://openweathermap.org/img/wn/${current.weather[0].icon}@2x.png`;
               img.alt = desc;
-              img.style.width='56px'; img.style.height='56px'; img.style.borderRadius='8px';
               DOM_REFS.weatherIconEl.appendChild(img);
             }
 
@@ -817,7 +931,7 @@
             if(noteEl) safeSet(noteEl, 'Last updated: ' + new Date().toLocaleTimeString());
 
             if (isMorning && targetArrival) {
-                const requiredDepartureMs = targetArrival.getTime() - (mins * 60 * 1000) + (CONFIG.ARRIVAL_BUFFER_MINS * 60 * 1000); // Re-add the buffer as a part of real-time calc
+                const requiredDepartureMs = targetArrival.getTime() - (mins * 60 * 1000) + (CONFIG.ARRIVAL_BUFFER_MINS * 60 * 1000); 
                 const requiredDeparture = new Date(requiredDepartureMs);
                 const now = new Date();
                 const diffMins = Math.ceil((requiredDeparture.getTime() - now.getTime()) / 60000);
@@ -861,24 +975,32 @@
 
         function formatCountdown(targetTime) {
             const diffMs = targetTime.getTime() - new Date().getTime();
+            const diffSeconds = Math.floor(diffMs / 1000);
+            
             const DEPARTED_GRACE_MS = -7000;
             const DEPARTURE_START_MS = 15000;
             const TRAIN_ARRIVING_END_MS = (14 * 60 * 1000) + 45000; 
             const TRAIN_ARRIVING_START_MS = 15 * 60 * 1000;
 
-            if (diffMs <= DEPARTED_GRACE_MS) return "Departed";
-            if (diffMs <= DEPARTURE_START_MS && diffMs > DEPARTED_GRACE_MS) return "Departure";
-            if (diffMs > TRAIN_ARRIVING_END_MS && diffMs <= TRAIN_ARRIVING_START_MS) return "Train Arriving";
+            if (diffMs <= DEPARTED_GRACE_MS) return { text: "Departed", class: 'schedule-countdown' };
+            if (diffMs <= DEPARTURE_START_MS && diffMs > DEPARTED_GRACE_MS) return { text: "Departure", class: 'schedule-departing' };
+            if (diffMs > TRAIN_ARRIVING_END_MS && diffMs <= TRAIN_ARRIVING_START_MS) return { text: "Train Arriving", class: 'schedule-arriving' };
             
-            const diffSeconds = Math.floor(diffMs / 1000);
+            // CRITICAL LOGIC: If less than 5 minutes (300 seconds)
+            if (diffSeconds > DEPARTURE_START_MS/1000 && diffSeconds <= CONFIG.CRITICAL_TRANSIT_SECONDS) {
+                 return { text: `in ${diffSeconds}s`, class: 'schedule-critical' };
+            }
+            
             const minutes = Math.floor(diffSeconds / 60);
             const seconds = diffSeconds % 60;
             
-            return (minutes < 1 && diffSeconds > DEPARTURE_START_MS / 1000) ? `${diffSeconds}s` : `${minutes}m ${seconds}s`;
+            const text = (minutes < 1 && diffSeconds > DEPARTURE_START_MS / 1000) ? `${diffSeconds}s` : `${minutes}m ${seconds}s`;
+            return { text: `in ${text}`, class: 'schedule-countdown' };
         }
 
         function getServiceDates(schedule, direction) {
             const now = new Date();
+            const day = now.getDay();
             const start = schedule[direction === 'nb' ? 'start_nb' : 'start_sb'];
             const end = schedule[direction === 'nb' ? 'end_nb' : 'end_sb'];
 
@@ -938,7 +1060,7 @@
             const renderPredictions = (container, scheduledMinutes, direction, mapBtn) => {
                 const { departures, nextStart } = getNextThreeDepartures(scheduledMinutes, schedule, direction);
                 
-                // Map link setup
+                // Map link setup (hidden links are still required to set the URL for the single button)
                 const origin = direction === 'sb' ? CONFIG.N_ORIGIN : CONFIG.N_DEST;
                 const destination = direction === 'sb' ? CONFIG.N_DEST : CONFIG.N_ORIGIN;
                 mapBtn.href = `https://www.google.com/maps/dir/${encodeURIComponent(origin)}/${encodeURIComponent(destination)}/@40.0, -105.0,11z/data=!4m2!4m1!3e3`;
@@ -951,27 +1073,62 @@
 
                 let html = '';
                 departures.forEach((departureTime, index) => {
-                    const countdownText = formatCountdown(departureTime);
-                    let [countdownDisplay, countdownElementClass] = (countdownText === "Departure") ? [countdownText, 'schedule-departing'] :
-                                                                  (countdownText === "Train Arriving") ? [countdownText, 'schedule-arriving'] :
-                                                                  [`in ${countdownText}`, 'schedule-countdown'];
+                    const { text: countdownText, class: countdownElementClass } = formatCountdown(departureTime);
                     
-                    // Handle 'Departed' status separately for display text
-                    if(countdownText === "Departed") countdownDisplay = countdownText;
-
                     html += `
                         <div class="prediction-item ${index === 0 ? 'next-up' : ''}">
                             <span class="schedule-time">${formatTimeShort(departureTime)}</span>
-                            <span class="${countdownElementClass}">${countdownDisplay}</span>
+                            <span class="${countdownElementClass}">${countdownText}</span>
                         </div>
                     `;
                 });
                 safeSet(container, html, true);
             };
 
-            renderPredictions(DOM_REFS.sbPredictionsContainer, schedule.sbMinutes, 'sb', document.getElementById('sbMapBtn'));
-            renderPredictions(DOM_REFS.nbPredictionsContainer, schedule.nbMinutes, 'nb', document.getElementById('nbMapBtn'));
+            renderPredictions(DOM_REFS.sbPredictionsContainer, schedule.sbMinutes, 'sb', DOM_REFS.sbMapBtn);
+            renderPredictions(DOM_REFS.nbPredictionsContainer, schedule.nbMinutes, 'nb', DOM_REFS.nbMapBtn);
         }
+
+        /**
+         * Updates the displayed countdowns for transit every second by targeting their rendered content.
+         */
+        function updateTransitDisplay() {
+            // Check if containers exist and have children (meaning data has been rendered at least once)
+            ['sb-predictions', 'nb-predictions'].forEach(containerId => {
+                const container = document.getElementById(containerId);
+                if (!container || !container.children.length) return;
+
+                // Iterate over each prediction item in the container's children
+                Array.from(container.children).forEach((item) => {
+                    const timeSpan = item.querySelector('.schedule-time');
+                    // Look for any of the possible countdown classes
+                    const countdownEl = item.querySelector('.schedule-countdown, .schedule-departing, .schedule-critical, .schedule-arriving');
+                    
+                    if (!countdownEl || !timeSpan) return;
+
+                    // Extract the time string, then parse it for today
+                    const timeStr = timeSpan.textContent.match(/(\d{1,2}:\d{2} (?:AM|PM))/);
+                    if (!timeStr) return; 
+
+                    // This is a robust way to get a Date object for today based on the displayed time string
+                    const now = new Date();
+                    const dateStr = now.toDateString();
+                    const targetTime = new Date(`${dateStr} ${timeStr[0]}`);
+
+                    // Handle wrap-around midnight if necessary
+                    if (targetTime.getTime() < now.getTime() - (15 * 60 * 1000)) { // 15 min tolerance for departed trains
+                         targetTime.setDate(targetTime.getDate() + 1);
+                    }
+
+                    const { text: countdownText, class: countdownElementClass } = formatCountdown(targetTime);
+                    
+                    // Update the text and class name dynamically
+                    safeSet(countdownEl, countdownText);
+                    countdownEl.className = countdownElementClass; // Update class for color change/animation
+                });
+            });
+        }
+
 
         function renderAlerts() {
             if (CONFIG.ALERTS.length === 0) {
@@ -981,15 +1138,33 @@
 
             DOM_REFS.alertsCard.style.display = 'block';
 
-            let alertsHtml = '<div class="alert-header">⚠️ Service Alerts</div>';
+            let alertsHtml = '';
             
             CONFIG.ALERTS.forEach(alert => {
                 const icon = (alert.type === 'DELAY') ? '⏳' : (alert.type === 'ADVISORY') ? '📢' : 'ℹ️';
                 alertsHtml += `<div class="alert-item"><span class="alert-icon">${icon}</span><span><strong>${alert.type}:</strong> ${alert.message}</span></div>`;
             });
             
-            safeSet(DOM_REFS.alertsCard, alertsHtml, true);
+            safeSet(DOM_REFS.alertsContent, alertsHtml, true);
         }
+        
+        /* -------------------------
+           Collapsible Logic
+           ------------------------- */
+
+        function toggleCollapse(cardId) {
+            const card = document.getElementById(cardId);
+            const icon = card.querySelector(`.collapsible-icon[data-target="${cardId}"]`);
+            
+            if (!card || !icon) return;
+
+            const isCollapsed = card.getAttribute('data-collapsed') === 'true';
+            const newCollapsedState = !isCollapsed;
+
+            card.setAttribute('data-collapsed', newCollapsedState);
+            icon.textContent = newCollapsedState ? '▶' : '▼';
+        }
+
 
         /* -------------------------
            Full refresh Handlers
@@ -1001,19 +1176,28 @@
                 updateDrive(CONFIG.HOME_ADDR, CONFIG.WORK_ADDR, DOM_REFS.driveToWorkETA, DOM_REFS.driveToWorkNormal, DOM_REFS.driveToWorkFill, DOM_REFS.driveToWorkNote, targetArrival, true);
                 updateDrive(CONFIG.WORK_ADDR, CONFIG.HOME_ADDR, DOM_REFS.driveToHomeETA, DOM_REFS.driveToHomeNormal, DOM_REFS.driveToHomeFill, DOM_REFS.driveToHomeNote, null, false);
             }
-
-            // Map Link Update
-            const avoidParam = DOM_REFS.avoidCheckbox.checked ? '&avoid=highways' : '';
-            const mapUrl = `https://www.google.com/maps/dir/${encodeURIComponent(CONFIG.HOME_ADDR)}/${encodeURIComponent(CONFIG.WORK_ADDR)}?api=1&travelmode=driving${avoidParam}`;
             
-            DOM_REFS.openWorkMapBtn.onclick = () => window.open(mapUrl, '_blank');
-            DOM_REFS.openWorkBtn.href = mapUrl;
+            updateTransit(); // Also run full transit update
+
+            // Map Link Update Logic for Buttons
+            const avoidParam = DOM_REFS.avoidCheckbox.checked ? '&avoid=highways' : '';
+            const driveMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(CONFIG.HOME_ADDR)}&destination=${encodeURIComponent(CONFIG.WORK_ADDR)}&travelmode=driving${avoidParam}`;
+            const transitMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(CONFIG.N_ORIGIN)}&destination=${encodeURIComponent(CONFIG.WORK_ADDR)}&travelmode=transit`;
+            
+            // Hidden link used for drive link in the drive card to maintain old logic
+            DOM_REFS.openWorkBtn.href = driveMapUrl;
+
+            // Button actions
+            DOM_REFS.openWorkMapBtn.onclick = () => window.open(driveMapUrl, '_blank'); // Work Schedule Button
+            DOM_REFS.driveToWorkBtn.onclick = () => window.open(driveMapUrl, '_blank'); // Drive Card Button
+            DOM_REFS.transitMapBtn.onclick = () => window.open(transitMapUrl, '_blank'); // Transit Card Button
         }
 
         function initialAndStaticLoad() {
             setDayTime();
             loadWeather();
             renderAlerts();
+            updateRgbVariables(); // Ensure theme colors are set at startup
         }
 
 
@@ -1023,6 +1207,7 @@
 
         function updateRgbVariables() {
             const isDark = document.body.classList.contains('dark');
+            // These lines correctly set the :root-level color variables (`--*-rgb`)
             const accent = isDark ? '#60a5fa' : '#3b82f6'; 
             const text = isDark ? '#e5e7eb' : '#1a1a1a';
             const warn = isDark ? '#fbbf24' : '#f59e0b';
@@ -1050,14 +1235,32 @@
             });
 
             DOM_REFS.avoidCheckbox.addEventListener('change', refreshTrafficAndSchedule);
+            
+            // Collapsible Event Listeners - ATTACHED DIRECTLY TO HEADERS
+            DOM_REFS.driveHeader.addEventListener('click', (e) => {
+                // Ignore clicks that land directly on the icons/text inside the header group
+                if (e.target.closest('.card-icon') || e.target.closest('.card-title-text')) return;
+                toggleCollapse('driveTimesCard');
+            });
+            DOM_REFS.transitHeader.addEventListener('click', (e) => {
+                // Ignore clicks that land directly on the icons/text inside the header group
+                if (e.target.closest('.card-icon') || e.target.closest('.card-title-text')) return;
+                toggleCollapse('transitCard');
+            });
+            
+            // Note: Alerts header uses a different class but we still attach to the element
+            DOM_REFS.alertsHeader.addEventListener('click', () => toggleCollapse('alerts-card')); 
+
 
             // Intervals
             setInterval(setDayTime, 1000); 
-            transit_interval = setInterval(updateTransit, 1000);
+            setInterval(updateTransitDisplay, 1000); // Fast countdown update
+            setInterval(updateTransit, 3 * 60 * 1000); // Full transit schedule re-render
             setInterval(loadWeather, 10 * 60 * 1000);
         }
 
         function startTrafficInterval() {
+            // Run full traffic update less frequently than transit
             traffic_interval = setInterval(refreshTrafficAndSchedule, 3 * 60 * 1000);
         }
 
@@ -1082,7 +1285,7 @@
         })();
 
         /* Initial load and setup */
-        updateRgbVariables();
+        // Run initial load functions and setup event listeners.
         initialAndStaticLoad();
         setupEventsAndIntervals();
     </script>
