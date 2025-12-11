@@ -573,7 +573,7 @@
       };
 
       // Helper to render train cards
-      const renderTrainCard = (train, idx, isPrimary = true) => {
+      const renderTrainCard = (train, idx, isPrimary = true, isNorthbound = false) => {
         let countdown = 0;
         let countdownSeconds = 0;
         if (train.arrivalTimestamp) {
@@ -582,11 +582,15 @@
           countdownSeconds = Math.floor(Math.abs(totalSeconds % 60));
         }
 
-        const isPast = countdown < -0.12;
+        // Northbound trains: Display countdown to departure
+        // (API already accounts for the 15-min dwell time at Union Station)
+        let displayCountdown = countdown;
+
+        const isPast = countdown < -(7/60); // 7 seconds past
         const isNext = !isPast && idx === 0 && isPrimary;
-        const isDeparting = countdown <= 0.25 && countdown > -0.12;
-        const isUrgent = countdown <= 2 && countdown > 0.25;
-        const isArriving = countdown <= 15 && countdown > 2;
+        const isDeparting = displayCountdown <= (15/60) && displayCountdown > -(7/60); // 15 sec before to 7 sec after
+        const isUrgent = displayCountdown <= 2 && displayCountdown > (15/60); // 15 sec to 2 min before
+        const isArriving = displayCountdown <= 15 && displayCountdown > 2;
         const showArrivingMessage = isArriving && Math.floor(currentTime.getSeconds() / 10) % 2 === 0;
         
         const delayColor = getDelayColor(train.delay);
@@ -627,8 +631,9 @@
                     : isDarkMode ? 'text-gray-400' : 'text-slate-600'
                   }`}>
                     {isPast ? 'Departed' 
-                    : isDeparting ? '🚨 DEPARTING NOW' 
-                    : showArrivingMessage ? '⚠️ TRAIN ARRIVING SOON'
+                    : isDeparting ? '🚨 DEPARTING NOW'
+                    : isUrgent ? (isNorthbound ? '⚠️ DEPARTS SOON!' : '⚠️ TRAIN ARRIVING SOON!')
+                    : showArrivingMessage ? (isNorthbound ? '⚠️ DEPARTS SOON' : '⚠️ TRAIN ARRIVING SOON')
                     : isNext ? '🚆 Next train' 
                     : `Train ${idx + 1}`}
                   </p>
@@ -661,7 +666,7 @@
                         : isNext ? isDarkMode ? 'text-indigo-300' : 'text-indigo-900'
                         : isDarkMode ? 'text-gray-300' : 'text-slate-700'
                       }`}>
-                        {Math.floor(Math.abs(countdown))}
+                        {Math.floor(Math.abs(displayCountdown))}
                       </p>
                       <p className={`text-lg font-medium ${
                         isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
@@ -669,7 +674,7 @@
                         : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
                         : isDarkMode ? 'text-gray-400' : 'text-slate-600'
                       }`}>
-                        :{countdownSeconds.toString().padStart(2, '0')}
+                        :{Math.floor(Math.abs((displayCountdown % 1) * 60)).toString().padStart(2, '0')}
                       </p>
                     </div>
                     <p className={`text-sm ${
@@ -711,83 +716,74 @@
         <div className={`min-h-screen bg-gradient-to-br ${currentTheme} p-6 transition-all duration-1000`}>
           <div className="max-w-6xl mx-auto">
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h1 className={`text-4xl font-bold ${textColor}`}>
-                    {timeMode === 'morning' && '🌅 Good Morning'}
-                    {timeMode === 'workday' && '💼 Work Mode'}
-                    {timeMode === 'evening' && '🌆 Evening Commute'}
-                    {timeMode === 'weekend' && '☀️ Weekend'}
-                  </h1>
-                  <p className={`text-xl ${textMuted}`}>
-                    {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} • {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+              {/* Title and Date/Time - Full Width */}
+              <div className="mb-4">
+                <h1 className={`text-4xl font-bold ${textColor} mb-2`}>
+                  {timeMode === 'morning' && '🌅 Good Morning'}
+                  {timeMode === 'workday' && '💼 Work Mode'}
+                  {timeMode === 'evening' && '🌆 Evening Commute'}
+                  {timeMode === 'weekend' && '☀️ Weekend'}
+                </h1>
+                <p className={`text-xl ${textMuted}`}>
+                  {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} • {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              
+              {/* Control Buttons - Full Width Row */}
+              <div className="flex flex-wrap gap-2">
+                {/* Notification Status Indicator */}
+                <div className={`px-3 py-2 rounded-lg font-medium flex items-center gap-2 ${
+                  notificationsEnabled 
+                    ? 'bg-green-100 text-green-800 border border-green-300' 
+                    : 'bg-gray-200 text-gray-600 border border-gray-300'
+                }`}>
+                  <span>{notificationsEnabled ? '🔔' : '🔕'}</span>
+                  <span className="text-xs font-semibold">
+                    {notificationsEnabled ? 'Alerts On' : 'Alerts Off'}
+                  </span>
                 </div>
                 
-                <div className="flex flex-wrap gap-2 justify-end">
-                  {/* Notification Status Indicator */}
-                  <div className={`px-3 py-2 rounded-lg font-medium flex items-center gap-2 ${
-                    notificationsEnabled 
-                      ? 'bg-green-100 text-green-800 border border-green-300' 
-                      : 'bg-gray-200 text-gray-600 border border-gray-300'
-                  }`}>
-                    <span>{notificationsEnabled ? '🔔' : '🔕'}</span>
-                    <span className="text-xs font-semibold">
-                      {notificationsEnabled ? 'Alerts On' : 'Alerts Off'}
-                    </span>
-                  </div>
-                  
+                <button
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    isDarkMode 
+                      ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' 
+                      : 'bg-gray-800 text-white hover:bg-gray-700'
+                  }`}
+                >
+                  {isDarkMode ? '☀️ Light' : '🌙 Dark'}
+                </button>
+                
+                {timeMode === 'morning' && (
                   <button
-                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    onClick={() => setManualMode('evening')}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-all"
+                  >
+                    🌆 Switch to Evening
+                  </button>
+                )}
+                
+                {timeMode === 'evening' && (
+                  <button
+                    onClick={() => setManualMode('morning')}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-all"
+                  >
+                    🌅 Switch to Morning
+                  </button>
+                )}
+                
+                {timeMode === 'workday' && (
+                  <button
+                    onClick={() => setShowCommuteInfo(!showCommuteInfo)}
                     className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                      isDarkMode 
-                        ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' 
-                        : 'bg-gray-800 text-white hover:bg-gray-700'
+                      showCommuteInfo
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-green-600 text-white hover:bg-green-700'
                     }`}
                   >
-                    {isDarkMode ? '☀️ Light' : '🌙 Dark'}
+                    {showCommuteInfo ? '💼 Hide Commute' : '👁️ Show Commute'}
                   </button>
-                  
-                  {timeMode === 'morning' && (
-                    <button
-                      onClick={() => setManualMode('evening')}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-all"
-                    >
-                      🌆 Switch to Evening
-                    </button>
-                  )}
-                  
-                  {timeMode === 'evening' && (
-                    <button
-                      onClick={() => setManualMode('morning')}
-                      className="px-4 py-2 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-all"
-                    >
-                      🌅 Switch to Morning
-                    </button>
-                  )}
-                  
-                  {timeMode === 'workday' && (
-                    <button
-                      onClick={() => setShowCommuteInfo(!showCommuteInfo)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                        showCommuteInfo
-                          ? 'bg-blue-600 text-white hover:bg-blue-700'
-                          : 'bg-green-600 text-white hover:bg-green-700'
-                      }`}
-                    >
-                      {showCommuteInfo ? '💼 Hide Commute' : '👁️ Show Commute'}
-                    </button>
-                  )}
-                  
-                  {manualMode && (
-                    <button
-                      onClick={() => setManualMode(null)}
-                      className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-all"
-                    >
-                      🔄 Auto Mode
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
@@ -1127,8 +1123,13 @@
                         <h3 className={`text-xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Northbound</h3>
                         <span className={`text-sm ${textMuted}`}>To Northglenn/112th</span>
                       </div>
+                      <div className={`mb-3 p-3 rounded-lg ${isDarkMode ? 'bg-purple-900 bg-opacity-20' : 'bg-purple-50'}`}>
+                        <p className={`text-xs ${isDarkMode ? 'text-purple-300' : 'text-purple-800'}`}>
+                          ℹ️ Trains sit at Union Station for 15 min before departure. Times show DEPARTURE countdown.
+                        </p>
+                      </div>
                       <div className="space-y-3">
-                        {transitDataNB && transitDataNB.map((train, idx) => renderTrainCard(train, idx, timeMode === 'evening'))}
+                        {transitDataNB && transitDataNB.map((train, idx) => renderTrainCard(train, idx, timeMode === 'evening', true))}
                         {(!transitDataNB || transitDataNB.length === 0) && (
                           <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                             <p className={textMuted}>No upcoming northbound trains</p>
