@@ -35,7 +35,8 @@
       const [currentTime, setCurrentTime] = useState(new Date());
       const [weather, setWeather] = useState(null);
       const [driveData, setDriveData] = useState(null);
-      const [transitData, setTransitData] = useState(null);
+      const [transitDataSB, setTransitDataSB] = useState(null);
+      const [transitDataNB, setTransitDataNB] = useState(null);
       const [avoidHighways, setAvoidHighways] = useState(false);
       const [transitStatus, setTransitStatus] = useState({ 
         status: 'loading', 
@@ -48,6 +49,12 @@
       const [manualMode, setManualMode] = useState(null);
       const [driveCollapsed, setDriveCollapsed] = useState(true);
       const [transitCollapsed, setTransitCollapsed] = useState(true);
+      const [busCollapsed, setBusCollapsed] = useState(true);
+      const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+      const [notificationsSent, setNotificationsSent] = useState({
+        leaveBy: false,
+        trainDeparting: false
+      });
       
       const rtdStops = {
         southbound: '35254',
@@ -60,9 +67,9 @@
           friday: { start: '08:00', end: '16:30' }
         },
         locations: {
-          home: { lat: 39.8858, lng: -104.9872 },
-          garage: { lat: 39.7510, lng: -104.9897 },
-          work: { lat: 39.7480, lng: -104.9914 }
+          home: { lat: 39.9066611, lng: -104.987454 },
+          garage: { lat: 39.747676849365234, lng: -104.9898452758789 },
+          work: { lat: 39.74645233154297, lng: -104.99141693115234 }
         },
         weather: {
           lat: 39.8858,
@@ -83,6 +90,15 @@
       const timeMode = getTimeMode();
       const shouldShowCommute = timeMode !== 'workday' || showCommuteInfo;
 
+      // On weekend, default everything to expanded
+      useEffect(() => {
+        if (timeMode === 'weekend') {
+          setDriveCollapsed(false);
+          setBusCollapsed(false);
+          setTransitCollapsed(false);
+        }
+      }, [timeMode]);
+
       const calculateLeaveByTime = (arrivalTime, travelMinutes) => {
         const [hours, minutes] = arrivalTime.split(':').map(Number);
         const arrival = new Date(currentTime);
@@ -90,6 +106,113 @@
         const leaveBy = new Date(arrival.getTime() - (travelMinutes + 10) * 60000);
         return leaveBy.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       };
+
+      // Request notification permissions on mount
+      useEffect(() => {
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().then(permission => {
+            setNotificationsEnabled(permission === 'granted');
+          });
+        } else if ('Notification' in window && Notification.permission === 'granted') {
+          setNotificationsEnabled(true);
+        }
+      }, []);
+
+      // Send notification helper
+      const sendNotification = (title, body, icon = '🚆') => {
+        if (notificationsEnabled && 'Notification' in window) {
+          new Notification(title, {
+            body: body,
+            icon: `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>${icon}</text></svg>`,
+            requireInteraction: false,
+            silent: false
+          });
+        }
+      };
+
+      // Smart notification logic - runs every minute
+      useEffect(() => {
+        const checkNotifications = () => {
+          const hour = currentTime.getHours();
+          const minute = currentTime.getMinutes();
+          const day = currentTime.getDay();
+          
+          // Skip weekends
+          if (day === 0 || day === 6) return;
+          
+          // MORNING COMMUTE (6:00 AM - 8:00 AM)
+          if (hour >= 6 && hour < 8) {
+            // Calculate leave-by time
+            if (driveData) {
+              const totalMinutes = (driveData.morning.duration.value + driveData.walk.duration.value) / 60;
+              const leaveByDate = new Date(currentTime);
+              leaveByDate.setHours(7, 30, 0, 0); // Target arrival 7:30 AM
+              leaveByDate.setMinutes(leaveByDate.getMinutes() - totalMinutes - 10);
+              
+              // Alert 5 minutes before leave-by time
+              const fiveMinutesBefore = new Date(leaveByDate.getTime() - 5 * 60000);
+              const timeDiff = Math.abs(currentTime - fiveMinutesBefore);
+              
+              if (timeDiff < 30000 && !notificationsSent.leaveBy) { // Within 30 seconds
+                sendNotification(
+                  '⏰ Time to Get Ready!',
+                  `Leave in 5 minutes (by ${leaveByDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })})`,
+                  '⏰'
+                );
+                setNotificationsSent(prev => ({ ...prev, leaveBy: true }));
+              }
+            }
+            
+            // Alert for southbound train (10 min before departure)
+            if (transitDataSB && transitDataSB.length > 0) {
+              const nextTrain = transitDataSB[0];
+              if (nextTrain.arrivalTimestamp) {
+                const minutesUntilTrain = (nextTrain.arrivalTimestamp - currentTime.getTime()) / 60000;
+                
+                if (minutesUntilTrain <= 10 && minutesUntilTrain > 9 && !notificationsSent.trainDeparting) {
+                  sendNotification(
+                    '🚆 Train Departing Soon!',
+                    `Your ${nextTrain.time} train departs in 10 minutes`,
+                    '🚆'
+                  );
+                  setNotificationsSent(prev => ({ ...prev, trainDeparting: true }));
+                }
+              }
+            }
+          }
+          
+          // EVENING COMMUTE (4:00 PM - 6:00 PM)
+          if (hour >= 16 && hour < 18) {
+            // Alert for northbound train (10 min before departure)
+            if (transitDataNB && transitDataNB.length > 0) {
+              const nextTrain = transitDataNB[0];
+              if (nextTrain.arrivalTimestamp) {
+                const minutesUntilTrain = (nextTrain.arrivalTimestamp - currentTime.getTime()) / 60000;
+                
+                if (minutesUntilTrain <= 10 && minutesUntilTrain > 9 && !notificationsSent.trainDeparting) {
+                  sendNotification(
+                    '🚆 Train Departing Soon!',
+                    `Your ${nextTrain.time} train departs in 10 minutes`,
+                    '🚆'
+                  );
+                  setNotificationsSent(prev => ({ ...prev, trainDeparting: true }));
+                }
+              }
+            }
+          }
+        };
+        
+        checkNotifications();
+        
+        // Reset notifications at start of each commute window
+        const hour = currentTime.getHours();
+        if (hour === 6 || hour === 16) {
+          const minute = currentTime.getMinutes();
+          if (minute === 0) {
+            setNotificationsSent({ leaveBy: false, trainDeparting: false });
+          }
+        }
+      }, [currentTime, driveData, transitDataSB, transitDataNB, notificationsEnabled, notificationsSent]);
 
       useEffect(() => {
         const fetchWeather = async () => {
@@ -219,6 +342,7 @@
         return () => clearInterval(interval);
       }, [avoidHighways, currentTime.getHours()]);
 
+      // Fetch BOTH directions of transit data
       useEffect(() => {
         const fetchTransitData = async () => {
           const startTime = Date.now();
@@ -230,18 +354,23 @@
               lastUpdate: transitStatus.lastUpdate 
             });
             
-            const direction = (timeMode === 'morning' || timeMode === 'workday') ? 'southbound' : 'northbound';
-            const stopId = rtdStops[direction];
-            
-            const url = `${apiEndpoint}/${stopId}?t=${Date.now()}`;
-            
-            const response = await fetch(url, {
-              method: 'GET',
-              mode: 'cors',
-              cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              signal: AbortSignal.timeout(30000)
-            });
+            // Fetch BOTH directions
+            const [sbResponse, nbResponse] = await Promise.all([
+              fetch(`${apiEndpoint}/${rtdStops.southbound}?t=${Date.now()}`, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(30000)
+              }),
+              fetch(`${apiEndpoint}/${rtdStops.northbound}?t=${Date.now()}`, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(30000)
+              })
+            ]);
             
             const loadTime = Date.now() - startTime;
             
@@ -253,55 +382,112 @@
               });
             }
             
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!sbResponse.ok || !nbResponse.ok) throw new Error(`HTTP ${sbResponse.status}`);
             
-            const data = await response.json();
+            const sbData = await sbResponse.json();
+            const nbData = await nbResponse.json();
             
-            let upcomingTrains = [];
-            
-            if (data.arrivals && Array.isArray(data.arrivals) && data.arrivals.length > 0) {
-              const filteredArrivals = data.arrivals.filter(arrival => {
-                if (direction === 'southbound') {
-                  return arrival.directionId === 1;
-                } else {
-                  return arrival.directionId === 0;
-                }
+            // Process Southbound trains
+            let sbTrains = [];
+            if (sbData.arrivals && Array.isArray(sbData.arrivals) && sbData.arrivals.length > 0) {
+              const filteredSB = sbData.arrivals.filter(arrival => {
+                const isNLine = arrival.routeId === '117N' || arrival.route === 'N Line';
+                return isNLine && arrival.directionId === 1;
               });
               
-              upcomingTrains = filteredArrivals
-                .slice(0, 3)
-                .map(arrival => {
-                  let arrivalTimestamp = null;
-                  let displayTime = arrival.arrivalTimeFormatted;
+              sbTrains = filteredSB.slice(0, 3).map(arrival => {
+                let arrivalTimestamp = null;
+                let displayTime = arrival.arrivalTimeFormatted;
+                let delayMinutes = 0;
+                let statusText = arrival.status || 'On Time';
+                
+                if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
+                  arrivalTimestamp = arrival.arrivalTime * 1000;
+                  const arrivalDate = new Date(arrivalTimestamp);
+                  displayTime = arrivalDate.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                  });
                   
-                  if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
-                    arrivalTimestamp = arrival.arrivalTime * 1000;
-                    const arrivalDate = new Date(arrivalTimestamp);
-                    displayTime = arrivalDate.toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit',
-                      hour12: true 
-                    });
+                  // Try to calculate delay from scheduled time
+                  if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+                    const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+                    delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
                   }
-                  
-                  return {
-                    time: displayTime,
-                    arrivalTimestamp: arrivalTimestamp,
-                    delay: 0,
-                    status: arrival.status || 'On Time',
-                    vehicleId: arrival.vehicleId
-                  };
-                });
-              
-              setTransitData(upcomingTrains);
-              setTransitStatus({ 
-                status: 'live', 
-                message: `Live data • ${upcomingTrains.length} trains • ${data.stopName || 'N Line'}`, 
-                lastUpdate: new Date() 
+                  // If no scheduledArrivalTime, try to parse delay from status text
+                  else if (statusText && statusText.toLowerCase().includes('delay')) {
+                    const delayMatch = statusText.match(/(\d+)\s*min/i);
+                    if (delayMatch) {
+                      delayMinutes = parseInt(delayMatch[1]);
+                    }
+                  }
+                }
+                
+                return {
+                  time: displayTime,
+                  arrivalTimestamp: arrivalTimestamp,
+                  delay: delayMinutes,
+                  status: statusText,
+                  vehicleId: arrival.vehicleId
+                };
               });
-            } else {
-              throw new Error('No arrivals data');
             }
+            
+            // Process Northbound trains
+            let nbTrains = [];
+            if (nbData.arrivals && Array.isArray(nbData.arrivals) && nbData.arrivals.length > 0) {
+              const filteredNB = nbData.arrivals.filter(arrival => {
+                const isNLine = arrival.routeId === '117N' || arrival.route === 'N Line';
+                return isNLine && arrival.directionId === 0;
+              });
+              
+              nbTrains = filteredNB.slice(0, 3).map(arrival => {
+                let arrivalTimestamp = null;
+                let displayTime = arrival.arrivalTimeFormatted;
+                let delayMinutes = 0;
+                let statusText = arrival.status || 'On Time';
+                
+                if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
+                  arrivalTimestamp = arrival.arrivalTime * 1000;
+                  const arrivalDate = new Date(arrivalTimestamp);
+                  displayTime = arrivalDate.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                  });
+                  
+                  // Try to calculate delay from scheduled time
+                  if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+                    const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+                    delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
+                  }
+                  // If no scheduledArrivalTime, try to parse delay from status text
+                  else if (statusText && statusText.toLowerCase().includes('delay')) {
+                    const delayMatch = statusText.match(/(\d+)\s*min/i);
+                    if (delayMatch) {
+                      delayMinutes = parseInt(delayMatch[1]);
+                    }
+                  }
+                }
+                
+                return {
+                  time: displayTime,
+                  arrivalTimestamp: arrivalTimestamp,
+                  delay: delayMinutes,
+                  status: statusText,
+                  vehicleId: arrival.vehicleId
+                };
+              });
+            }
+            
+            setTransitDataSB(sbTrains.length > 0 ? sbTrains : null);
+            setTransitDataNB(nbTrains.length > 0 ? nbTrains : null);
+            setTransitStatus({ 
+              status: 'live', 
+              message: `Live data • ${sbTrains.length} SB, ${nbTrains.length} NB trains`, 
+              lastUpdate: new Date() 
+            });
             
           } catch (error) {
             console.error('Transit error:', error);
@@ -311,29 +497,43 @@
               lastUpdate: transitStatus.lastUpdate 
             });
             
+            // Fallback to estimated schedules
             const now = new Date();
             const currentMinutes = now.getHours() * 60 + now.getMinutes();
-            const baseSchedule = timeMode === 'morning' || timeMode === 'workday' 
-              ? [405, 425, 445, 465, 485, 505, 525, 545, 565]
-              : [1020, 1040, 1060, 1080, 1100, 1120, 1140];
+            const sbSchedule = [405, 425, 445, 465, 485, 505, 525, 545, 565];
+            const nbSchedule = [1020, 1040, 1060, 1080, 1100, 1120, 1140];
             
-            const upcomingTrains = baseSchedule.filter(m => m > currentMinutes).slice(0, 3).map(minutes => {
+            const sbTrains = sbSchedule.filter(m => m > currentMinutes).slice(0, 3).map(minutes => {
               const trainTime = new Date(now);
               trainTime.setHours(Math.floor(minutes / 60), minutes % 60, 0);
               return {
                 time: trainTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
                 arrivalTimestamp: trainTime.getTime(),
+                delay: 0,
                 status: 'Estimated (API Offline)'
               };
             });
-            setTransitData(upcomingTrains.length > 0 ? upcomingTrains : null);
+            
+            const nbTrains = nbSchedule.filter(m => m > currentMinutes).slice(0, 3).map(minutes => {
+              const trainTime = new Date(now);
+              trainTime.setHours(Math.floor(minutes / 60), minutes % 60, 0);
+              return {
+                time: trainTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                arrivalTimestamp: trainTime.getTime(),
+                delay: 0,
+                status: 'Estimated (API Offline)'
+              };
+            });
+            
+            setTransitDataSB(sbTrains.length > 0 ? sbTrains : null);
+            setTransitDataNB(nbTrains.length > 0 ? nbTrains : null);
           }
         };
 
         fetchTransitData();
         const interval = setInterval(fetchTransitData, 60000);
         return () => clearInterval(interval);
-      }, [timeMode, apiEndpoint]);
+      }, [apiEndpoint]);
 
       useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -365,7 +565,138 @@
       const totalMorningMinutes = driveData ? (driveData.morning.duration.value + driveData.walk.duration.value) / 60 : 23;
       const leaveByTime = calculateLeaveByTime('07:30', totalMorningMinutes);
 
-      if (!weather || !driveData || !transitData) {
+      // Helper function to get delay color
+      const getDelayColor = (delayMinutes) => {
+        if (delayMinutes <= 0) return 'green'; // On time or early
+        if (delayMinutes <= 3) return 'yellow'; // Minor delay
+        return 'red'; // Significant delay
+      };
+
+      // Helper to render train cards
+      const renderTrainCard = (train, idx, isPrimary = true) => {
+        let countdown = 0;
+        let countdownSeconds = 0;
+        if (train.arrivalTimestamp) {
+          const totalSeconds = (train.arrivalTimestamp - currentTime.getTime()) / 1000;
+          countdown = totalSeconds / 60;
+          countdownSeconds = Math.floor(Math.abs(totalSeconds % 60));
+        }
+
+        const isPast = countdown < -0.12;
+        const isNext = !isPast && idx === 0 && isPrimary;
+        const isDeparting = countdown <= 0.25 && countdown > -0.12;
+        const isUrgent = countdown <= 2 && countdown > 0.25;
+        const isArriving = countdown <= 15 && countdown > 2;
+        const showArrivingMessage = isArriving && Math.floor(currentTime.getSeconds() / 10) % 2 === 0;
+        
+        const delayColor = getDelayColor(train.delay);
+        
+        return (
+          <div 
+            key={idx}
+            className={`p-4 rounded-xl border-2 transition-all ${
+              isPast 
+                ? isDarkMode ? 'bg-gray-900 border-gray-700 opacity-50' : 'bg-gray-50 border-gray-200 opacity-50'
+                : isDeparting
+                ? 'bg-red-100 border-red-500 shadow-lg animate-pulse'
+                : isUrgent 
+                ? isDarkMode ? 'bg-red-900 bg-opacity-50 border-red-600 shadow-lg animate-pulse' : 'bg-red-50 border-red-400 shadow-lg animate-pulse'
+                : isNext 
+                ? isDarkMode ? 'bg-indigo-900 bg-opacity-50 border-indigo-500 shadow-md' : 'bg-gradient-to-r from-indigo-100 to-purple-100 border-indigo-400 shadow-md'
+                : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-slate-50 border-slate-200'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-2xl font-bold ${
+                  isPast ? 'text-gray-400' 
+                  : isDeparting ? 'text-red-900' 
+                  : isUrgent ? isDarkMode ? 'text-red-300' : 'text-red-800'
+                  : isNext ? isDarkMode ? 'text-indigo-300' : 'text-indigo-900'
+                  : isDarkMode ? 'text-gray-200' : 'text-slate-800'
+                }`}>
+                  {train.time}
+                </p>
+                <div className="flex items-center gap-2">
+                  <p className={`text-sm font-medium ${
+                    isPast ? 'text-gray-400' 
+                    : isDeparting ? 'text-red-700' 
+                    : isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
+                    : isArriving ? isDarkMode ? 'text-yellow-400' : 'text-yellow-700'
+                    : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
+                    : isDarkMode ? 'text-gray-400' : 'text-slate-600'
+                  }`}>
+                    {isPast ? 'Departed' 
+                    : isDeparting ? '🚨 DEPARTING NOW' 
+                    : showArrivingMessage ? '⚠️ TRAIN ARRIVING SOON'
+                    : isNext ? '🚆 Next train' 
+                    : `Train ${idx + 1}`}
+                  </p>
+                  
+                  {/* Delay indicator */}
+                  {!isPast && (
+                    <span className={`text-xs px-2 py-0.5 rounded font-semibold ${
+                      delayColor === 'green' ? 'bg-green-100 text-green-700' :
+                      delayColor === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {train.delay === 0 ? 'On Time' : train.delay > 0 ? `+${train.delay} min` : `${train.delay} min`}
+                    </span>
+                  )}
+                  
+                  {train.status && train.status !== 'On Time' && !isPast && (
+                    <span className={`text-xs px-2 py-0.5 rounded ${isDarkMode ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {train.status}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                {!isPast && !isDeparting && (
+                  <div className="flex flex-col items-end">
+                    <div className="flex items-baseline justify-end gap-1">
+                      <p className={`text-3xl font-bold ${
+                        isUrgent ? isDarkMode ? 'text-red-300' : 'text-red-800'
+                        : isArriving ? isDarkMode ? 'text-yellow-400' : 'text-yellow-700'
+                        : isNext ? isDarkMode ? 'text-indigo-300' : 'text-indigo-900'
+                        : isDarkMode ? 'text-gray-300' : 'text-slate-700'
+                      }`}>
+                        {Math.floor(Math.abs(countdown))}
+                      </p>
+                      <p className={`text-lg font-medium ${
+                        isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
+                        : isArriving ? isDarkMode ? 'text-yellow-500' : 'text-yellow-600'
+                        : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
+                        : isDarkMode ? 'text-gray-400' : 'text-slate-600'
+                      }`}>
+                        :{countdownSeconds.toString().padStart(2, '0')}
+                      </p>
+                    </div>
+                    <p className={`text-sm ${
+                      isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
+                      : isArriving ? isDarkMode ? 'text-yellow-500' : 'text-yellow-600'
+                      : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
+                      : isDarkMode ? 'text-gray-400' : 'text-slate-600'
+                    }`}>
+                      minutes
+                    </p>
+                  </div>
+                )}
+                {isDeparting && (
+                  <div className="flex flex-col items-center">
+                    <svg className="w-10 h-10 text-red-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p className="text-xs text-red-700 font-bold mt-1">GO NOW!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      if (!weather || !driveData || (!transitDataSB && !transitDataNB)) {
         return (
           <div className={`min-h-screen bg-gradient-to-br ${currentTheme} flex items-center justify-center`}>
             <div className="text-center">
@@ -375,6 +706,7 @@
           </div>
         );
       }
+
       return (
         <div className={`min-h-screen bg-gradient-to-br ${currentTheme} p-6 transition-all duration-1000`}>
           <div className="max-w-6xl mx-auto">
@@ -393,6 +725,18 @@
                 </div>
                 
                 <div className="flex flex-wrap gap-2 justify-end">
+                  {/* Notification Status Indicator */}
+                  <div className={`px-3 py-2 rounded-lg font-medium flex items-center gap-2 ${
+                    notificationsEnabled 
+                      ? 'bg-green-100 text-green-800 border border-green-300' 
+                      : 'bg-gray-200 text-gray-600 border border-gray-300'
+                  }`}>
+                    <span>{notificationsEnabled ? '🔔' : '🔕'}</span>
+                    <span className="text-xs font-semibold">
+                      {notificationsEnabled ? 'Alerts On' : 'Alerts Off'}
+                    </span>
+                  </div>
+                  
                   <button
                     onClick={() => setIsDarkMode(!isDarkMode)}
                     className={`px-4 py-2 rounded-lg font-medium transition-all ${
@@ -619,6 +963,107 @@
                 )}
               </div>
             )}
+
+            {/* BUS TIMING GUIDE */}
+            {shouldShowCommute && (
+              <div className={`${cardBg} rounded-2xl shadow-xl overflow-hidden mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
+                <button
+                  onClick={() => setBusCollapsed(!busCollapsed)}
+                  className={`w-full p-6 flex items-center justify-between transition-all ${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="bg-green-500 p-3 rounded-xl">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className={`text-2xl font-bold ${textColor}`}>Downtown Shuttle Buses</h2>
+                      <p className={`text-sm ${textMuted}`}>Transfer Guide from N Line</p>
+                    </div>
+                  </div>
+                  <svg className={`w-6 h-6 ${textColor} transition-transform ${!busCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {!busCollapsed && (
+                  <div className="px-6 pb-6">
+                    {(timeMode === 'morning' || timeMode === 'workday') && (
+                      <div className="space-y-4">
+                        <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-orange-900 bg-opacity-30 border-orange-500' : 'bg-orange-50 border-orange-300'}`}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h3 className={`font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Morning: After Your 6:46 AM Train</h3>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <p className={isDarkMode ? 'text-orange-200' : 'text-orange-800'}>
+                              🚆 Train arrives Union Station: <span className="font-bold">~7:05 AM</span>
+                            </p>
+                            <p className={isDarkMode ? 'text-orange-200' : 'text-orange-800'}>
+                              🚶 Walk to bus stop: <span className="font-bold">4-7 minutes</span>
+                            </p>
+                            <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-orange-800 bg-opacity-50' : 'bg-orange-100'}`}>
+                              <p className={`font-bold ${isDarkMode ? 'text-orange-200' : 'text-orange-900'}`}>
+                                ✅ Board bus around: <span className="text-lg">7:09-7:12 AM</span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {timeMode === 'evening' && (
+                      <div className="space-y-4">
+                        <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-purple-900 bg-opacity-30 border-purple-500' : 'bg-purple-50 border-purple-300'}`}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h3 className={`font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Evening: After Your 5:56 PM Train</h3>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <p className={isDarkMode ? 'text-purple-200' : 'text-purple-800'}>
+                              🚆 Train arrives Northglenn/112th: <span className="font-bold">~6:24 PM</span>
+                            </p>
+                            <p className={isDarkMode ? 'text-purple-200' : 'text-purple-800'}>
+                              🚶 Walk to bus stop: <span className="font-bold">4-7 minutes</span>
+                            </p>
+                            <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-purple-800 bg-opacity-50' : 'bg-purple-100'}`}>
+                              <p className={`font-bold ${isDarkMode ? 'text-purple-200' : 'text-purple-900'}`}>
+                                ✅ Board bus around: <span className="text-lg">6:28-6:31 PM</span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
+                      <p className={`font-semibold mb-2 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>🚌 Available Shuttle Services:</p>
+                      <div className={`space-y-2 text-xs ${isDarkMode ? 'text-blue-200' : 'text-blue-800'}`}>
+                        <div>
+                          <p className="font-semibold">16th Street FreeRide</p>
+                          <p>• Free shuttle every ~5 minutes along 16th Street Mall</p>
+                          <p>• Runs 5:30 AM - 12:30 AM daily</p>
+                          <p>• Union Station ↔ Civic Center Station</p>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-blue-300">
+                          <p className="font-semibold">Free MetroRide (Alternative)</p>
+                          <p>• Runs on 18th/19th Streets (parallel route)</p>
+                          <p>• Every ~10 minutes</p>
+                          <p>• Note: No live tracking available</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* N LINE - BOTH DIRECTIONS */}
             {shouldShowCommute && (
               <div className={`${cardBg} rounded-2xl shadow-xl overflow-hidden mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
                 <button
@@ -633,7 +1078,7 @@
                     </div>
                     <div>
                       <h2 className={`text-2xl font-bold ${textColor}`}>RTD N Line</h2>
-                      <p className={`text-sm ${textMuted}`}>{timeMode === 'morning' || timeMode === 'workday' ? 'Southbound' : 'Northbound'}</p>
+                      <p className={`text-sm ${textMuted}`}>Both Directions</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -651,128 +1096,45 @@
                       <div className="flex items-center justify-between">
                         <p className={`text-sm font-medium ${transitStatus.status === 'live' ? isDarkMode ? 'text-green-300' : 'text-green-900' : isDarkMode ? 'text-red-300' : 'text-red-900'}`}>
                           {transitStatus.status === 'live' && '🚆 '}{transitStatus.status === 'error' && '⚠️ '}
-                          {timeMode === 'morning' || timeMode === 'workday' ? 'To Downtown / Union Station' : 'To Northglenn/112th'}
+                          Showing both directions
                         </p>
                         {transitStatus.lastUpdate && (<span className={`text-xs ${textMuted}`}>Updated {transitStatus.lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>)}
                       </div>
                       <p className={`text-xs mt-1 ${transitStatus.status === 'live' ? isDarkMode ? 'text-green-400' : 'text-green-700' : isDarkMode ? 'text-red-400' : 'text-red-700'}`}>{transitStatus.message}</p>
                     </div>
 
-                    <div className="space-y-3">
-                      {transitData && transitData.map((train, idx) => {
-                        let countdown = 0;
-                        let countdownSeconds = 0;
-                        if (train.arrivalTimestamp) {
-                          const totalSeconds = (train.arrivalTimestamp - currentTime.getTime()) / 1000;
-                          countdown = totalSeconds / 60;
-                          countdownSeconds = Math.floor(Math.abs(totalSeconds % 60));
-                        }
-
-                        const isPast = countdown < -0.12;
-                        const isNext = !isPast && idx === 0;
-                        const isDeparting = countdown <= 0.25 && countdown > -0.12;
-                        const isUrgent = countdown <= 2 && countdown > 0.25;
-                        const isArriving = countdown <= 15 && countdown > 2;
-                        const showArrivingMessage = isArriving && Math.floor(currentTime.getSeconds() / 10) % 2 === 0;
-                        
-                        return (
-                          <div 
-                            key={idx}
-                            className={`p-4 rounded-xl border-2 transition-all ${
-                              isPast 
-                                ? isDarkMode ? 'bg-gray-900 border-gray-700 opacity-50' : 'bg-gray-50 border-gray-200 opacity-50'
-                                : isDeparting
-                                ? 'bg-red-100 border-red-500 shadow-lg animate-pulse'
-                                : isUrgent 
-                                ? isDarkMode ? 'bg-red-900 bg-opacity-50 border-red-600 shadow-lg animate-pulse' : 'bg-red-50 border-red-400 shadow-lg animate-pulse'
-                                : isNext 
-                                ? isDarkMode ? 'bg-indigo-900 bg-opacity-50 border-indigo-500 shadow-md' : 'bg-gradient-to-r from-indigo-100 to-purple-100 border-indigo-400 shadow-md'
-                                : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-slate-50 border-slate-200'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className={`text-2xl font-bold ${
-                                  isPast ? 'text-gray-400' 
-                                  : isDeparting ? 'text-red-900' 
-                                  : isUrgent ? isDarkMode ? 'text-red-300' : 'text-red-800'
-                                  : isNext ? isDarkMode ? 'text-indigo-300' : 'text-indigo-900'
-                                  : isDarkMode ? 'text-gray-200' : 'text-slate-800'
-                                }`}>
-                                  {train.time}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  <p className={`text-sm font-medium ${
-                                    isPast ? 'text-gray-400' 
-                                    : isDeparting ? 'text-red-700' 
-                                    : isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
-                                    : isArriving ? isDarkMode ? 'text-yellow-400' : 'text-yellow-700'
-                                    : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
-                                    : isDarkMode ? 'text-gray-400' : 'text-slate-600'
-                                  }`}>
-                                    {isPast ? 'Departed' 
-                                    : isDeparting ? '🚨 DEPARTING NOW' 
-                                    : showArrivingMessage ? '⚠️ TRAIN ARRIVING SOON'
-                                    : isNext ? '🚆 Next train' 
-                                    : `Train ${idx + 1}`}
-                                  </p>
-                                  {train.status && train.status !== 'On Time' && !isPast && (
-                                    <span className={`text-xs px-2 py-0.5 rounded ${isDarkMode ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700'}`}>
-                                      {train.status}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                {!isPast && !isDeparting && (
-                                  <div className="flex flex-col items-end">
-                                    <div className="flex items-baseline justify-end gap-1">
-                                      <p className={`text-3xl font-bold ${
-                                        isUrgent ? isDarkMode ? 'text-red-300' : 'text-red-800'
-                                        : isArriving ? isDarkMode ? 'text-yellow-400' : 'text-yellow-700'
-                                        : isNext ? isDarkMode ? 'text-indigo-300' : 'text-indigo-900'
-                                        : isDarkMode ? 'text-gray-300' : 'text-slate-700'
-                                      }`}>
-                                        {Math.floor(Math.abs(countdown))}
-                                      </p>
-                                      <p className={`text-lg font-medium ${
-                                        isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
-                                        : isArriving ? isDarkMode ? 'text-yellow-500' : 'text-yellow-600'
-                                        : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
-                                        : isDarkMode ? 'text-gray-400' : 'text-slate-600'
-                                      }`}>
-                                        :{countdownSeconds.toString().padStart(2, '0')}
-                                      </p>
-                                    </div>
-                                    <p className={`text-sm ${
-                                      isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
-                                      : isArriving ? isDarkMode ? 'text-yellow-500' : 'text-yellow-600'
-                                      : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
-                                      : isDarkMode ? 'text-gray-400' : 'text-slate-600'
-                                    }`}>
-                                      minutes
-                                    </p>
-                                  </div>
-                                )}
-                                {isDeparting && (
-                                  <div className="flex flex-col items-center">
-                                    <svg className="w-10 h-10 text-red-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                    <p className="text-xs text-red-700 font-bold mt-1">GO NOW!</p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                    {/* SOUTHBOUND SECTION */}
+                    <div className="mb-6">
+                      <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-orange-700' : 'border-orange-300'}`}>
+                        <span className="text-2xl">⬇️</span>
+                        <h3 className={`text-xl font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Southbound</h3>
+                        <span className={`text-sm ${textMuted}`}>To Downtown / Union Station</span>
+                      </div>
+                      <div className="space-y-3">
+                        {transitDataSB && transitDataSB.map((train, idx) => renderTrainCard(train, idx, timeMode === 'morning' || timeMode === 'workday'))}
+                        {(!transitDataSB || transitDataSB.length === 0) && (
+                          <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                            <p className={textMuted}>No upcoming southbound trains</p>
                           </div>
-                        );
-                      })}
-                      
-                      {(!transitData || transitData.length === 0) && (
-                        <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                          <p className={textMuted}>No upcoming trains at this time</p>
-                        </div>
-                      )}
+                        )}
+                      </div>
+                    </div>
+
+                    {/* NORTHBOUND SECTION */}
+                    <div>
+                      <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-purple-700' : 'border-purple-300'}`}>
+                        <span className="text-2xl">⬆️</span>
+                        <h3 className={`text-xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Northbound</h3>
+                        <span className={`text-sm ${textMuted}`}>To Northglenn/112th</span>
+                      </div>
+                      <div className="space-y-3">
+                        {transitDataNB && transitDataNB.map((train, idx) => renderTrainCard(train, idx, timeMode === 'evening'))}
+                        {(!transitDataNB || transitDataNB.length === 0) && (
+                          <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                            <p className={textMuted}>No upcoming northbound trains</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
@@ -783,13 +1145,37 @@
                         {transitStatus.status === 'error' && (<button onClick={() => window.location.reload()} className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Retry</button>)}
                       </div>
                     </div>
+                    
+                    {/* Delay Legend */}
+                    <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                      <p className={`text-xs font-semibold mb-2 ${textColor}`}>Delay Indicator:</p>
+                      <div className="flex flex-wrap gap-3 text-xs">
+                        <div className="flex items-center gap-1">
+                          <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 font-semibold">On Time</span>
+                          <span className={textMuted}>No delay</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-semibold">+1-3 min</span>
+                          <span className={textMuted}>Minor delay</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 font-semibold">+4+ min</span>
+                          <span className={textMuted}>Significant delay</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            <div className={`mt-8 text-center text-sm ${textMuted}`}>
+            <div className={`mt-8 text-center space-y-2 text-sm ${textMuted}`}>
               <p>🔄 Auto-refresh: Weather (10 min) • Traffic (5 min) • Transit (1 min)</p>
+              {notificationsEnabled && (
+                <p className="text-xs">
+                  🔔 Smart alerts active: Morning (6-8 AM) & Evening (4-6 PM) commutes only
+                </p>
+              )}
             </div>
           </div>
         </div>
