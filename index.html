@@ -50,11 +50,21 @@
       const [driveCollapsed, setDriveCollapsed] = useState(true);
       const [transitCollapsed, setTransitCollapsed] = useState(true);
       const [busCollapsed, setBusCollapsed] = useState(true);
+      const [tasksCollapsed, setTasksCollapsed] = useState(true);
       const [notificationsEnabled, setNotificationsEnabled] = useState(false);
       const [notificationsSent, setNotificationsSent] = useState({
         leaveBy: false,
         trainDeparting: false
       });
+      
+      // PLANNER INTEGRATION
+      const [plannerToken, setPlannerToken] = useState(null);
+      const [todayTasks, setTodayTasks] = useState([]);
+      const [tasksLoading, setTasksLoading] = useState(false);
+      const [showTokenInput, setShowTokenInput] = useState(false);
+      const [tokenInputValue, setTokenInputValue] = useState('');
+      
+      const PLANNER_API = 'https://rtd-n-line-api.onrender.com';
       
       const rtdStops = {
         southbound: '35254',
@@ -96,8 +106,72 @@
           setDriveCollapsed(false);
           setBusCollapsed(false);
           setTransitCollapsed(false);
+          setTasksCollapsed(false);
         }
       }, [timeMode]);
+
+      // Load planner token from localStorage
+      useEffect(() => {
+        const savedToken = localStorage.getItem('plannerToken');
+        if (savedToken) {
+          setPlannerToken(savedToken);
+        }
+      }, []);
+
+      // Fetch today's tasks
+      useEffect(() => {
+        const fetchTasks = async () => {
+          if (!plannerToken) return;
+          
+          setTasksLoading(true);
+          try {
+            const response = await fetch(`${PLANNER_API}/api/planner/tasks/${plannerToken}`);
+            const data = await response.json();
+            
+            if (data.success && data.tasks) {
+              const today = new Date().toISOString().split('T')[0];
+              const tasksToday = data.tasks.filter(task => {
+                return task.dueDate === today && task.status !== 'done';
+              }).sort((a, b) => {
+                // Sort by: urgent first, then by time, then by priority
+                const priorityOrder = { high: 0, medium: 1, low: 2 };
+                if (a.dueTime && b.dueTime) {
+                  return a.dueTime.localeCompare(b.dueTime);
+                }
+                return priorityOrder[a.priority] - priorityOrder[b.priority];
+              });
+              
+              setTodayTasks(tasksToday);
+            }
+          } catch (error) {
+            console.error('Error fetching tasks:', error);
+          } finally {
+            setTasksLoading(false);
+          }
+        };
+
+        fetchTasks();
+        const interval = setInterval(fetchTasks, 300000); // Refresh every 5 minutes
+        return () => clearInterval(interval);
+      }, [plannerToken]);
+
+      const savePlannerToken = () => {
+        const token = tokenInputValue.trim().toUpperCase();
+        if (token) {
+          localStorage.setItem('plannerToken', token);
+          setPlannerToken(token);
+          setShowTokenInput(false);
+          setTokenInputValue('');
+        }
+      };
+
+      const removePlannerToken = () => {
+        if (confirm('Remove planner sync? Tasks will no longer appear.')) {
+          localStorage.removeItem('plannerToken');
+          setPlannerToken(null);
+          setTodayTasks([]);
+        }
+      };
 
       const calculateLeaveByTime = (arrivalTime, travelMinutes) => {
         const [hours, minutes] = arrivalTime.split(':').map(Number);
@@ -146,14 +220,13 @@
             if (driveData) {
               const totalMinutes = (driveData.morning.duration.value + driveData.walk.duration.value) / 60;
               const leaveByDate = new Date(currentTime);
-              leaveByDate.setHours(7, 30, 0, 0); // Target arrival 7:30 AM
+              leaveByDate.setHours(7, 30, 0, 0);
               leaveByDate.setMinutes(leaveByDate.getMinutes() - totalMinutes - 10);
               
-              // Alert 5 minutes before leave-by time
               const fiveMinutesBefore = new Date(leaveByDate.getTime() - 5 * 60000);
               const timeDiff = Math.abs(currentTime - fiveMinutesBefore);
               
-              if (timeDiff < 30000 && !notificationsSent.leaveBy) { // Within 30 seconds
+              if (timeDiff < 30000 && !notificationsSent.leaveBy) {
                 sendNotification(
                   '⏰ Time to Get Ready!',
                   `Leave in 5 minutes (by ${leaveByDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })})`,
@@ -163,7 +236,6 @@
               }
             }
             
-            // Alert for southbound train (10 min before departure)
             if (transitDataSB && transitDataSB.length > 0) {
               const nextTrain = transitDataSB[0];
               if (nextTrain.arrivalTimestamp) {
@@ -183,7 +255,6 @@
           
           // EVENING COMMUTE (4:00 PM - 6:00 PM)
           if (hour >= 16 && hour < 18) {
-            // Alert for northbound train (10 min before departure)
             if (transitDataNB && transitDataNB.length > 0) {
               const nextTrain = transitDataNB[0];
               if (nextTrain.arrivalTimestamp) {
@@ -204,7 +275,6 @@
         
         checkNotifications();
         
-        // Reset notifications at start of each commute window
         const hour = currentTime.getHours();
         if (hour === 6 || hour === 16) {
           const minute = currentTime.getMinutes();
@@ -354,7 +424,6 @@
               lastUpdate: transitStatus.lastUpdate 
             });
             
-            // Fetch BOTH directions
             const [sbResponse, nbResponse] = await Promise.all([
               fetch(`${apiEndpoint}/${rtdStops.southbound}?t=${Date.now()}`, {
                 method: 'GET',
@@ -387,7 +456,6 @@
             const sbData = await sbResponse.json();
             const nbData = await nbResponse.json();
             
-            // Process Southbound trains
             let sbTrains = [];
             if (sbData.arrivals && Array.isArray(sbData.arrivals) && sbData.arrivals.length > 0) {
               const filteredSB = sbData.arrivals.filter(arrival => {
@@ -410,13 +478,10 @@
                     hour12: true 
                   });
                   
-                  // Try to calculate delay from scheduled time
                   if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
                     const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
                     delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-                  }
-                  // If no scheduledArrivalTime, try to parse delay from status text
-                  else if (statusText && statusText.toLowerCase().includes('delay')) {
+                  } else if (statusText && statusText.toLowerCase().includes('delay')) {
                     const delayMatch = statusText.match(/(\d+)\s*min/i);
                     if (delayMatch) {
                       delayMinutes = parseInt(delayMatch[1]);
@@ -434,7 +499,6 @@
               });
             }
             
-            // Process Northbound trains
             let nbTrains = [];
             if (nbData.arrivals && Array.isArray(nbData.arrivals) && nbData.arrivals.length > 0) {
               const filteredNB = nbData.arrivals.filter(arrival => {
@@ -457,13 +521,10 @@
                     hour12: true 
                   });
                   
-                  // Try to calculate delay from scheduled time
                   if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
                     const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
                     delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-                  }
-                  // If no scheduledArrivalTime, try to parse delay from status text
-                  else if (statusText && statusText.toLowerCase().includes('delay')) {
+                  } else if (statusText && statusText.toLowerCase().includes('delay')) {
                     const delayMatch = statusText.match(/(\d+)\s*min/i);
                     if (delayMatch) {
                       delayMinutes = parseInt(delayMatch[1]);
@@ -497,7 +558,6 @@
               lastUpdate: transitStatus.lastUpdate 
             });
             
-            // Fallback to estimated schedules
             const now = new Date();
             const currentMinutes = now.getHours() * 60 + now.getMinutes();
             const sbSchedule = [405, 425, 445, 465, 485, 505, 525, 545, 565];
@@ -565,14 +625,12 @@
       const totalMorningMinutes = driveData ? (driveData.morning.duration.value + driveData.walk.duration.value) / 60 : 23;
       const leaveByTime = calculateLeaveByTime('07:30', totalMorningMinutes);
 
-      // Helper function to get delay color
       const getDelayColor = (delayMinutes) => {
-        if (delayMinutes <= 0) return 'green'; // On time or early
-        if (delayMinutes <= 3) return 'yellow'; // Minor delay
-        return 'red'; // Significant delay
+        if (delayMinutes <= 0) return 'green';
+        if (delayMinutes <= 3) return 'yellow';
+        return 'red';
       };
 
-      // Helper to render train cards
       const renderTrainCard = (train, idx, isPrimary = true, isNorthbound = false) => {
         let countdown = 0;
         let countdownSeconds = 0;
@@ -582,14 +640,12 @@
           countdownSeconds = Math.floor(Math.abs(totalSeconds % 60));
         }
 
-        // Northbound trains: Display countdown to departure
-        // (API already accounts for the 15-min dwell time at Union Station)
         let displayCountdown = countdown;
 
-        const isPast = countdown < -(7/60); // 7 seconds past
+        const isPast = countdown < -(7/60);
         const isNext = !isPast && idx === 0 && isPrimary;
-        const isDeparting = displayCountdown <= (15/60) && displayCountdown > -(7/60); // 15 sec before to 7 sec after
-        const isUrgent = displayCountdown <= 2 && displayCountdown > (15/60); // 15 sec to 2 min before
+        const isDeparting = displayCountdown <= (15/60) && displayCountdown > -(7/60);
+        const isUrgent = displayCountdown <= 2 && displayCountdown > (15/60);
         const isArriving = displayCountdown <= 15 && displayCountdown > 2;
         const showArrivingMessage = isArriving && Math.floor(currentTime.getSeconds() / 10) % 2 === 0;
         
@@ -638,7 +694,6 @@
                     : `Train ${idx + 1}`}
                   </p>
                   
-                  {/* Delay indicator */}
                   {!isPast && (
                     <span className={`text-xs px-2 py-0.5 rounded font-semibold ${
                       delayColor === 'green' ? 'bg-green-100 text-green-700' :
@@ -716,7 +771,6 @@
         <div className={`min-h-screen bg-gradient-to-br ${currentTheme} p-6 transition-all duration-1000`}>
           <div className="max-w-6xl mx-auto">
             <div className="mb-8">
-              {/* Title and Date/Time - Full Width */}
               <div className="mb-4">
                 <h1 className={`text-4xl font-bold ${textColor} mb-2`}>
                   {timeMode === 'morning' && '🌅 Good Morning'}
@@ -729,9 +783,7 @@
                 </p>
               </div>
               
-              {/* Control Buttons - Full Width Row */}
               <div className="flex flex-wrap gap-2">
-                {/* Notification Status Indicator */}
                 <div className={`px-3 py-2 rounded-lg font-medium flex items-center gap-2 ${
                   notificationsEnabled 
                     ? 'bg-green-100 text-green-800 border border-green-300' 
@@ -871,6 +923,170 @@
               </div>
             </div>
 
+            {/* TODAY'S TASKS WIDGET */}
+            <div className={`${cardBg} rounded-2xl shadow-xl overflow-hidden mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
+              <button
+                onClick={() => setTasksCollapsed(!tasksCollapsed)}
+                className={`w-full p-6 flex items-center justify-between transition-all ${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-500 p-3 rounded-xl">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold ${textColor}`}>Today's Tasks</h2>
+                    <p className={`text-sm ${textMuted}`}>Read-only snapshot from planner</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {plannerToken && (<span className={`text-sm ${textMuted}`}>{todayTasks.length} tasks</span>)}
+                  <svg className={`w-6 h-6 ${textColor} transition-transform ${!tasksCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </button>
+
+              {!tasksCollapsed && (
+                <div className="px-6 pb-6">
+                  {!plannerToken ? (
+                    <div className={`text-center py-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} rounded-xl`}>
+                      {!showTokenInput ? (
+                        <>
+                          <p className={`text-lg mb-4 ${textColor}`}>Connect your planner to see today's tasks</p>
+                          <button
+                            onClick={() => setShowTokenInput(true)}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all"
+                          >
+                            🔗 Connect Planner
+                          </button>
+                        </>
+                      ) : (
+                        <div className="max-w-md mx-auto">
+                          <p className={`text-sm mb-3 ${textMuted}`}>Enter your planner sync token:</p>
+                          <input
+                            type="text"
+                            value={tokenInputValue}
+                            onChange={(e) => setTokenInputValue(e.target.value)}
+                            placeholder="PLAN-ABC123"
+                            className={`w-full px-4 py-2 rounded-lg border text-center font-mono text-lg uppercase mb-3 ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') savePlannerToken();
+                            }}
+                          />
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              onClick={savePlannerToken}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all"
+                            >
+                              ✓ Connect
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowTokenInput(false);
+                                setTokenInputValue('');
+                              }}
+                              className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-all"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : tasksLoading ? (
+                    <div className="text-center py-8">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                      <p className={textMuted}>Loading tasks...</p>
+                    </div>
+                  ) : todayTasks.length === 0 ? (
+                    <div className={`text-center py-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} rounded-xl`}>
+                      <p className="text-3xl mb-2">🎉</p>
+                      <p className={`text-lg ${textColor}`}>No tasks scheduled for today!</p>
+                      <p className={`text-sm mt-2 ${textMuted}`}>Enjoy your free time</p>
+                      <button
+                        onClick={removePlannerToken}
+                        className="mt-4 text-sm text-red-500 hover:text-red-600"
+                      >
+                        Disconnect planner
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {todayTasks.map((task, idx) => {
+                        const priorityColors = {
+                          high: isDarkMode ? 'bg-red-900 bg-opacity-30 border-red-500' : 'bg-red-50 border-red-300',
+                          medium: isDarkMode ? 'bg-yellow-900 bg-opacity-30 border-yellow-500' : 'bg-yellow-50 border-yellow-300',
+                          low: isDarkMode ? 'bg-green-900 bg-opacity-30 border-green-500' : 'bg-green-50 border-green-300'
+                        };
+
+                        const statusIcons = {
+                          'not-started': '⚪',
+                          'in-progress': '🟡',
+                          'done': '✅'
+                        };
+
+                        return (
+                          <div
+                            key={task.id}
+                            className={`p-4 rounded-xl border-2 ${priorityColors[task.priority] || priorityColors.low}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-lg">{statusIcons[task.status] || statusIcons['not-started']}</span>
+                                  <p className={`font-semibold ${textColor}`}>{task.title}</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2 text-xs">
+                                  {task.category && (
+                                    <span className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 text-gray-200' : 'bg-gray-200 text-gray-700'}`}>
+                                      {task.category}
+                                    </span>
+                                  )}
+                                  {task.dueTime && (
+                                    <span className={`px-2 py-1 rounded font-semibold ${isDarkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
+                                      ⏰ {task.dueTime}
+                                    </span>
+                                  )}
+                                  {task.duration && (
+                                    <span className={`px-2 py-1 rounded ${isDarkMode ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-700'}`}>
+                                      ⏱️ {task.duration}m
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-xs px-2 py-1 rounded font-semibold ${
+                                  task.priority === 'high' ? 'bg-red-100 text-red-700' :
+                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-green-100 text-green-700'
+                                }`}>
+                                  {task.priority}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <div className={`mt-4 p-3 rounded-lg text-center ${isDarkMode ? 'bg-blue-900 bg-opacity-20' : 'bg-blue-50'}`}>
+                        <p className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                          ℹ️ Tasks are read-only here. Edit in your planner app.
+                        </p>
+                        <button
+                          onClick={removePlannerToken}
+                          className="mt-2 text-xs text-red-500 hover:text-red-600"
+                        >
+                          Disconnect planner
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {shouldShowCommute && (
               <div className={`${cardBg} rounded-2xl shadow-xl overflow-hidden mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
                 <button
@@ -913,7 +1129,7 @@
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all"
                       >
-                        🗺️ Open Map (Work → Home)
+                        🗺️ Open Map
                       </a>
                     </div>
 
@@ -946,21 +1162,12 @@
                         <span className="font-semibold">Total: </span>{Math.round(totalMorningMinutes)} min (drive + walk) • Leave by {leaveByTime}
                       </p>
                     </div>
-
-                    <a
-                      href={`https://www.google.com/maps/dir/${config.locations.garage.lat},${config.locations.garage.lng}/${config.locations.home.lat},${config.locations.home.lng}/@${config.locations.home.lat},${config.locations.home.lng},12z/data=!4m2!4m1!3e0!5m1!1e1`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full py-3 bg-yellow-500 text-gray-900 rounded-lg text-center font-semibold hover:bg-yellow-400 transition-all"
-                    >
-                      🚦 View Live Traffic (Work → Home)
-                    </a>
                   </div>
                 )}
               </div>
             )}
 
-            {/* BUS TIMING GUIDE */}
+            {/* DOWNTOWN SHUTTLE - INFORMATIONAL ONLY */}
             {shouldShowCommute && (
               <div className={`${cardBg} rounded-2xl shadow-xl overflow-hidden mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
                 <button
@@ -970,12 +1177,12 @@
                   <div className="flex items-center gap-3">
                     <div className="bg-green-500 p-3 rounded-xl">
                       <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
                     <div>
-                      <h2 className={`text-2xl font-bold ${textColor}`}>Downtown Shuttle Buses</h2>
-                      <p className={`text-sm ${textMuted}`}>Transfer Guide from N Line</p>
+                      <h2 className={`text-2xl font-bold ${textColor}`}>Downtown Shuttle Info</h2>
+                      <p className={`text-sm ${textMuted}`}>Free bus service information</p>
                     </div>
                   </div>
                   <svg className={`w-6 h-6 ${textColor} transition-transform ${!busCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -985,72 +1192,37 @@
 
                 {!busCollapsed && (
                   <div className="px-6 pb-6">
-                    {(timeMode === 'morning' || timeMode === 'workday') && (
-                      <div className="space-y-4">
-                        <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-orange-900 bg-opacity-30 border-orange-500' : 'bg-orange-50 border-orange-300'}`}>
-                          <div className="flex items-center gap-2 mb-3">
-                            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <h3 className={`font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Morning: After Your 6:46 AM Train</h3>
-                          </div>
-                          <div className="space-y-2 text-sm">
-                            <p className={isDarkMode ? 'text-orange-200' : 'text-orange-800'}>
-                              🚆 Train arrives Union Station: <span className="font-bold">~7:05 AM</span>
-                            </p>
-                            <p className={isDarkMode ? 'text-orange-200' : 'text-orange-800'}>
-                              🚶 Walk to bus stop: <span className="font-bold">4-7 minutes</span>
-                            </p>
-                            <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-orange-800 bg-opacity-50' : 'bg-orange-100'}`}>
-                              <p className={`font-bold ${isDarkMode ? 'text-orange-200' : 'text-orange-900'}`}>
-                                ✅ Board bus around: <span className="text-lg">7:09-7:12 AM</span>
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {timeMode === 'evening' && (
-                      <div className="space-y-4">
-                        <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-purple-900 bg-opacity-30 border-purple-500' : 'bg-purple-50 border-purple-300'}`}>
-                          <div className="flex items-center gap-2 mb-3">
-                            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <h3 className={`font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Evening: After Your 5:56 PM Train</h3>
-                          </div>
-                          <div className="space-y-2 text-sm">
-                            <p className={isDarkMode ? 'text-purple-200' : 'text-purple-800'}>
-                              🚆 Train arrives Northglenn/112th: <span className="font-bold">~6:24 PM</span>
-                            </p>
-                            <p className={isDarkMode ? 'text-purple-200' : 'text-purple-800'}>
-                              🚶 Walk to bus stop: <span className="font-bold">4-7 minutes</span>
-                            </p>
-                            <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-purple-800 bg-opacity-50' : 'bg-purple-100'}`}>
-                              <p className={`font-bold ${isDarkMode ? 'text-purple-200' : 'text-purple-900'}`}>
-                                ✅ Board bus around: <span className="text-lg">6:28-6:31 PM</span>
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                      <p className={`font-semibold mb-2 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>🚌 Available Shuttle Services:</p>
-                      <div className={`space-y-2 text-xs ${isDarkMode ? 'text-blue-200' : 'text-blue-800'}`}>
+                    <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
+                      <p className={`font-semibold mb-3 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>🚌 Available Shuttle Services:</p>
+                      <div className={`space-y-4 text-sm ${isDarkMode ? 'text-blue-200' : 'text-blue-800'}`}>
                         <div>
-                          <p className="font-semibold">16th Street FreeRide</p>
-                          <p>• Free shuttle every ~5 minutes along 16th Street Mall</p>
-                          <p>• Runs 5:30 AM - 12:30 AM daily</p>
-                          <p>• Union Station ↔ Civic Center Station</p>
+                          <p className="font-semibold text-base mb-2">16th Street FreeRide</p>
+                          <ul className="space-y-1 pl-4">
+                            <li>• Free shuttle every ~5 minutes along 16th Street Mall</li>
+                            <li>• Runs 5:30 AM - 12:30 AM daily</li>
+                            <li>• Route: Union Station ↔ Civic Center Station</li>
+                            <li>• Walk from Union Station: 4-7 minutes</li>
+                          </ul>
                         </div>
-                        <div className="mt-3 pt-3 border-t border-blue-300">
-                          <p className="font-semibold">Free MetroRide (Alternative)</p>
-                          <p>• Runs on 18th/19th Streets (parallel route)</p>
-                          <p>• Every ~10 minutes</p>
-                          <p>• Note: No live tracking available</p>
+                        <div className={`pt-3 border-t ${isDarkMode ? 'border-blue-700' : 'border-blue-300'}`}>
+                          <p className="font-semibold text-base mb-2">Free MetroRide (Alternative)</p>
+                          <ul className="space-y-1 pl-4">
+                            <li>• Runs on 18th/19th Streets (parallel route)</li>
+                            <li>• Every ~10 minutes</li>
+                            <li>• Note: No live tracking available</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-yellow-900 bg-opacity-30' : 'bg-yellow-50'}`}>
+                      <div className="flex items-start gap-2">
+                        <span className="text-xl">💡</span>
+                        <div>
+                          <p className={`text-sm font-semibold ${isDarkMode ? 'text-yellow-300' : 'text-yellow-900'}`}>Typical Wait Times:</p>
+                          <p className={`text-xs mt-1 ${isDarkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                            After arriving at Union Station, allow 4-7 minutes to walk to bus stop + 5-10 minutes typical wait for FreeRide
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1147,7 +1319,6 @@
                       </div>
                     </div>
                     
-                    {/* Delay Legend */}
                     <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                       <p className={`text-xs font-semibold mb-2 ${textColor}`}>Delay Indicator:</p>
                       <div className="flex flex-wrap gap-3 text-xs">
@@ -1171,7 +1342,7 @@
             )}
 
             <div className={`mt-8 text-center space-y-2 text-sm ${textMuted}`}>
-              <p>🔄 Auto-refresh: Weather (10 min) • Traffic (5 min) • Transit (1 min)</p>
+              <p>🔄 Auto-refresh: Weather (10 min) • Traffic (5 min) • Transit (1 min) • Tasks (5 min)</p>
               {notificationsEnabled && (
                 <p className="text-xs">
                   🔔 Smart alerts active: Morning (6-8 AM) & Evening (4-6 PM) commutes only
