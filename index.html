@@ -118,13 +118,11 @@
     const CommuteDashboard = () => {
       // State
       const [currentTime, setCurrentTime] = useState(new Date());
-      const [activeSection, setActiveSection] = useState('drive'); // drive, nline, bus, schedule, search
+      const [activeSection, setActiveSection] = useState('drive'); // drive, nline, bus, search
       const [weather, setWeather] = useState(null);
       const [driveData, setDriveData] = useState(null);
       const [transitDataSB, setTransitDataSB] = useState(null);
       const [transitDataNB, setTransitDataNB] = useState(null);
-      const [todayTasks, setTodayTasks] = useState([]);
-      const [todayEvents, setTodayEvents] = useState([]);
       const [searchFromAddress, setSearchFromAddress] = useState('');
       const [searchToAddress, setSearchToAddress] = useState('');
       const [searchResults, setSearchResults] = useState(null);
@@ -141,15 +139,7 @@
         weather: true,
         drive: true,
         transit: true,
-        tasks: false,
         search: false
-      });
-      const [plannerToken, setPlannerToken] = useState(() => {
-        try {
-          return localStorage.getItem('plannerToken') || null;
-        } catch (e) {
-          return null;
-        }
       });
       const [lastRefresh, setLastRefresh] = useState(new Date());
       const [refreshSuccess, setRefreshSuccess] = useState(false);
@@ -416,26 +406,6 @@
         }
       }, []);
 
-      // Fetch today's tasks and events from planner
-      const fetchTodaySchedule = useCallback(async () => {
-        if (!plannerToken) return;
-
-        try {
-          setLoading(prev => ({ ...prev, tasks: true }));
-          const response = await fetch(`https://rtd-n-line-api.onrender.com/api/planner/today/${plannerToken}`);
-          const data = await response.json();
-
-          if (data.tasks) setTodayTasks(data.tasks);
-          if (data.events) setTodayEvents(data.events);
-        } catch (error) {
-          console.error('Schedule fetch error:', error);
-          setTodayTasks([]);
-          setTodayEvents([]);
-        } finally {
-          setLoading(prev => ({ ...prev, tasks: false }));
-        }
-      }, [plannerToken]);
-
       // Geocode address to coordinates
       const geocodeAddress = async (address) => {
         const apiKey = CONSTANTS.API_KEYS.GOOGLE_MAPS;
@@ -526,19 +496,17 @@
         fetchWeather();
         fetchDriveTimes();
         fetchTransitData();
-        if (plannerToken) fetchTodaySchedule();
-      }, [fetchWeather, fetchDriveTimes, fetchTransitData, fetchTodaySchedule]);
+      }, [fetchWeather, fetchDriveTimes, fetchTransitData]);
 
       // 15-minute refresh for weather and drive times
       useEffect(() => {
         const interval = setInterval(() => {
           fetchWeather();
           fetchDriveTimes();
-          if (plannerToken) fetchTodaySchedule();
           setLastRefresh(new Date());
         }, CONSTANTS.REFRESH_INTERVAL);
         return () => clearInterval(interval);
-      }, [fetchWeather, fetchDriveTimes, fetchTodaySchedule, plannerToken]);
+      }, [fetchWeather, fetchDriveTimes]);
 
       // 1-minute refresh for transit (needs more frequent updates)
       useEffect(() => {
@@ -553,7 +521,6 @@
         fetchWeather();
         fetchDriveTimes();
         fetchTransitData();
-        if (plannerToken) fetchTodaySchedule();
         setLastRefresh(new Date());
         setRefreshSuccess(true);
         setTimeout(() => setRefreshSuccess(false), 2000);
@@ -879,86 +846,6 @@
                 </div>
               )}
 
-              {/* Today's Schedule Section */}
-              {activeSection === 'schedule' && (
-                <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
-                  <h2 className={`text-xl sm:text-2xl font-bold ${textColor} mb-4`}>📅 Today's Schedule</h2>
-
-                  {!plannerToken ? (
-                    <div className={`text-center py-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded-xl`}>
-                      <p className={`text-base mb-4 ${textColor}`}>Connect planner</p>
-                      <input
-                        type="text"
-                        placeholder="Token (PLAN-ABC123)"
-                        className={`w-full max-w-xs px-4 py-2 rounded-lg border text-center ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            setPlannerToken(e.target.value);
-                            localStorage.setItem('plannerToken', e.target.value);
-                          }
-                        }}
-                      />
-                      <p className={`text-xs mt-2 ${textMuted}`}>Press Enter</p>
-                    </div>
-                  ) : (
-                    <>
-                      {loading.tasks ? (
-                        <div className="text-center py-8">
-                          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                          <p className={textMuted}>Loading...</p>
-                        </div>
-                      ) : (
-                        <>
-                          {/* Tasks */}
-                          <div className="mb-6">
-                            <h3 className={`text-lg font-semibold ${textColor} mb-3`}>✅ Tasks</h3>
-                            {todayTasks.length === 0 ? (
-                              <p className={textMuted}>No tasks</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {todayTasks.map((task, idx) => (
-                                  <div key={idx} className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                                    <p className={`font-medium ${textColor}`}>{task.title}</p>
-                                    {task.time && <p className={`text-sm ${textMuted}`}>{task.time}</p>}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Events */}
-                          <div>
-                            <h3 className={`text-lg font-semibold ${textColor} mb-3`}>📆 Events</h3>
-                            {todayEvents.length === 0 ? (
-                              <p className={textMuted}>No events</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {todayEvents.map((event, idx) => (
-                                  <div key={idx} className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                                    <p className={`font-medium ${textColor}`}>{event.title}</p>
-                                    {event.time && <p className={`text-sm ${textMuted}`}>{event.time}</p>}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              setPlannerToken(null);
-                              localStorage.removeItem('plannerToken');
-                            }}
-                            className="mt-4 text-sm text-red-500 hover:text-red-600"
-                          >
-                            Disconnect
-                          </button>
-                        </>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
               {/* Search Locator Section */}
               {activeSection === 'search' && (
                 <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
@@ -1120,20 +1007,6 @@
                 >
                   <span className="text-2xl" aria-hidden="true">🚌</span>
                   <span className="text-xs font-medium">Bus</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveSection('schedule')}
-                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all ${
-                    activeSection === 'schedule'
-                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                      : textMuted
-                  }`}
-                  aria-label="Today's schedule section"
-                  aria-current={activeSection === 'schedule' ? 'page' : undefined}
-                >
-                  <span className="text-2xl" aria-hidden="true">📅</span>
-                  <span className="text-xs font-medium">Schedule</span>
                 </button>
 
                 <button
