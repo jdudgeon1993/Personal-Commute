@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Real-time commute dashboard with RTD transit, weather, and traffic information">
+  <meta name="description" content="Taskify Commute Dashboard - Real-time commute information">
   <meta name="theme-color" content="#1e293b">
-  <title>Professional Commute Dashboard</title>
+  <title>Taskify || Commute Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @keyframes spin {
@@ -28,24 +28,9 @@
     .slide-in {
       animation: slideIn 0.3s ease-out;
     }
-    /* Focus indicators for accessibility */
     *:focus-visible {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
-    }
-    /* Loading skeleton animation */
-    @keyframes shimmer {
-      0% { background-position: -468px 0; }
-      100% { background-position: 468px 0; }
-    }
-    .skeleton {
-      animation: shimmer 1.2s ease-in-out infinite;
-      background: linear-gradient(to right, #f0f0f0 8%, #f8f8f8 18%, #f0f0f0 33%);
-      background-size: 800px 104px;
-    }
-    /* Better transitions */
-    .transition-height {
-      transition: max-height 0.3s ease-in-out;
     }
   </style>
 </head>
@@ -58,1479 +43,945 @@
 
   <script type="text/babel">
     /**
-     * Professional Commute Dashboard
+     * Taskify Commute Dashboard - Redesigned
      *
-     * RECENT ENHANCEMENTS:
-     * - Security: API keys moved to configurable CONSTANTS with environment variable support
-     * - Performance: Added memoization (useCallback), optimized re-renders, extracted constants
-     * - Accessibility: ARIA labels, keyboard navigation support, focus indicators
-     * - Error Handling: Try-catch blocks, loading states, fallback data with indicators
-     * - UX: Manual refresh buttons, loading skeletons, better visual feedback
-     * - Mobile: Responsive padding, text sizes, compact button labels
-     * - Code Quality: Reduced duplication, better organization, proper cleanup
-     *
-     * API KEY SECURITY NOTE:
-     * For production deployment, set environment variables:
-     * window.ENV = { GOOGLE_MAPS_API_KEY: 'your-key', OPENWEATHER_API_KEY: 'your-key' }
+     * FEATURES:
+     * - Tab-based navigation (Drive Time, N Line, Today's Schedule, Search Locator)
+     * - No time-based visibility sequences - everything always visible
+     * - 15-minute unified refresh interval with manual refresh button
+     * - Simplified greeting system (Good Morning/Evening, Workday/Weekend)
+     * - Weather integration in header
+     * - Clean, simple layout
      */
 
-    const { useState, useEffect, useMemo, useCallback } = React;
+    const { useState, useEffect, useCallback, useMemo } = React;
 
-    // Constants for better maintainability
+    // Constants
     const CONSTANTS = {
-      REFRESH_INTERVALS: {
-        CLOCK: 1000,
-        WEATHER: 600000, // 10 minutes
-        DRIVE: 300000, // 5 minutes
-        TRANSIT: 60000, // 1 minute
-        TASKS: 300000 // 5 minutes
-      },
-      TIMEOUTS: {
-        API: 30000,
-        NOTIFICATION_WINDOW: 30000
-      },
-      BUFFER_MINUTES: 10,
-      TRAIN_WARNING_MINUTES: 10,
-      TRAIN_URGENT_MINUTES: 2,
-      TRAIN_ARRIVING_MINUTES: 15,
-      DEPARTING_THRESHOLD_MINUTES: 15/60,
-      DEPARTED_THRESHOLD_MINUTES: -7/60,
-      // API keys - In production, these should be in environment variables
-      // For now, using a configuration pattern that allows override
+      REFRESH_INTERVAL: 900000, // 15 minutes
+      CLOCK_INTERVAL: 1000, // 1 second for clock
+      TRANSIT_INTERVAL: 60000, // 1 minute for transit (needs more frequent updates)
       API_KEYS: {
         GOOGLE_MAPS: window.ENV?.GOOGLE_MAPS_API_KEY || 'AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY',
         OPENWEATHER: window.ENV?.OPENWEATHER_API_KEY || '1c91f81f2adfd1b633d19842869a1a11'
       }
     };
 
+    const config = {
+      locations: {
+        home: { lat: 39.9066611, lng: -104.987454 },
+        garage: { lat: 39.747676849365234, lng: -104.9898452758789 },
+        work: { lat: 39.74645233154297, lng: -104.99141693115234 }
+      },
+      weather: {
+        lat: 39.8858,
+        lon: -104.9872
+      },
+      rtdStops: {
+        southbound: '35254',
+        northbound: '34668'
+      }
+    };
+
     const CommuteDashboard = () => {
+      // State
       const [currentTime, setCurrentTime] = useState(new Date());
+      const [activeTab, setActiveTab] = useState('drive'); // drive, nline, schedule, search
       const [weather, setWeather] = useState(null);
-      const [weatherLoading, setWeatherLoading] = useState(true);
       const [driveData, setDriveData] = useState(null);
-      const [driveLoading, setDriveLoading] = useState(true);
       const [transitDataSB, setTransitDataSB] = useState(null);
       const [transitDataNB, setTransitDataNB] = useState(null);
+      const [todayTasks, setTodayTasks] = useState([]);
+      const [todayEvents, setTodayEvents] = useState([]);
+      const [searchFrom, setSearchFrom] = useState('');
+      const [searchTo, setSearchTo] = useState('');
+      const [searchResults, setSearchResults] = useState(null);
       const [avoidHighways, setAvoidHighways] = useState(false);
-      const [transitStatus, setTransitStatus] = useState({
-        status: 'loading',
-        message: 'Connecting to RTD server...',
-        lastUpdate: null
-      });
-      const [apiEndpoint, setApiEndpoint] = useState('https://rtd-n-line-api.onrender.com/api/rtd/arrivals');
       const [isDarkMode, setIsDarkMode] = useState(() => {
         try {
           const saved = localStorage.getItem('darkMode');
           return saved !== null ? JSON.parse(saved) : true;
         } catch (e) {
-          console.error('Error reading darkMode from localStorage:', e);
           return true;
         }
       });
-      const [showCommuteInfo, setShowCommuteInfo] = useState(false);
-      const [manualMode, setManualMode] = useState(null);
-      const [driveCollapsed, setDriveCollapsed] = useState(true);
-      const [transitCollapsed, setTransitCollapsed] = useState(true);
-      const [busCollapsed, setBusCollapsed] = useState(true);
-      const [tasksCollapsed, setTasksCollapsed] = useState(true);
-      const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-      const [notificationsSent, setNotificationsSent] = useState({
-        leaveBy: false,
-        trainDeparting: false
+      const [loading, setLoading] = useState({
+        weather: true,
+        drive: true,
+        transit: true,
+        tasks: false,
+        search: false
       });
-
-      // PLANNER INTEGRATION
-      const [plannerToken, setPlannerToken] = useState(null);
-      const [todayTasks, setTodayTasks] = useState([]);
-      const [tasksLoading, setTasksLoading] = useState(false);
-      const [showTokenInput, setShowTokenInput] = useState(false);
-      const [tokenInputValue, setTokenInputValue] = useState('');
-
-      const PLANNER_API = 'https://rtd-n-line-api.onrender.com';
-
-      const rtdStops = {
-        southbound: '35254',
-        northbound: '34668'
-      };
-
-      const config = {
-        workSchedule: {
-          weekday: { start: '08:00', end: '17:30' },
-          friday: { start: '08:00', end: '16:30' }
-        },
-        locations: {
-          home: { lat: 39.9066611, lng: -104.987454 },
-          garage: { lat: 39.747676849365234, lng: -104.9898452758789 },
-          work: { lat: 39.74645233154297, lng: -104.99141693115234 }
-        },
-        weather: {
-          lat: 39.8858,
-          lon: -104.9872
+      const [plannerToken, setPlannerToken] = useState(() => {
+        try {
+          return localStorage.getItem('plannerToken') || null;
+        } catch (e) {
+          return null;
         }
-      };
+      });
+      const [lastRefresh, setLastRefresh] = useState(new Date());
 
       // Save dark mode preference
       useEffect(() => {
         try {
           localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
         } catch (e) {
-          console.error('Error saving darkMode to localStorage:', e);
+          console.error('Error saving darkMode:', e);
         }
       }, [isDarkMode]);
 
-      const getTimeMode = () => {
-        if (manualMode) return manualMode;
+      // Greeting logic - simple time-based greeting
+      const getGreeting = () => {
         const hour = currentTime.getHours();
         const day = currentTime.getDay();
-        if (day === 0 || day === 6) return 'weekend';
-        if (hour < 8) return 'morning';
-        if (hour >= 8 && hour < 17) return 'workday';
-        return 'evening';
+        const isWeekend = day === 0 || day === 6;
+
+        let timeGreeting = hour < 12 ? 'Good Morning' : 'Good Evening';
+        let contextGreeting = isWeekend ? 'Enjoy your Weekend' : 'Have a great Workday';
+
+        return { timeGreeting, contextGreeting, isWeekend };
       };
 
-      const timeMode = getTimeMode();
-      const shouldShowCommute = timeMode !== 'workday' || showCommuteInfo;
+      const greeting = getGreeting();
 
-      // On weekend, default everything to expanded
+      // Clock update (every second)
       useEffect(() => {
-        if (timeMode === 'weekend') {
-          setDriveCollapsed(false);
-          setBusCollapsed(false);
-          setTransitCollapsed(false);
-          setTasksCollapsed(false);
-        }
-      }, [timeMode]);
-
-      // Load planner token from localStorage
-      useEffect(() => {
-        const savedToken = localStorage.getItem('plannerToken');
-        if (savedToken) {
-          setPlannerToken(savedToken);
-        }
-      }, []);
-
-      // Fetch today's tasks
-      useEffect(() => {
-        const fetchTasks = async () => {
-          if (!plannerToken) return;
-          
-          setTasksLoading(true);
-          try {
-            const response = await fetch(`${PLANNER_API}/api/planner/tasks/${plannerToken}`);
-            const data = await response.json();
-            
-            if (data.success && data.tasks) {
-              const today = new Date().toISOString().split('T')[0];
-              const tasksToday = data.tasks.filter(task => {
-                return task.dueDate === today && task.status !== 'done';
-              }).sort((a, b) => {
-                // Sort by: urgent first, then by time, then by priority
-                const priorityOrder = { high: 0, medium: 1, low: 2 };
-                if (a.dueTime && b.dueTime) {
-                  return a.dueTime.localeCompare(b.dueTime);
-                }
-                return priorityOrder[a.priority] - priorityOrder[b.priority];
-              });
-              
-              setTodayTasks(tasksToday);
-            }
-          } catch (error) {
-            console.error('Error fetching tasks:', error);
-          } finally {
-            setTasksLoading(false);
-          }
-        };
-
-        fetchTasks();
-        const interval = setInterval(fetchTasks, 300000); // Refresh every 5 minutes
-        return () => clearInterval(interval);
-      }, [plannerToken]);
-
-      const savePlannerToken = () => {
-        const token = tokenInputValue.trim().toUpperCase();
-        if (token) {
-          localStorage.setItem('plannerToken', token);
-          setPlannerToken(token);
-          setShowTokenInput(false);
-          setTokenInputValue('');
-        }
-      };
-
-      const removePlannerToken = () => {
-        if (confirm('Remove planner sync? Tasks will no longer appear.')) {
-          localStorage.removeItem('plannerToken');
-          setPlannerToken(null);
-          setTodayTasks([]);
-        }
-      };
-
-      const calculateLeaveByTime = (arrivalTime, travelMinutes) => {
-        const [hours, minutes] = arrivalTime.split(':').map(Number);
-        const arrival = new Date(currentTime);
-        arrival.setHours(hours, minutes, 0);
-        const leaveBy = new Date(arrival.getTime() - (travelMinutes + 10) * 60000);
-        return leaveBy.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      };
-
-      // Request notification permissions on mount
-      useEffect(() => {
-        if ('Notification' in window && Notification.permission === 'default') {
-          Notification.requestPermission().then(permission => {
-            setNotificationsEnabled(permission === 'granted');
-          });
-        } else if ('Notification' in window && Notification.permission === 'granted') {
-          setNotificationsEnabled(true);
-        }
-      }, []);
-
-      // Send notification helper
-      const sendNotification = (title, body, icon = '🚆') => {
-        if (notificationsEnabled && 'Notification' in window) {
-          new Notification(title, {
-            body: body,
-            icon: `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>${icon}</text></svg>`,
-            requireInteraction: false,
-            silent: false
-          });
-        }
-      };
-
-      // Smart notification logic - runs every minute
-      useEffect(() => {
-        const checkNotifications = () => {
-          const hour = currentTime.getHours();
-          const minute = currentTime.getMinutes();
-          const day = currentTime.getDay();
-          
-          // Skip weekends
-          if (day === 0 || day === 6) return;
-          
-          // MORNING COMMUTE (6:00 AM - 8:00 AM)
-          if (hour >= 6 && hour < 8) {
-            // Calculate leave-by time
-            if (driveData) {
-              const totalMinutes = (driveData.morning.duration.value + driveData.walk.duration.value) / 60;
-              const leaveByDate = new Date(currentTime);
-              leaveByDate.setHours(7, 30, 0, 0);
-              leaveByDate.setMinutes(leaveByDate.getMinutes() - totalMinutes - 10);
-              
-              const fiveMinutesBefore = new Date(leaveByDate.getTime() - 5 * 60000);
-              const timeDiff = Math.abs(currentTime - fiveMinutesBefore);
-              
-              if (timeDiff < 30000 && !notificationsSent.leaveBy) {
-                sendNotification(
-                  '⏰ Time to Get Ready!',
-                  `Leave in 5 minutes (by ${leaveByDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })})`,
-                  '⏰'
-                );
-                setNotificationsSent(prev => ({ ...prev, leaveBy: true }));
-              }
-            }
-            
-            if (transitDataSB && transitDataSB.length > 0) {
-              const nextTrain = transitDataSB[0];
-              if (nextTrain.arrivalTimestamp) {
-                const minutesUntilTrain = (nextTrain.arrivalTimestamp - currentTime.getTime()) / 60000;
-                
-                if (minutesUntilTrain <= 10 && minutesUntilTrain > 9 && !notificationsSent.trainDeparting) {
-                  sendNotification(
-                    '🚆 Train Departing Soon!',
-                    `Your ${nextTrain.time} train departs in 10 minutes`,
-                    '🚆'
-                  );
-                  setNotificationsSent(prev => ({ ...prev, trainDeparting: true }));
-                }
-              }
-            }
-          }
-          
-          // EVENING COMMUTE (4:00 PM - 6:00 PM)
-          if (hour >= 16 && hour < 18) {
-            if (transitDataNB && transitDataNB.length > 0) {
-              const nextTrain = transitDataNB[0];
-              if (nextTrain.arrivalTimestamp) {
-                const minutesUntilTrain = (nextTrain.arrivalTimestamp - currentTime.getTime()) / 60000;
-                
-                if (minutesUntilTrain <= 10 && minutesUntilTrain > 9 && !notificationsSent.trainDeparting) {
-                  sendNotification(
-                    '🚆 Train Departing Soon!',
-                    `Your ${nextTrain.time} train departs in 10 minutes`,
-                    '🚆'
-                  );
-                  setNotificationsSent(prev => ({ ...prev, trainDeparting: true }));
-                }
-              }
-            }
-          }
-        };
-        
-        checkNotifications();
-        
-        const hour = currentTime.getHours();
-        if (hour === 6 || hour === 16) {
-          const minute = currentTime.getMinutes();
-          if (minute === 0) {
-            setNotificationsSent({ leaveBy: false, trainDeparting: false });
-          }
-        }
-      }, [currentTime, driveData, transitDataSB, transitDataNB, notificationsEnabled, notificationsSent]);
-
-      // Weather fetching with improved error handling
-      useEffect(() => {
-        const fetchWeather = async () => {
-          try {
-            setWeatherLoading(true);
-            const response = await fetch(
-              `https://api.openweathermap.org/data/2.5/weather?lat=${config.weather.lat}&lon=${config.weather.lon}&appid=${CONSTANTS.API_KEYS.OPENWEATHER}&units=imperial`,
-              { signal: AbortSignal.timeout(CONSTANTS.TIMEOUTS.API) }
-            );
-            if (!response.ok) throw new Error(`Weather API error: ${response.status}`);
-            const data = await response.json();
-            setWeather(data);
-          } catch (error) {
-            console.error('Weather fetch error:', error);
-            // Fallback to mock data if API fails
-            setWeather({
-              main: { temp: 45, feels_like: 42, humidity: 65 },
-              weather: [{ description: 'partly cloudy', icon: '02d' }],
-              wind: { speed: 8 },
-              visibility: 16093,
-              _isFallback: true
-            });
-          } finally {
-            setWeatherLoading(false);
-          }
-        };
-        fetchWeather();
-        const interval = setInterval(fetchWeather, CONSTANTS.REFRESH_INTERVALS.WEATHER);
+        const interval = setInterval(() => {
+          setCurrentTime(new Date());
+        }, CONSTANTS.CLOCK_INTERVAL);
         return () => clearInterval(interval);
       }, []);
 
-      // Drive time fetching with improved error handling
-      useEffect(() => {
-        const fetchDriveTime = async () => {
-          try {
-            setDriveLoading(true);
-            const apiKey = CONSTANTS.API_KEYS.GOOGLE_MAPS;
-            const routingPreference = avoidHighways ? 'TRAFFIC_AWARE_OPTIMAL' : 'TRAFFIC_AWARE';
-            
-            const morningRoute = {
-              origin: { location: { latLng: { latitude: config.locations.home.lat, longitude: config.locations.home.lng }}},
-              destination: { location: { latLng: { latitude: config.locations.garage.lat, longitude: config.locations.garage.lng }}},
-              travelMode: 'DRIVE',
-              routingPreference: routingPreference,
-              ...(avoidHighways && { routeModifiers: { avoidHighways: true }}),
-              computeAlternativeRoutes: false,
-              languageCode: 'en-US',
-              units: 'IMPERIAL'
-            };
-            
-            const eveningRoute = {
-              origin: { location: { latLng: { latitude: config.locations.garage.lat, longitude: config.locations.garage.lng }}},
-              destination: { location: { latLng: { latitude: config.locations.home.lat, longitude: config.locations.home.lng }}},
-              travelMode: 'DRIVE',
-              routingPreference: routingPreference,
-              ...(avoidHighways && { routeModifiers: { avoidHighways: true }}),
-              computeAlternativeRoutes: false,
-              languageCode: 'en-US',
-              units: 'IMPERIAL'
-            };
-            
-            const walkRoute = {
-              origin: { location: { latLng: { latitude: config.locations.garage.lat, longitude: config.locations.garage.lng }}},
-              destination: { location: { latLng: { latitude: config.locations.work.lat, longitude: config.locations.work.lng }}},
-              travelMode: 'WALK',
-              computeAlternativeRoutes: false,
-              languageCode: 'en-US',
-              units: 'IMPERIAL'
-            };
-            
-            const [morningRes, eveningRes, walkRes] = await Promise.all([
-              fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
-                body: JSON.stringify(morningRoute)
-              }),
-              fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
-                body: JSON.stringify(eveningRoute)
-              }),
-              fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
-                body: JSON.stringify(walkRoute)
-              })
-            ]);
-            
-            const morningData = await morningRes.json();
-            const eveningData = await eveningRes.json();
-            const walkData = await walkRes.json();
-            
-            if (morningData.routes && morningData.routes.length > 0) {
-              const morningDuration = parseInt(morningData.routes[0].duration.replace('s', ''));
-              const morningDistance = morningData.routes[0].distanceMeters;
-              const eveningDuration = parseInt(eveningData.routes[0].duration.replace('s', ''));
-              const eveningDistance = eveningData.routes[0].distanceMeters;
-              const walkDuration = parseInt(walkData.routes[0].duration.replace('s', ''));
-              const walkDistance = walkData.routes[0].distanceMeters;
-              
-              setDriveData({
-                morning: {
-                  duration: { text: `${Math.round(morningDuration / 60)} mins`, value: morningDuration },
-                  distance: { text: `${(morningDistance * 0.000621371).toFixed(1)} mi` }
-                },
-                evening: {
-                  duration: { text: `${Math.round(eveningDuration / 60)} mins`, value: eveningDuration },
-                  distance: { text: `${(eveningDistance * 0.000621371).toFixed(1)} mi` }
-                },
-                walk: {
-                  duration: { text: `${Math.round(walkDuration / 60)} mins`, value: walkDuration },
-                  distance: { text: `${(walkDistance * 0.000621371).toFixed(1)} mi` }
-                }
-              });
-            } else {
-              throw new Error('No routes returned');
-            }
-          } catch (error) {
-            console.error('Drive time error:', error);
-            const hour = currentTime.getHours();
-            let trafficMultiplier = 1;
-            if (hour >= 7 && hour <= 9) trafficMultiplier = 1.3;
-            else if (hour >= 16 && hour <= 18) trafficMultiplier = 1.4;
+      // Fetch weather
+      const fetchWeather = useCallback(async () => {
+        try {
+          setLoading(prev => ({ ...prev, weather: true }));
+          const response = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${config.weather.lat}&lon=${config.weather.lon}&appid=${CONSTANTS.API_KEYS.OPENWEATHER}&units=imperial`
+          );
+          const data = await response.json();
+          setWeather(data);
+        } catch (error) {
+          console.error('Weather error:', error);
+          setWeather({
+            main: { temp: 72, feels_like: 70, humidity: 50 },
+            weather: [{ description: 'clear sky', icon: '01d' }],
+            wind: { speed: 5 },
+            _isFallback: true
+          });
+        } finally {
+          setLoading(prev => ({ ...prev, weather: false }));
+        }
+      }, []);
+
+      // Fetch drive times
+      const fetchDriveTimes = useCallback(async () => {
+        try {
+          setLoading(prev => ({ ...prev, drive: true }));
+          const apiKey = CONSTANTS.API_KEYS.GOOGLE_MAPS;
+          const routingPreference = avoidHighways ? 'TRAFFIC_AWARE_OPTIMAL' : 'TRAFFIC_AWARE';
+
+          const morningRoute = {
+            origin: { location: { latLng: { latitude: config.locations.home.lat, longitude: config.locations.home.lng }}},
+            destination: { location: { latLng: { latitude: config.locations.garage.lat, longitude: config.locations.garage.lng }}},
+            travelMode: 'DRIVE',
+            routingPreference: routingPreference,
+            ...(avoidHighways && { routeModifiers: { avoidHighways: true }}),
+            computeAlternativeRoutes: false,
+            languageCode: 'en-US',
+            units: 'IMPERIAL'
+          };
+
+          const eveningRoute = {
+            origin: { location: { latLng: { latitude: config.locations.garage.lat, longitude: config.locations.garage.lng }}},
+            destination: { location: { latLng: { latitude: config.locations.home.lat, longitude: config.locations.home.lng }}},
+            travelMode: 'DRIVE',
+            routingPreference: routingPreference,
+            ...(avoidHighways && { routeModifiers: { avoidHighways: true }}),
+            computeAlternativeRoutes: false,
+            languageCode: 'en-US',
+            units: 'IMPERIAL'
+          };
+
+          const walkRoute = {
+            origin: { location: { latLng: { latitude: config.locations.garage.lat, longitude: config.locations.garage.lng }}},
+            destination: { location: { latLng: { latitude: config.locations.work.lat, longitude: config.locations.work.lng }}},
+            travelMode: 'WALK',
+            computeAlternativeRoutes: false,
+            languageCode: 'en-US',
+            units: 'IMPERIAL'
+          };
+
+          const [morningRes, eveningRes, walkRes] = await Promise.all([
+            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
+              body: JSON.stringify(morningRoute)
+            }),
+            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
+              body: JSON.stringify(eveningRoute)
+            }),
+            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
+              body: JSON.stringify(walkRoute)
+            })
+          ]);
+
+          const morningData = await morningRes.json();
+          const eveningData = await eveningRes.json();
+          const walkData = await walkRes.json();
+
+          if (morningData.routes && morningData.routes.length > 0) {
+            const morningDuration = parseInt(morningData.routes[0].duration.replace('s', ''));
+            const morningDistance = morningData.routes[0].distanceMeters;
+            const eveningDuration = parseInt(eveningData.routes[0].duration.replace('s', ''));
+            const eveningDistance = eveningData.routes[0].distanceMeters;
+            const walkDuration = parseInt(walkData.routes[0].duration.replace('s', ''));
+            const walkDistance = walkData.routes[0].distanceMeters;
 
             setDriveData({
-              morning: { duration: { text: `${Math.round(30 * trafficMultiplier)} mins`, value: 1800 * trafficMultiplier }, distance: { text: '14.2 mi' }},
-              evening: { duration: { text: `${Math.round(30 * trafficMultiplier)} mins`, value: 1800 * trafficMultiplier }, distance: { text: '14.2 mi' }},
-              walk: { duration: { text: '8 mins', value: 480 }, distance: { text: '0.4 mi' }},
-              _isFallback: true
+              morning: {
+                duration: { text: `${Math.round(morningDuration / 60)} mins`, value: morningDuration },
+                distance: { text: `${(morningDistance * 0.000621371).toFixed(1)} mi` }
+              },
+              evening: {
+                duration: { text: `${Math.round(eveningDuration / 60)} mins`, value: eveningDuration },
+                distance: { text: `${(eveningDistance * 0.000621371).toFixed(1)} mi` }
+              },
+              walk: {
+                duration: { text: `${Math.round(walkDuration / 60)} mins`, value: walkDuration },
+                distance: { text: `${(walkDistance * 0.000621371).toFixed(1)} mi` }
+              }
             });
-          } finally {
-            setDriveLoading(false);
+          } else {
+            throw new Error('No routes returned');
           }
-        };
+        } catch (error) {
+          console.error('Drive time error:', error);
+          setDriveData({
+            morning: { duration: { text: '30 mins', value: 1800 }, distance: { text: '14.2 mi' }},
+            evening: { duration: { text: '30 mins', value: 1800 }, distance: { text: '14.2 mi' }},
+            walk: { duration: { text: '8 mins', value: 480 }, distance: { text: '0.4 mi' }},
+            _isFallback: true
+          });
+        } finally {
+          setLoading(prev => ({ ...prev, drive: false }));
+        }
+      }, [avoidHighways]);
 
-        fetchDriveTime();
-        const interval = setInterval(fetchDriveTime, CONSTANTS.REFRESH_INTERVALS.DRIVE);
-        return () => clearInterval(interval);
-      }, [avoidHighways, currentTime.getHours()]);
+      // Fetch transit data
+      const fetchTransitData = useCallback(async () => {
+        try {
+          setLoading(prev => ({ ...prev, transit: true }));
+          const apiEndpoint = 'https://rtd-n-line-api.onrender.com/api/rtd/arrivals';
 
-      // Fetch BOTH directions of transit data
+          const [sbResponse, nbResponse] = await Promise.all([
+            fetch(`${apiEndpoint}/${config.rtdStops.southbound}?t=${Date.now()}`, {
+              method: 'GET',
+              mode: 'cors',
+              cache: 'no-cache',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              signal: AbortSignal.timeout(30000)
+            }),
+            fetch(`${apiEndpoint}/${config.rtdStops.northbound}?t=${Date.now()}`, {
+              method: 'GET',
+              mode: 'cors',
+              cache: 'no-cache',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              signal: AbortSignal.timeout(30000)
+            })
+          ]);
+
+          const sbData = await sbResponse.json();
+          const nbData = await nbResponse.json();
+
+          // Process southbound
+          let sbTrains = [];
+          if (sbData.arrivals && Array.isArray(sbData.arrivals) && sbData.arrivals.length > 0) {
+            const filteredSB = sbData.arrivals.filter(arrival => {
+              const isNLine = arrival.routeId === '117N' || arrival.route === 'N Line';
+              return isNLine && arrival.directionId === 1;
+            });
+
+            sbTrains = filteredSB.slice(0, 3).map(arrival => {
+              let arrivalTimestamp = null;
+              let displayTime = arrival.arrivalTimeFormatted;
+              let delayMinutes = 0;
+
+              if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
+                arrivalTimestamp = arrival.arrivalTime * 1000;
+                const arrivalDate = new Date(arrivalTimestamp);
+                displayTime = arrivalDate.toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                });
+
+                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
+                }
+              }
+
+              return {
+                time: displayTime,
+                arrivalTimestamp: arrivalTimestamp,
+                delay: delayMinutes,
+                status: arrival.status || 'On Time'
+              };
+            });
+          }
+
+          // Process northbound
+          let nbTrains = [];
+          if (nbData.arrivals && Array.isArray(nbData.arrivals) && nbData.arrivals.length > 0) {
+            const filteredNB = nbData.arrivals.filter(arrival => {
+              const isNLine = arrival.routeId === '117N' || arrival.route === 'N Line';
+              return isNLine && arrival.directionId === 0;
+            });
+
+            nbTrains = filteredNB.slice(0, 3).map(arrival => {
+              let arrivalTimestamp = null;
+              let displayTime = arrival.arrivalTimeFormatted;
+              let delayMinutes = 0;
+
+              if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
+                arrivalTimestamp = arrival.arrivalTime * 1000;
+                const arrivalDate = new Date(arrivalTimestamp);
+                displayTime = arrivalDate.toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                });
+
+                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
+                }
+              }
+
+              return {
+                time: displayTime,
+                arrivalTimestamp: arrivalTimestamp,
+                delay: delayMinutes,
+                status: arrival.status || 'On Time'
+              };
+            });
+          }
+
+          setTransitDataSB(sbTrains);
+          setTransitDataNB(nbTrains);
+        } catch (error) {
+          console.error('Transit error:', error);
+          setTransitDataSB([]);
+          setTransitDataNB([]);
+        } finally {
+          setLoading(prev => ({ ...prev, transit: false }));
+        }
+      }, []);
+
+      // Fetch today's tasks and events from planner
+      const fetchTodaySchedule = useCallback(async () => {
+        if (!plannerToken) return;
+
+        try {
+          setLoading(prev => ({ ...prev, tasks: true }));
+          const response = await fetch(`https://rtd-n-line-api.onrender.com/api/planner/today/${plannerToken}`);
+          const data = await response.json();
+
+          if (data.tasks) setTodayTasks(data.tasks);
+          if (data.events) setTodayEvents(data.events);
+        } catch (error) {
+          console.error('Schedule fetch error:', error);
+          setTodayTasks([]);
+          setTodayEvents([]);
+        } finally {
+          setLoading(prev => ({ ...prev, tasks: false }));
+        }
+      }, [plannerToken]);
+
+      // Search location drive times
+      const searchDriveTimes = useCallback(async () => {
+        if (!searchFrom || !searchTo) return;
+
+        try {
+          setLoading(prev => ({ ...prev, search: true }));
+          const apiKey = CONSTANTS.API_KEYS.GOOGLE_MAPS;
+
+          const routeWithHighway = {
+            origin: { location: { latLng: { latitude: parseFloat(searchFrom.split(',')[0]), longitude: parseFloat(searchFrom.split(',')[1]) }}},
+            destination: { location: { latLng: { latitude: parseFloat(searchTo.split(',')[0]), longitude: parseFloat(searchTo.split(',')[1]) }}},
+            travelMode: 'DRIVE',
+            routingPreference: 'TRAFFIC_AWARE',
+            computeAlternativeRoutes: false,
+            languageCode: 'en-US',
+            units: 'IMPERIAL'
+          };
+
+          const routeNoHighway = {
+            ...routeWithHighway,
+            routeModifiers: { avoidHighways: true }
+          };
+
+          const [withHighwayRes, noHighwayRes] = await Promise.all([
+            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters' },
+              body: JSON.stringify(routeWithHighway)
+            }),
+            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters' },
+              body: JSON.stringify(routeNoHighway)
+            })
+          ]);
+
+          const withHighwayData = await withHighwayRes.json();
+          const noHighwayData = await noHighwayRes.json();
+
+          if (withHighwayData.routes && withHighwayData.routes.length > 0) {
+            const withHighwayDuration = parseInt(withHighwayData.routes[0].duration.replace('s', ''));
+            const withHighwayDistance = withHighwayData.routes[0].distanceMeters;
+            const noHighwayDuration = parseInt(noHighwayData.routes[0].duration.replace('s', ''));
+            const noHighwayDistance = noHighwayData.routes[0].distanceMeters;
+
+            setSearchResults({
+              withHighway: {
+                duration: `${Math.round(withHighwayDuration / 60)} mins`,
+                distance: `${(withHighwayDistance * 0.000621371).toFixed(1)} mi`
+              },
+              noHighway: {
+                duration: `${Math.round(noHighwayDuration / 60)} mins`,
+                distance: `${(noHighwayDistance * 0.000621371).toFixed(1)} mi`
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Search error:', error);
+          setSearchResults({ error: 'Unable to calculate route' });
+        } finally {
+          setLoading(prev => ({ ...prev, search: false }));
+        }
+      }, [searchFrom, searchTo]);
+
+      // Initial data fetch
       useEffect(() => {
-        const fetchTransitData = async () => {
-          const startTime = Date.now();
-          
-          try {
-            setTransitStatus({ 
-              status: 'loading', 
-              message: 'Fetching train data...', 
-              lastUpdate: transitStatus.lastUpdate 
-            });
-            
-            const [sbResponse, nbResponse] = await Promise.all([
-              fetch(`${apiEndpoint}/${rtdStops.southbound}?t=${Date.now()}`, {
-                method: 'GET',
-                mode: 'cors',
-                cache: 'no-cache',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(30000)
-              }),
-              fetch(`${apiEndpoint}/${rtdStops.northbound}?t=${Date.now()}`, {
-                method: 'GET',
-                mode: 'cors',
-                cache: 'no-cache',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(30000)
-              })
-            ]);
-            
-            const loadTime = Date.now() - startTime;
-            
-            if (loadTime > 5000) {
-              setTransitStatus({ 
-                status: 'waking', 
-                message: `Server woke up in ${Math.round(loadTime/1000)}s`, 
-                lastUpdate: new Date() 
-              });
-            }
-            
-            if (!sbResponse.ok || !nbResponse.ok) throw new Error(`HTTP ${sbResponse.status}`);
-            
-            const sbData = await sbResponse.json();
-            const nbData = await nbResponse.json();
-            
-            let sbTrains = [];
-            if (sbData.arrivals && Array.isArray(sbData.arrivals) && sbData.arrivals.length > 0) {
-              const filteredSB = sbData.arrivals.filter(arrival => {
-                const isNLine = arrival.routeId === '117N' || arrival.route === 'N Line';
-                return isNLine && arrival.directionId === 1;
-              });
-              
-              sbTrains = filteredSB.slice(0, 3).map(arrival => {
-                let arrivalTimestamp = null;
-                let displayTime = arrival.arrivalTimeFormatted;
-                let delayMinutes = 0;
-                let statusText = arrival.status || 'On Time';
-                
-                if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
-                  arrivalTimestamp = arrival.arrivalTime * 1000;
-                  const arrivalDate = new Date(arrivalTimestamp);
-                  displayTime = arrivalDate.toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit',
-                    hour12: true 
-                  });
-                  
-                  if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
-                    const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
-                    delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-                  } else if (statusText && statusText.toLowerCase().includes('delay')) {
-                    const delayMatch = statusText.match(/(\d+)\s*min/i);
-                    if (delayMatch) {
-                      delayMinutes = parseInt(delayMatch[1]);
-                    }
-                  }
-                }
-                
-                return {
-                  time: displayTime,
-                  arrivalTimestamp: arrivalTimestamp,
-                  delay: delayMinutes,
-                  status: statusText,
-                  vehicleId: arrival.vehicleId
-                };
-              });
-            }
-            
-            let nbTrains = [];
-            if (nbData.arrivals && Array.isArray(nbData.arrivals) && nbData.arrivals.length > 0) {
-              const filteredNB = nbData.arrivals.filter(arrival => {
-                const isNLine = arrival.routeId === '117N' || arrival.route === 'N Line';
-                return isNLine && arrival.directionId === 0;
-              });
-              
-              nbTrains = filteredNB.slice(0, 3).map(arrival => {
-                let arrivalTimestamp = null;
-                let displayTime = arrival.arrivalTimeFormatted;
-                let delayMinutes = 0;
-                let statusText = arrival.status || 'On Time';
-                
-                if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
-                  arrivalTimestamp = arrival.arrivalTime * 1000;
-                  const arrivalDate = new Date(arrivalTimestamp);
-                  displayTime = arrivalDate.toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit',
-                    hour12: true 
-                  });
-                  
-                  if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
-                    const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
-                    delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-                  } else if (statusText && statusText.toLowerCase().includes('delay')) {
-                    const delayMatch = statusText.match(/(\d+)\s*min/i);
-                    if (delayMatch) {
-                      delayMinutes = parseInt(delayMatch[1]);
-                    }
-                  }
-                }
-                
-                return {
-                  time: displayTime,
-                  arrivalTimestamp: arrivalTimestamp,
-                  delay: delayMinutes,
-                  status: statusText,
-                  vehicleId: arrival.vehicleId
-                };
-              });
-            }
-            
-            setTransitDataSB(sbTrains.length > 0 ? sbTrains : null);
-            setTransitDataNB(nbTrains.length > 0 ? nbTrains : null);
-            setTransitStatus({ 
-              status: 'live', 
-              message: `Live data • ${sbTrains.length} SB, ${nbTrains.length} NB trains`, 
-              lastUpdate: new Date() 
-            });
-            
-          } catch (error) {
-            console.error('Transit error:', error);
-            setTransitStatus({ 
-              status: 'error', 
-              message: `Error: ${error.message}`, 
-              lastUpdate: transitStatus.lastUpdate 
-            });
-            
-            const now = new Date();
-            const currentMinutes = now.getHours() * 60 + now.getMinutes();
-            const sbSchedule = [405, 425, 445, 465, 485, 505, 525, 545, 565];
-            const nbSchedule = [1020, 1040, 1060, 1080, 1100, 1120, 1140];
-            
-            const sbTrains = sbSchedule.filter(m => m > currentMinutes).slice(0, 3).map(minutes => {
-              const trainTime = new Date(now);
-              trainTime.setHours(Math.floor(minutes / 60), minutes % 60, 0);
-              return {
-                time: trainTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                arrivalTimestamp: trainTime.getTime(),
-                delay: 0,
-                status: 'Estimated (API Offline)'
-              };
-            });
-            
-            const nbTrains = nbSchedule.filter(m => m > currentMinutes).slice(0, 3).map(minutes => {
-              const trainTime = new Date(now);
-              trainTime.setHours(Math.floor(minutes / 60), minutes % 60, 0);
-              return {
-                time: trainTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                arrivalTimestamp: trainTime.getTime(),
-                delay: 0,
-                status: 'Estimated (API Offline)'
-              };
-            });
-            
-            setTransitDataSB(sbTrains.length > 0 ? sbTrains : null);
-            setTransitDataNB(nbTrains.length > 0 ? nbTrains : null);
-          }
-        };
-
-        fetchTransitData();
-        const interval = setInterval(fetchTransitData, CONSTANTS.REFRESH_INTERVALS.TRANSIT);
-        return () => clearInterval(interval);
-      }, [apiEndpoint]);
-
-      // Manual refresh handlers
-      const handleRefreshWeather = useCallback(() => {
-        const fetchWeather = async () => {
-          try {
-            setWeatherLoading(true);
-            const response = await fetch(
-              `https://api.openweathermap.org/data/2.5/weather?lat=${config.weather.lat}&lon=${config.weather.lon}&appid=${CONSTANTS.API_KEYS.OPENWEATHER}&units=imperial`,
-              { signal: AbortSignal.timeout(CONSTANTS.TIMEOUTS.API) }
-            );
-            if (!response.ok) throw new Error(`Weather API error: ${response.status}`);
-            const data = await response.json();
-            setWeather(data);
-          } catch (error) {
-            console.error('Weather fetch error:', error);
-          } finally {
-            setWeatherLoading(false);
-          }
-        };
         fetchWeather();
-      }, []);
+        fetchDriveTimes();
+        fetchTransitData();
+        if (plannerToken) fetchTodaySchedule();
+      }, [fetchWeather, fetchDriveTimes, fetchTransitData, fetchTodaySchedule]);
 
-      const handleRefreshTransit = useCallback(() => {
-        window.location.reload();
-      }, []);
-
-      // Clock update
+      // 15-minute refresh for weather and drive times
       useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), CONSTANTS.REFRESH_INTERVALS.CLOCK);
-        return () => clearInterval(timer);
-      }, []);
+        const interval = setInterval(() => {
+          fetchWeather();
+          fetchDriveTimes();
+          if (plannerToken) fetchTodaySchedule();
+          setLastRefresh(new Date());
+        }, CONSTANTS.REFRESH_INTERVAL);
+        return () => clearInterval(interval);
+      }, [fetchWeather, fetchDriveTimes, fetchTodaySchedule, plannerToken]);
 
-      const themeColors = {
-        light: {
-          morning: 'from-orange-50 to-yellow-50',
-          workday: 'from-blue-50 to-slate-50',
-          evening: 'from-purple-50 to-indigo-50',
-          weekend: 'from-green-50 to-teal-50'
-        },
-        dark: {
-          morning: 'from-gray-900 to-gray-800',
-          workday: 'from-slate-900 to-slate-800',
-          evening: 'from-gray-900 to-indigo-950',
-          weekend: 'from-slate-900 to-gray-800'
-        }
+      // 1-minute refresh for transit (needs more frequent updates)
+      useEffect(() => {
+        const interval = setInterval(() => {
+          fetchTransitData();
+        }, CONSTANTS.TRANSIT_INTERVAL);
+        return () => clearInterval(interval);
+      }, [fetchTransitData]);
+
+      // Manual refresh all
+      const handleManualRefresh = () => {
+        fetchWeather();
+        fetchDriveTimes();
+        fetchTransitData();
+        if (plannerToken) fetchTodaySchedule();
+        setLastRefresh(new Date());
       };
 
-      const currentTheme = isDarkMode ? themeColors.dark[timeMode] : themeColors.light[timeMode];
-      const textColor = isDarkMode ? 'text-white' : 'text-gray-800';
+      // Theme colors
+      const theme = isDarkMode
+        ? 'from-gray-900 to-gray-800 text-white'
+        : 'from-gray-50 to-gray-100 text-gray-900';
       const cardBg = isDarkMode ? 'bg-gray-800' : 'bg-white';
+      const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
       const textMuted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
+      const borderColor = isDarkMode ? 'border-gray-700' : 'border-gray-200';
 
-      const isFriday = currentTime.getDay() === 5;
-      const leaveTime = isFriday ? '4:30 PM' : '5:30 PM';
-      const totalMorningMinutes = driveData ? (driveData.morning.duration.value + driveData.walk.duration.value) / 60 : 23;
-      const leaveByTime = calculateLeaveByTime('07:30', totalMorningMinutes);
+      // Render train card
+      const renderTrainCard = (train, idx) => {
+        if (!train.arrivalTimestamp) return null;
 
-      const getDelayColor = (delayMinutes) => {
-        if (delayMinutes <= 0) return 'green';
-        if (delayMinutes <= 3) return 'yellow';
-        return 'red';
-      };
+        const now = Date.now();
+        const minutesUntil = Math.round((train.arrivalTimestamp - now) / 60000);
 
-      // Memoized train card rendering for performance
-      const renderTrainCard = useCallback((train, idx, isPrimary = true, isNorthbound = false) => {
-        let countdown = 0;
-        let countdownSeconds = 0;
-        if (train.arrivalTimestamp) {
-          const totalSeconds = (train.arrivalTimestamp - currentTime.getTime()) / 1000;
-          countdown = totalSeconds / 60;
-          countdownSeconds = Math.floor(Math.abs(totalSeconds % 60));
-        }
+        let urgencyColor = isDarkMode ? 'bg-gray-700' : 'bg-gray-100';
+        if (minutesUntil <= 5) urgencyColor = isDarkMode ? 'bg-red-900 bg-opacity-30' : 'bg-red-50';
+        else if (minutesUntil <= 10) urgencyColor = isDarkMode ? 'bg-orange-900 bg-opacity-30' : 'bg-orange-50';
+        else if (minutesUntil <= 15) urgencyColor = isDarkMode ? 'bg-yellow-900 bg-opacity-30' : 'bg-yellow-50';
 
-        let displayCountdown = countdown;
+        let delayColor = 'bg-green-100 text-green-700';
+        if (train.delay > 3) delayColor = 'bg-red-100 text-red-700';
+        else if (train.delay > 0) delayColor = 'bg-yellow-100 text-yellow-700';
 
-        const isPast = countdown < CONSTANTS.DEPARTED_THRESHOLD_MINUTES;
-        const isNext = !isPast && idx === 0 && isPrimary;
-        const isDeparting = displayCountdown <= CONSTANTS.DEPARTING_THRESHOLD_MINUTES && displayCountdown > CONSTANTS.DEPARTED_THRESHOLD_MINUTES;
-        const isUrgent = displayCountdown <= CONSTANTS.TRAIN_URGENT_MINUTES && displayCountdown > CONSTANTS.DEPARTING_THRESHOLD_MINUTES;
-        const isArriving = displayCountdown <= CONSTANTS.TRAIN_ARRIVING_MINUTES && displayCountdown > CONSTANTS.TRAIN_URGENT_MINUTES;
-        const showArrivingMessage = isArriving && Math.floor(currentTime.getSeconds() / 10) % 2 === 0;
-
-        const delayColor = getDelayColor(train.delay);
-        
         return (
-          <div 
-            key={idx}
-            className={`p-4 rounded-xl border-2 transition-all ${
-              isPast 
-                ? isDarkMode ? 'bg-gray-900 border-gray-700 opacity-50' : 'bg-gray-50 border-gray-200 opacity-50'
-                : isDeparting
-                ? 'bg-red-100 border-red-500 shadow-lg animate-pulse'
-                : isUrgent 
-                ? isDarkMode ? 'bg-red-900 bg-opacity-50 border-red-600 shadow-lg animate-pulse' : 'bg-red-50 border-red-400 shadow-lg animate-pulse'
-                : isNext 
-                ? isDarkMode ? 'bg-indigo-900 bg-opacity-50 border-indigo-500 shadow-md' : 'bg-gradient-to-r from-indigo-100 to-purple-100 border-indigo-400 shadow-md'
-                : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-slate-50 border-slate-200'
-            }`}
-          >
-            <div className="flex items-center justify-between">
+          <div key={idx} className={`p-4 rounded-xl ${urgencyColor} border ${borderColor}`}>
+            <div className="flex justify-between items-center">
               <div>
-                <p className={`text-2xl font-bold ${
-                  isPast ? 'text-gray-400' 
-                  : isDeparting ? 'text-red-900' 
-                  : isUrgent ? isDarkMode ? 'text-red-300' : 'text-red-800'
-                  : isNext ? isDarkMode ? 'text-indigo-300' : 'text-indigo-900'
-                  : isDarkMode ? 'text-gray-200' : 'text-slate-800'
-                }`}>
-                  {train.time}
+                <p className={`text-2xl font-bold ${textColor}`}>
+                  {minutesUntil < 0 ? 'Departed' : minutesUntil === 0 ? 'Now' : `${minutesUntil} min`}
                 </p>
-                <div className="flex items-center gap-2">
-                  <p className={`text-sm font-medium ${
-                    isPast ? 'text-gray-400' 
-                    : isDeparting ? 'text-red-700' 
-                    : isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
-                    : isArriving ? isDarkMode ? 'text-yellow-400' : 'text-yellow-700'
-                    : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
-                    : isDarkMode ? 'text-gray-400' : 'text-slate-600'
-                  }`}>
-                    {isPast ? 'Departed' 
-                    : isDeparting ? '🚨 DEPARTING NOW'
-                    : isUrgent ? (isNorthbound ? '⚠️ DEPARTS SOON!' : '⚠️ TRAIN ARRIVING SOON!')
-                    : showArrivingMessage ? (isNorthbound ? '⚠️ DEPARTS SOON' : '⚠️ TRAIN ARRIVING SOON')
-                    : isNext ? '🚆 Next train' 
-                    : `Train ${idx + 1}`}
-                  </p>
-                  
-                  {!isPast && (
-                    <span className={`text-xs px-2 py-0.5 rounded font-semibold ${
-                      delayColor === 'green' ? 'bg-green-100 text-green-700' :
-                      delayColor === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                      {train.delay === 0 ? 'On Time' : train.delay > 0 ? `+${train.delay} min` : `${train.delay} min`}
-                    </span>
-                  )}
-                  
-                  {train.status && train.status !== 'On Time' && !isPast && (
-                    <span className={`text-xs px-2 py-0.5 rounded ${isDarkMode ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {train.status}
-                    </span>
-                  )}
-                </div>
+                <p className={`text-sm ${textMuted}`}>{train.time}</p>
               </div>
               <div className="text-right">
-                {!isPast && !isDeparting && (
-                  <div className="flex flex-col items-end">
-                    <div className="flex items-baseline justify-end gap-1">
-                      <p className={`text-3xl font-bold ${
-                        isUrgent ? isDarkMode ? 'text-red-300' : 'text-red-800'
-                        : isArriving ? isDarkMode ? 'text-yellow-400' : 'text-yellow-700'
-                        : isNext ? isDarkMode ? 'text-indigo-300' : 'text-indigo-900'
-                        : isDarkMode ? 'text-gray-300' : 'text-slate-700'
-                      }`}>
-                        {Math.floor(Math.abs(displayCountdown))}
-                      </p>
-                      <p className={`text-lg font-medium ${
-                        isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
-                        : isArriving ? isDarkMode ? 'text-yellow-500' : 'text-yellow-600'
-                        : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
-                        : isDarkMode ? 'text-gray-400' : 'text-slate-600'
-                      }`}>
-                        :{Math.floor(Math.abs((displayCountdown % 1) * 60)).toString().padStart(2, '0')}
-                      </p>
-                    </div>
-                    <p className={`text-sm ${
-                      isUrgent ? isDarkMode ? 'text-red-400' : 'text-red-700'
-                      : isArriving ? isDarkMode ? 'text-yellow-500' : 'text-yellow-600'
-                      : isNext ? isDarkMode ? 'text-indigo-400' : 'text-indigo-700'
-                      : isDarkMode ? 'text-gray-400' : 'text-slate-600'
-                    }`}>
-                      minutes
-                    </p>
-                  </div>
-                )}
-                {isDeparting && (
-                  <div className="flex flex-col items-center">
-                    <svg className="w-10 h-10 text-red-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <p className="text-xs text-red-700 font-bold mt-1">GO NOW!</p>
-                  </div>
-                )}
+                <span className={`px-2 py-1 rounded text-xs font-semibold ${delayColor}`}>
+                  {train.delay > 0 ? `+${train.delay} min` : 'On Time'}
+                </span>
               </div>
             </div>
           </div>
         );
-      }, [currentTime, isDarkMode]);
-
-      if (!weather || !driveData || (!transitDataSB && !transitDataNB)) {
-        return (
-          <div className={`min-h-screen bg-gradient-to-br ${currentTheme} flex items-center justify-center p-4`}>
-            <div className="text-center max-w-md w-full">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-              <div className={`text-xl ${textColor} mb-4`}>Loading your commute data...</div>
-              <div className={`${cardBg} rounded-xl p-6 space-y-3`}>
-                <div className="h-4 bg-gray-300 rounded skeleton"></div>
-                <div className="h-4 bg-gray-300 rounded skeleton w-3/4"></div>
-                <div className="h-4 bg-gray-300 rounded skeleton w-1/2"></div>
-              </div>
-            </div>
-          </div>
-        );
-      }
+      };
 
       return (
-        <div className={`min-h-screen bg-gradient-to-br ${currentTheme} p-3 sm:p-6 transition-all duration-1000`}>
+        <div className={`min-h-screen bg-gradient-to-br ${theme} p-4 sm:p-6`}>
           <div className="max-w-6xl mx-auto">
-            <div className="mb-6 sm:mb-8">
-              <div className="mb-4">
-                <h1 className={`text-2xl sm:text-4xl font-bold ${textColor} mb-2`}>
-                  {timeMode === 'morning' && '🌅 Good Morning'}
-                  {timeMode === 'workday' && '💼 Work Mode'}
-                  {timeMode === 'evening' && '🌆 Evening Commute'}
-                  {timeMode === 'weekend' && '☀️ Weekend'}
-                </h1>
-                <p className={`text-base sm:text-xl ${textMuted}`}>
-                  {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} • {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 text-sm sm:text-base">
-                <div className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-medium flex items-center gap-2 ${
-                  notificationsEnabled
-                    ? 'bg-green-100 text-green-800 border border-green-300'
-                    : 'bg-gray-200 text-gray-600 border border-gray-300'
-                }`}>
-                  <span>{notificationsEnabled ? '🔔' : '🔕'}</span>
-                  <span className="text-xs font-semibold">
-                    {notificationsEnabled ? 'Alerts On' : 'Alerts Off'}
-                  </span>
+            {/* Header */}
+            <div className={`${cardBg} rounded-2xl shadow-xl p-6 mb-6 border ${borderColor}`}>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <div>
+                  <h1 className={`text-3xl sm:text-4xl font-bold ${textColor} mb-2`}>
+                    Taskify || Commute Dashboard
+                  </h1>
+                  <p className={`text-lg ${textMuted}`}>
+                    {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} • {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <div className="mt-2">
+                    <p className={`text-xl font-semibold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                      {greeting.timeGreeting} • {greeting.contextGreeting}
+                    </p>
+                  </div>
                 </div>
+
+                {/* Weather widget in header */}
+                {weather && !weather._isFallback && (
+                  <div className={`flex items-center gap-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} px-4 py-3 rounded-xl`}>
+                    <img src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@2x.png`} alt={weather.weather[0].description} className="w-16 h-16" />
+                    <div>
+                      <p className={`text-3xl font-bold ${textColor}`}>{Math.round(weather.main.temp)}°F</p>
+                      <p className={`text-sm ${textMuted} capitalize`}>{weather.weather[0].description}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Controls */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleManualRefresh}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+                  aria-label="Refresh all data"
+                >
+                  <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh Now
+                </button>
 
                 <button
                   onClick={() => setIsDarkMode(!isDarkMode)}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-all ${
-                    isDarkMode
-                      ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400'
-                      : 'bg-gray-800 text-white hover:bg-gray-700'
-                  }`}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${isDarkMode ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
                   aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-                  title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
                   {isDarkMode ? '☀️ Light' : '🌙 Dark'}
                 </button>
-                
-                {timeMode === 'morning' && (
-                  <button
-                    onClick={() => setManualMode('evening')}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-all"
-                    aria-label="Switch to evening mode"
-                    title="View evening commute information"
-                  >
-                    🌆 <span className="hidden sm:inline">Switch to </span>Evening
-                  </button>
-                )}
 
-                {timeMode === 'evening' && (
-                  <button
-                    onClick={() => setManualMode('morning')}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-all"
-                    aria-label="Switch to morning mode"
-                    title="View morning commute information"
-                  >
-                    🌅 <span className="hidden sm:inline">Switch to </span>Morning
-                  </button>
-                )}
-
-                {timeMode === 'workday' && (
-                  <button
-                    onClick={() => setShowCommuteInfo(!showCommuteInfo)}
-                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-all ${
-                      showCommuteInfo
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-green-600 text-white hover:bg-green-700'
-                    }`}
-                    aria-label={showCommuteInfo ? 'Hide commute information' : 'Show commute information'}
-                    aria-pressed={showCommuteInfo}
-                  >
-                    {showCommuteInfo ? '💼 Hide' : '👁️ Show'}<span className="hidden sm:inline"> Commute</span>
-                  </button>
-                )}
+                <div className={`px-3 py-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} ${textMuted} text-sm`}>
+                  Last refresh: {lastRefresh.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                </div>
               </div>
             </div>
 
-            <div className={`${cardBg} rounded-2xl shadow-xl p-6 mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
-              <div className="flex items-center gap-3 mb-6">
-                <svg className={`w-8 h-8 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
-                <h2 className={`text-2xl font-bold ${textColor}`}>Today's Schedule</h2>
+            {/* Navigation Tabs */}
+            <div className={`${cardBg} rounded-2xl shadow-xl p-2 mb-6 border ${borderColor}`}>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setActiveTab('drive')}
+                  className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'drive'
+                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  🚗 Drive Time
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('nline')}
+                  className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'nline'
+                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  🚆 N Line Schedule
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('schedule')}
+                  className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'schedule'
+                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  📅 Today's Schedule
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('search')}
+                  className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'search'
+                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  🔍 Search Locator
+                </button>
               </div>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  {timeMode === 'morning' && (
-                    <div className="space-y-4">
-                      <div className={`border-l-4 border-orange-500 p-4 rounded ${isDarkMode ? 'bg-orange-900 bg-opacity-30' : 'bg-orange-50'}`}>
-                        <p className={`text-sm font-semibold mb-1 ${isDarkMode ? 'text-orange-400' : 'text-orange-800'}`}>⏰ LEAVE BY</p>
-                        <p className={`text-3xl font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>{leaveByTime}</p>
-                        <p className={`text-xs mt-2 ${isDarkMode ? 'text-orange-400' : 'text-orange-700'}`}>Includes 10 min buffer + traffic</p>
-                      </div>
-                      <div className={`p-4 rounded ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                        <p className={`text-sm font-semibold mb-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>Recommended Arrival</p>
-                        <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>7:30 AM</p>
-                      </div>
-                      <div className={`p-4 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                        <p className={`text-sm ${textMuted}`}>Work Starts: <span className={`font-bold ${textColor}`}>8:00 AM</span></p>
-                        <p className={`text-sm ${textMuted}`}>Work Ends: <span className={`font-bold ${textColor}`}>{isFriday ? '4:30 PM' : '5:30 PM'}</span></p>
-                      </div>
-                      <div className={`p-3 rounded text-center ${isDarkMode ? 'bg-green-900 bg-opacity-30' : 'bg-green-50'}`}>
-                        <p className={`text-sm font-medium ${isDarkMode ? 'text-green-400' : 'text-green-800'}`}>💪 Time to get moving!</p>
-                      </div>
-                    </div>
-                  )}
-                  {timeMode === 'workday' && (
-                    <div className="space-y-4">
-                      <div className={`p-4 rounded ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                        <p className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>📍 Currently at Work</p>
-                        <p className={`text-lg ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>Work ends at <span className="font-bold">{isFriday ? '4:30 PM' : '5:30 PM'}</span></p>
-                      </div>
-                      <div className={`p-4 rounded text-center ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                        <p className="text-2xl mb-2">☕</p>
-                        <p className={`text-sm ${textMuted}`}>You're doing great!</p>
-                      </div>
-                    </div>
-                  )}
-                  {timeMode === 'evening' && (
-                    <div className="space-y-4">
-                      <div className={`border-l-4 border-purple-500 p-4 rounded ${isDarkMode ? 'bg-purple-900 bg-opacity-30' : 'bg-purple-50'}`}>
-                        <p className={`text-sm font-semibold mb-1 ${isDarkMode ? 'text-purple-400' : 'text-purple-800'}`}>🏠 Heading Home</p>
-                        <p className={`text-lg ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Leaving at <span className="font-bold">{leaveTime}</span></p>
-                      </div>
-                      <div className={`p-4 rounded ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                        <p className={`text-sm font-semibold mb-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>Expected Arrival</p>
-                        <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>
-                          {new Date(new Date().setHours(isFriday ? 16 : 17, isFriday ? 30 : 30) + (driveData?.evening?.duration?.value || 1080) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {timeMode === 'weekend' && (
-                    <div className={`p-6 rounded-xl text-center ${isDarkMode ? 'bg-green-900 bg-opacity-30' : 'bg-green-50'}`}>
-                      <p className="text-4xl mb-3">🎉</p>
-                      <p className={`text-xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-900'}`}>Enjoy your weekend!</p>
-                    </div>
-                  )}
-                </div>
-                <div className={`bg-gradient-to-br p-6 rounded-xl ${isDarkMode ? 'from-sky-900 to-blue-900' : 'from-sky-100 to-blue-100'}`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <svg className={`w-6 h-6 ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 15a4 4 0 104 4H3m18-4a4 4 0 11-4 4m0 0a5 5 0 015-5"></path></svg>
-                      <h3 className={`text-lg font-bold ${isDarkMode ? 'text-blue-100' : 'text-blue-900'}`}>Current Weather</h3>
-                    </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="slide-in">
+              {/* Drive Time Tab */}
+              {activeTab === 'drive' && (
+                <div className={`${cardBg} rounded-2xl shadow-xl p-6 border ${borderColor}`}>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className={`text-2xl font-bold ${textColor}`}>🚗 Drive Times</h2>
                     <button
-                      onClick={handleRefreshWeather}
-                      disabled={weatherLoading}
-                      className={`p-2 rounded-lg transition-all ${isDarkMode ? 'bg-blue-800 hover:bg-blue-700' : 'bg-blue-200 hover:bg-blue-300'} ${weatherLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      aria-label="Refresh weather data"
-                      title="Refresh weather"
+                      onClick={fetchDriveTimes}
+                      className={`px-3 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                      disabled={loading.drive}
                     >
-                      <svg className={`w-4 h-4 ${isDarkMode ? 'text-blue-200' : 'text-blue-800'} ${weatherLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
+                      {loading.drive ? '⏳' : '🔄'} Refresh
                     </button>
                   </div>
-                  {weather && (
-                    <div className="space-y-3">
-                      {weather._isFallback && (
-                        <div className={`mb-3 p-2 rounded text-xs ${isDarkMode ? 'bg-yellow-900 bg-opacity-30 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}>
-                          ⚠️ Using cached data - API unavailable
+
+                  {driveData && (
+                    <>
+                      {driveData._isFallback && (
+                        <div className={`p-3 rounded-lg mb-4 ${isDarkMode ? 'bg-yellow-900 bg-opacity-30 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}>
+                          <p className="text-sm">⚠️ Using estimated times - Google Maps API unavailable</p>
                         </div>
                       )}
-                      <div className="flex items-center justify-between">
-                        <span className={`text-5xl font-bold ${isDarkMode ? 'text-blue-100' : 'text-blue-900'}`}>{Math.round(weather.main.temp)}°F</span>
-                        <img src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@2x.png`} alt={weather.weather[0].description} className="w-20 h-20" />
-                      </div>
-                      <p className={`text-xl capitalize ${isDarkMode ? 'text-blue-200' : 'text-blue-800'}`}>{weather.weather[0].description}</p>
-                      <div className={`grid grid-cols-2 gap-2 text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
-                        <div>Feels like: <span className="font-semibold">{Math.round(weather.main.feels_like)}°F</span></div>
-                        <div>Humidity: <span className="font-semibold">{weather.main.humidity}%</span></div>
-                        <div>Wind: <span className="font-semibold">{Math.round(weather.wind.speed)} mph</span></div>
-                        <div>Visibility: <span className="font-semibold">{(weather.visibility / 1609).toFixed(1)} mi</span></div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            {/* TODAY'S TASKS WIDGET */}
-            <div className={`${cardBg} rounded-2xl shadow-xl overflow-hidden mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
-              <button
-                onClick={() => setTasksCollapsed(!tasksCollapsed)}
-                className={`w-full p-6 flex items-center justify-between transition-all ${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'}`}
-                aria-expanded={!tasksCollapsed}
-                aria-label={tasksCollapsed ? 'Expand tasks section' : 'Collapse tasks section'}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-500 p-3 rounded-xl">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 className={`text-2xl font-bold ${textColor}`}>Today's Tasks</h2>
-                    <p className={`text-sm ${textMuted}`}>Read-only snapshot from planner</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {plannerToken && (<span className={`text-sm ${textMuted}`}>{todayTasks.length} tasks</span>)}
-                  <svg className={`w-6 h-6 ${textColor} transition-transform ${!tasksCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </button>
-
-              {!tasksCollapsed && (
-                <div className="px-6 pb-6">
-                  {!plannerToken ? (
-                    <div className={`text-center py-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} rounded-xl`}>
-                      {!showTokenInput ? (
-                        <>
-                          <p className={`text-lg mb-4 ${textColor}`}>Connect your planner to see today's tasks</p>
-                          <button
-                            onClick={() => setShowTokenInput(true)}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all"
-                          >
-                            🔗 Connect Planner
-                          </button>
-                        </>
-                      ) : (
-                        <div className="max-w-md mx-auto">
-                          <p className={`text-sm mb-3 ${textMuted}`}>Enter your planner sync token:</p>
-                          <input
-                            type="text"
-                            value={tokenInputValue}
-                            onChange={(e) => setTokenInputValue(e.target.value)}
-                            placeholder="PLAN-ABC123"
-                            className={`w-full px-4 py-2 rounded-lg border text-center font-mono text-lg uppercase mb-3 ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') savePlannerToken();
-                            }}
-                          />
-                          <div className="flex gap-2 justify-center">
-                            <button
-                              onClick={savePlannerToken}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all"
-                            >
-                              ✓ Connect
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowTokenInput(false);
-                                setTokenInputValue('');
-                              }}
-                              className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-all"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : tasksLoading ? (
-                    <div className="text-center py-8">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                      <p className={textMuted}>Loading tasks...</p>
-                    </div>
-                  ) : todayTasks.length === 0 ? (
-                    <div className={`text-center py-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} rounded-xl`}>
-                      <p className="text-3xl mb-2">🎉</p>
-                      <p className={`text-lg ${textColor}`}>No tasks scheduled for today!</p>
-                      <p className={`text-sm mt-2 ${textMuted}`}>Enjoy your free time</p>
-                      <button
-                        onClick={removePlannerToken}
-                        className="mt-4 text-sm text-red-500 hover:text-red-600"
-                      >
-                        Disconnect planner
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {todayTasks.map((task, idx) => {
-                        const priorityColors = {
-                          high: isDarkMode ? 'bg-red-900 bg-opacity-30 border-red-500' : 'bg-red-50 border-red-300',
-                          medium: isDarkMode ? 'bg-yellow-900 bg-opacity-30 border-yellow-500' : 'bg-yellow-50 border-yellow-300',
-                          low: isDarkMode ? 'bg-green-900 bg-opacity-30 border-green-500' : 'bg-green-50 border-green-300'
-                        };
-
-                        const statusIcons = {
-                          'not-started': '⚪',
-                          'in-progress': '🟡',
-                          'done': '✅'
-                        };
-
-                        return (
-                          <div
-                            key={task.id}
-                            className={`p-4 rounded-xl border-2 ${priorityColors[task.priority] || priorityColors.low}`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-lg">{statusIcons[task.status] || statusIcons['not-started']}</span>
-                                  <p className={`font-semibold ${textColor}`}>{task.title}</p>
-                                </div>
-                                <div className="flex flex-wrap gap-2 text-xs">
-                                  {task.category && (
-                                    <span className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 text-gray-200' : 'bg-gray-200 text-gray-700'}`}>
-                                      {task.category}
-                                    </span>
-                                  )}
-                                  {task.dueTime && (
-                                    <span className={`px-2 py-1 rounded font-semibold ${isDarkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
-                                      ⏰ {task.dueTime}
-                                    </span>
-                                  )}
-                                  {task.duration && (
-                                    <span className={`px-2 py-1 rounded ${isDarkMode ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-700'}`}>
-                                      ⏱️ {task.duration}m
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className={`text-xs px-2 py-1 rounded font-semibold ${
-                                  task.priority === 'high' ? 'bg-red-100 text-red-700' :
-                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-green-100 text-green-700'
-                                }`}>
-                                  {task.priority}
-                                </span>
-                              </div>
+                      <div className="flex items-center justify-between mb-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <span className={`text-sm font-medium ${textColor}`}>Avoid Highways</span>
+                          <div className="relative">
+                            <input type="checkbox" checked={avoidHighways} onChange={(e) => setAvoidHighways(e.target.checked)} className="sr-only" />
+                            <div className={`w-14 h-8 rounded-full transition-colors ${avoidHighways ? 'bg-green-500' : 'bg-gray-300'}`}>
+                              <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${avoidHighways ? 'translate-x-6' : ''}`} />
                             </div>
                           </div>
-                        );
-                      })}
+                        </label>
 
-                      <div className={`mt-4 p-3 rounded-lg text-center ${isDarkMode ? 'bg-blue-900 bg-opacity-20' : 'bg-blue-50'}`}>
-                        <p className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                          ℹ️ Tasks are read-only here. Edit in your planner app.
-                        </p>
-                        <button
-                          onClick={removePlannerToken}
-                          className="mt-2 text-xs text-red-500 hover:text-red-600"
+                        <a
+                          href={`https://www.google.com/maps/dir/${config.locations.home.lat},${config.locations.home.lng}/${config.locations.work.lat},${config.locations.work.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`px-4 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
                         >
-                          Disconnect planner
-                        </button>
+                          🗺️ Open in Maps
+                        </a>
                       </div>
+
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-orange-900 bg-opacity-30 border-orange-700' : 'bg-orange-50 border-orange-200'}`}>
+                          <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-orange-400' : 'text-orange-800'}`}>🚗 Home → Garage</p>
+                          <p className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>{driveData.morning.duration.text}</p>
+                          <p className={`text-sm ${isDarkMode ? 'text-orange-400' : 'text-orange-700'}`}>{driveData.morning.distance.text}</p>
+                        </div>
+
+                        <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-blue-900 bg-opacity-30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
+                          <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>🚶 Garage → Work</p>
+                          <p className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{driveData.walk.duration.text}</p>
+                          <p className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>{driveData.walk.distance.text}</p>
+                        </div>
+
+                        <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-purple-900 bg-opacity-30 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
+                          <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-purple-400' : 'text-purple-800'}`}>🏠 Garage → Home</p>
+                          <p className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>{driveData.evening.duration.text}</p>
+                          <p className={`text-sm ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>{driveData.evening.distance.text}</p>
+                        </div>
+                      </div>
+
+                      <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        <p className={`text-sm ${textColor}`}>
+                          <span className="font-semibold">Total commute time: </span>
+                          {Math.round(driveData.morning.duration.value / 60) + Math.round(driveData.walk.duration.value / 60)} minutes
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* N Line Schedule Tab */}
+              {activeTab === 'nline' && (
+                <div className={`${cardBg} rounded-2xl shadow-xl p-6 border ${borderColor}`}>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className={`text-2xl font-bold ${textColor}`}>🚆 RTD N Line Schedule</h2>
+                    <button
+                      onClick={fetchTransitData}
+                      className={`px-3 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                      disabled={loading.transit}
+                    >
+                      {loading.transit ? '⏳' : '🔄'} Refresh
+                    </button>
+                  </div>
+
+                  {/* Southbound */}
+                  <div className="mb-6">
+                    <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-orange-700' : 'border-orange-300'}`}>
+                      <span className="text-2xl">⬇️</span>
+                      <h3 className={`text-xl font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Southbound</h3>
+                      <span className={`text-sm ${textMuted}`}>To Downtown / Union Station</span>
+                    </div>
+                    <div className="space-y-3">
+                      {transitDataSB && transitDataSB.length > 0 ? (
+                        transitDataSB.map((train, idx) => renderTrainCard(train, idx))
+                      ) : (
+                        <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                          <p className={textMuted}>No upcoming southbound trains</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Northbound */}
+                  <div>
+                    <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-purple-700' : 'border-purple-300'}`}>
+                      <span className="text-2xl">⬆️</span>
+                      <h3 className={`text-xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Northbound</h3>
+                      <span className={`text-sm ${textMuted}`}>To Northglenn/112th</span>
+                    </div>
+                    <div className={`mb-3 p-3 rounded-lg ${isDarkMode ? 'bg-purple-900 bg-opacity-20' : 'bg-purple-50'}`}>
+                      <p className={`text-xs ${isDarkMode ? 'text-purple-300' : 'text-purple-800'}`}>
+                        ℹ️ Trains sit at Union Station for 15 min before departure. Times show DEPARTURE countdown.
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      {transitDataNB && transitDataNB.length > 0 ? (
+                        transitDataNB.map((train, idx) => renderTrainCard(train, idx))
+                      ) : (
+                        <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                          <p className={textMuted}>No upcoming northbound trains</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                      <span className="font-semibold">🔴 Live RTD data</span> • Updates every minute
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Today's Schedule Tab */}
+              {activeTab === 'schedule' && (
+                <div className={`${cardBg} rounded-2xl shadow-xl p-6 border ${borderColor}`}>
+                  <h2 className={`text-2xl font-bold ${textColor} mb-6`}>📅 Today's Schedule</h2>
+
+                  {!plannerToken ? (
+                    <div className={`text-center py-12 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded-xl`}>
+                      <p className={`text-lg mb-4 ${textColor}`}>Connect your planner to see today's tasks and events</p>
+                      <input
+                        type="text"
+                        placeholder="Enter Planner Token (e.g., PLAN-ABC123)"
+                        className={`px-4 py-2 rounded-lg border mb-4 ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            setPlannerToken(e.target.value);
+                            localStorage.setItem('plannerToken', e.target.value);
+                          }
+                        }}
+                      />
+                      <p className={`text-xs ${textMuted}`}>Press Enter to save</p>
+                    </div>
+                  ) : (
+                    <>
+                      {loading.tasks ? (
+                        <div className="text-center py-8">
+                          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                          <p className={textMuted}>Loading schedule...</p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Tasks */}
+                          <div className="mb-6">
+                            <h3 className={`text-xl font-semibold ${textColor} mb-3`}>✅ Tasks</h3>
+                            {todayTasks.length === 0 ? (
+                              <p className={textMuted}>No tasks for today</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {todayTasks.map((task, idx) => (
+                                  <div key={idx} className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                    <p className={`font-medium ${textColor}`}>{task.title}</p>
+                                    {task.time && <p className={`text-sm ${textMuted}`}>{task.time}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Events */}
+                          <div>
+                            <h3 className={`text-xl font-semibold ${textColor} mb-3`}>📆 Events</h3>
+                            {todayEvents.length === 0 ? (
+                              <p className={textMuted}>No events for today</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {todayEvents.map((event, idx) => (
+                                  <div key={idx} className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                    <p className={`font-medium ${textColor}`}>{event.title}</p>
+                                    {event.time && <p className={`text-sm ${textMuted}`}>{event.time}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setPlannerToken(null);
+                              localStorage.removeItem('plannerToken');
+                            }}
+                            className="mt-4 text-sm text-red-500 hover:text-red-600"
+                          >
+                            Disconnect planner
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Search Locator Tab */}
+              {activeTab === 'search' && (
+                <div className={`${cardBg} rounded-2xl shadow-xl p-6 border ${borderColor}`}>
+                  <h2 className={`text-2xl font-bold ${textColor} mb-6`}>🔍 Search Drive Times</h2>
+
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className={`block text-sm font-medium ${textColor} mb-2`}>From Location (lat,lng)</label>
+                      <input
+                        type="text"
+                        value={searchFrom}
+                        onChange={(e) => setSearchFrom(e.target.value)}
+                        placeholder="39.9067,-104.9875"
+                        className={`w-full px-4 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-medium ${textColor} mb-2`}>To Location (lat,lng)</label>
+                      <input
+                        type="text"
+                        value={searchTo}
+                        onChange={(e) => setSearchTo(e.target.value)}
+                        placeholder="39.7467,-104.9898"
+                        className={`w-full px-4 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      />
+                    </div>
+
+                    <button
+                      onClick={searchDriveTimes}
+                      disabled={!searchFrom || !searchTo || loading.search}
+                      className={`w-full px-4 py-3 rounded-lg font-semibold ${
+                        !searchFrom || !searchTo || loading.search
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                      } text-white transition-all`}
+                    >
+                      {loading.search ? 'Searching...' : 'Search Drive Times'}
+                    </button>
+                  </div>
+
+                  {searchResults && (
+                    <div className="space-y-4">
+                      {searchResults.error ? (
+                        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-red-900 bg-opacity-30 text-red-300' : 'bg-red-50 text-red-800'}`}>
+                          <p>{searchResults.error}</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-green-900 bg-opacity-30 border-green-700' : 'bg-green-50 border-green-200'}`}>
+                            <p className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-green-400' : 'text-green-800'}`}>🛣️ With Highway</p>
+                            <p className={`text-2xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-900'}`}>{searchResults.withHighway.duration}</p>
+                            <p className={`text-sm ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>{searchResults.withHighway.distance}</p>
+                          </div>
+
+                          <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-blue-900 bg-opacity-30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
+                            <p className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>🚗 Without Highway</p>
+                            <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{searchResults.noHighway.duration}</p>
+                            <p className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>{searchResults.noHighway.distance}</p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
+
+                  <div className={`mt-6 p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <p className={`text-sm ${textMuted} mb-2`}>
+                      <span className="font-semibold">Quick locations:</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <button
+                        onClick={() => setSearchFrom('39.9067,-104.9875')}
+                        className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+                      >
+                        Home
+                      </button>
+                      <button
+                        onClick={() => setSearchFrom('39.7477,-104.9898')}
+                        className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+                      >
+                        Garage
+                      </button>
+                      <button
+                        onClick={() => setSearchTo('39.7477,-104.9898')}
+                        className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+                      >
+                        Garage
+                      </button>
+                      <button
+                        onClick={() => setSearchTo('39.7465,-104.9914')}
+                        className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+                      >
+                        Work
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
 
-            {shouldShowCommute && (
-              <div className={`${cardBg} rounded-2xl shadow-xl overflow-hidden mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
-                <button
-                  onClick={() => setDriveCollapsed(!driveCollapsed)}
-                  className={`w-full p-6 flex items-center justify-between transition-all ${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'}`}
-                  aria-expanded={!driveCollapsed}
-                  aria-label={driveCollapsed ? 'Expand drive times section' : 'Collapse drive times section'}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-yellow-500 p-3 rounded-xl">
-                      <svg className="w-8 h-8 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        <path d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-4-1a1 1 0 001 1h3"></path>
-                      </svg>
-                    </div>
-                    <h2 className={`text-2xl font-bold ${textColor}`}>Drive Times</h2>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-sm ${textMuted}`}>Total: {Math.round(totalMorningMinutes)} min</span>
-                    <svg className={`w-6 h-6 ${textColor} transition-transform ${!driveCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </button>
-
-                {!driveCollapsed && (
-                  <div className="px-6 pb-6 space-y-4">
-                    {driveData?._isFallback && (
-                      <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-yellow-900 bg-opacity-30 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}>
-                        <p className="text-sm">⚠️ Using estimated times - Google Maps API unavailable</p>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between flex-wrap gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <span className={`text-sm font-medium ${textColor}`}>Avoid Highways</span>
-                        <div className="relative">
-                          <input type="checkbox" checked={avoidHighways} onChange={(e) => setAvoidHighways(e.target.checked)} className="sr-only" />
-                          <div className={`w-14 h-8 rounded-full transition-colors ${avoidHighways ? 'bg-green-500' : 'bg-gray-300'}`}>
-                            <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${avoidHighways ? 'translate-x-6' : ''}`} />
-                          </div>
-                        </div>
-                      </label>
-                      
-                      <a
-                        href={`https://www.google.com/maps/dir/${config.locations.home.lat},${config.locations.home.lng}/${config.locations.work.lat},${config.locations.work.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all"
-                      >
-                        🗺️ Open Map
-                      </a>
-                    </div>
-
-                    <div className="grid md:grid-cols-3 gap-4">
-                      <div className={`p-5 rounded-xl border-2 ${timeMode === 'morning' ? 'bg-orange-100 border-orange-300 shadow-lg' : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-orange-50 border-orange-200'}`}>
-                        <p className={`text-sm font-semibold mb-3 ${isDarkMode && timeMode !== 'morning' ? 'text-orange-400' : 'text-orange-800'}`}>🚗 Home → Garage</p>
-                        <p className={`text-3xl font-bold mb-1 ${isDarkMode && timeMode !== 'morning' ? 'text-orange-300' : 'text-orange-900'}`}>{driveData.morning.duration.text}</p>
-                        <p className={`text-sm ${isDarkMode && timeMode !== 'morning' ? 'text-orange-400' : 'text-orange-700'}`}>{driveData.morning.distance.text}</p>
-                        {timeMode === 'morning' && (<div className="mt-3 pt-3 border-t border-orange-300"><p className="text-xs text-orange-700 font-medium">🔴 Live traffic</p></div>)}
-                      </div>
-
-                      <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-blue-50 border-blue-200'}`}>
-                        <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>🚶 Garage → Work</p>
-                        <p className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{driveData.walk.duration.text}</p>
-                        <p className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>{driveData.walk.distance.text}</p>
-                        <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-600' : 'border-blue-200'}`}><p className={`text-xs font-medium ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Walking time</p></div>
-                      </div>
-
-                      <div className={`p-5 rounded-xl border-2 ${timeMode === 'evening' ? 'bg-purple-100 border-purple-300 shadow-lg' : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-purple-50 border-purple-200'}`}>
-                        <p className={`text-sm font-semibold mb-3 ${isDarkMode && timeMode !== 'evening' ? 'text-purple-400' : 'text-purple-800'}`}>🏠 Garage → Home</p>
-                        <p className={`text-3xl font-bold mb-1 ${isDarkMode && timeMode !== 'evening' ? 'text-purple-300' : 'text-purple-900'}`}>{driveData.evening.duration.text}</p>
-                        <p className={`text-sm ${isDarkMode && timeMode !== 'evening' ? 'text-purple-400' : 'text-purple-700'}`}>{driveData.evening.distance.text}</p>
-                        {timeMode === 'evening' && (<div className="mt-3 pt-3 border-t border-purple-300"><p className="text-xs text-purple-700 font-medium">🔴 Live traffic</p></div>)}
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-lg flex items-start gap-3 ${isDarkMode ? 'bg-yellow-900 bg-opacity-30' : 'bg-yellow-50'}`}>
-                      <svg className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4m0 4h.01"></path></svg>
-                      <p className={`text-sm ${isDarkMode ? 'text-yellow-300' : 'text-yellow-800'}`}>
-                        <span className="font-semibold">Total: </span>{Math.round(totalMorningMinutes)} min (drive + walk) • Leave by {leaveByTime}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* DOWNTOWN SHUTTLE - INFORMATIONAL ONLY */}
-            {shouldShowCommute && (
-              <div className={`${cardBg} rounded-2xl shadow-xl overflow-hidden mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
-                <button
-                  onClick={() => setBusCollapsed(!busCollapsed)}
-                  className={`w-full p-6 flex items-center justify-between transition-all ${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'}`}
-                  aria-expanded={!busCollapsed}
-                  aria-label={busCollapsed ? 'Expand shuttle info section' : 'Collapse shuttle info section'}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-green-500 p-3 rounded-xl">
-                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className={`text-2xl font-bold ${textColor}`}>Downtown Shuttle Info</h2>
-                      <p className={`text-sm ${textMuted}`}>Free bus service information</p>
-                    </div>
-                  </div>
-                  <svg className={`w-6 h-6 ${textColor} transition-transform ${!busCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {!busCollapsed && (
-                  <div className="px-6 pb-6">
-                    <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                      <p className={`font-semibold mb-3 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>🚌 Available Shuttle Services:</p>
-                      <div className={`space-y-4 text-sm ${isDarkMode ? 'text-blue-200' : 'text-blue-800'}`}>
-                        <div>
-                          <p className="font-semibold text-base mb-2">16th Street FreeRide</p>
-                          <ul className="space-y-1 pl-4">
-                            <li>• Free shuttle every ~5 minutes along 16th Street Mall</li>
-                            <li>• Runs 5:30 AM - 12:30 AM daily</li>
-                            <li>• Route: Union Station ↔ Civic Center Station</li>
-                            <li>• Walk from Union Station: 4-7 minutes</li>
-                          </ul>
-                        </div>
-                        <div className={`pt-3 border-t ${isDarkMode ? 'border-blue-700' : 'border-blue-300'}`}>
-                          <p className="font-semibold text-base mb-2">Free MetroRide (Alternative)</p>
-                          <ul className="space-y-1 pl-4">
-                            <li>• Runs on 18th/19th Streets (parallel route)</li>
-                            <li>• Every ~10 minutes</li>
-                            <li>• Note: No live tracking available</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-yellow-900 bg-opacity-30' : 'bg-yellow-50'}`}>
-                      <div className="flex items-start gap-2">
-                        <span className="text-xl">💡</span>
-                        <div>
-                          <p className={`text-sm font-semibold ${isDarkMode ? 'text-yellow-300' : 'text-yellow-900'}`}>Typical Wait Times:</p>
-                          <p className={`text-xs mt-1 ${isDarkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
-                            After arriving at Union Station, allow 4-7 minutes to walk to bus stop + 5-10 minutes typical wait for FreeRide
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* N LINE - BOTH DIRECTIONS */}
-            {shouldShowCommute && (
-              <div className={`${cardBg} rounded-2xl shadow-xl overflow-hidden mb-6 ${isDarkMode ? 'border border-gray-700' : ''}`}>
-                <button
-                  onClick={() => setTransitCollapsed(!transitCollapsed)}
-                  className={`w-full p-6 flex items-center justify-between transition-all ${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'}`}
-                  aria-expanded={!transitCollapsed}
-                  aria-label={transitCollapsed ? 'Expand RTD N Line section' : 'Collapse RTD N Line section'}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-indigo-500 p-3 rounded-xl">
-                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className={`text-2xl font-bold ${textColor}`}>RTD N Line</h2>
-                      <p className={`text-sm ${textMuted}`}>Both Directions</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {transitStatus.status === 'live' && (<div className="flex items-center gap-2 bg-green-100 px-3 py-1.5 rounded-full"><div className="w-2 h-2 bg-green-500 rounded-full"></div><span className="text-xs font-medium text-green-700">Live</span></div>)}
-                    {transitStatus.status === 'error' && (<div className="flex items-center gap-2 bg-red-100 px-3 py-1.5 rounded-full"><div className="w-2 h-2 bg-red-500 rounded-full"></div><span className="text-xs font-medium text-red-700">Offline</span></div>)}
-                    <svg className={`w-6 h-6 ${textColor} transition-transform ${!transitCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </button>
-
-                {!transitCollapsed && (
-                  <div className="px-6 pb-6">
-                    <div className={`mb-4 p-3 rounded-lg ${transitStatus.status === 'live' ? isDarkMode ? 'bg-green-900 bg-opacity-30' : 'bg-green-50' : isDarkMode ? 'bg-red-900 bg-opacity-30' : 'bg-red-50'}`}>
-                      <div className="flex items-center justify-between">
-                        <p className={`text-sm font-medium ${transitStatus.status === 'live' ? isDarkMode ? 'text-green-300' : 'text-green-900' : isDarkMode ? 'text-red-300' : 'text-red-900'}`}>
-                          {transitStatus.status === 'live' && '🚆 '}{transitStatus.status === 'error' && '⚠️ '}
-                          Showing both directions
-                        </p>
-                        {transitStatus.lastUpdate && (<span className={`text-xs ${textMuted}`}>Updated {transitStatus.lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>)}
-                      </div>
-                      <p className={`text-xs mt-1 ${transitStatus.status === 'live' ? isDarkMode ? 'text-green-400' : 'text-green-700' : isDarkMode ? 'text-red-400' : 'text-red-700'}`}>{transitStatus.message}</p>
-                    </div>
-
-                    {/* SOUTHBOUND SECTION */}
-                    <div className="mb-6">
-                      <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-orange-700' : 'border-orange-300'}`}>
-                        <span className="text-2xl">⬇️</span>
-                        <h3 className={`text-xl font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Southbound</h3>
-                        <span className={`text-sm ${textMuted}`}>To Downtown / Union Station</span>
-                      </div>
-                      <div className="space-y-3">
-                        {transitDataSB && transitDataSB.map((train, idx) => renderTrainCard(train, idx, timeMode === 'morning' || timeMode === 'workday'))}
-                        {(!transitDataSB || transitDataSB.length === 0) && (
-                          <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                            <p className={textMuted}>No upcoming southbound trains</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* NORTHBOUND SECTION */}
-                    <div>
-                      <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-purple-700' : 'border-purple-300'}`}>
-                        <span className="text-2xl">⬆️</span>
-                        <h3 className={`text-xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Northbound</h3>
-                        <span className={`text-sm ${textMuted}`}>To Northglenn/112th</span>
-                      </div>
-                      <div className={`mb-3 p-3 rounded-lg ${isDarkMode ? 'bg-purple-900 bg-opacity-20' : 'bg-purple-50'}`}>
-                        <p className={`text-xs ${isDarkMode ? 'text-purple-300' : 'text-purple-800'}`}>
-                          ℹ️ Trains sit at Union Station for 15 min before departure. Times show DEPARTURE countdown.
-                        </p>
-                      </div>
-                      <div className="space-y-3">
-                        {transitDataNB && transitDataNB.map((train, idx) => renderTrainCard(train, idx, timeMode === 'evening', true))}
-                        {(!transitDataNB || transitDataNB.length === 0) && (
-                          <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                            <p className={textMuted}>No upcoming northbound trains</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                      <div className="flex items-center justify-between">
-                        <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                          {transitStatus.status === 'live' ? (<><span className="font-semibold">🔴 Live RTD data</span> • Updates every minute</>) : transitStatus.status === 'error' ? (<><span className="font-semibold">⚠️ Using estimates</span> • Will retry in 1 min</>) : (<><span className="font-semibold">🔄 Connecting</span> • Fetching data...</>)}
-                        </p>
-                        {transitStatus.status === 'error' && (<button onClick={() => window.location.reload()} className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Retry</button>)}
-                      </div>
-                    </div>
-                    
-                    <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                      <p className={`text-xs font-semibold mb-2 ${textColor}`}>Delay Indicator:</p>
-                      <div className="flex flex-wrap gap-3 text-xs">
-                        <div className="flex items-center gap-1">
-                          <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 font-semibold">On Time</span>
-                          <span className={textMuted}>No delay</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-semibold">+1-3 min</span>
-                          <span className={textMuted}>Minor delay</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 font-semibold">+4+ min</span>
-                          <span className={textMuted}>Significant delay</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className={`mt-8 text-center space-y-2 ${textMuted}`}>
-              <p className="text-xs sm:text-sm">
-                🔄 Auto-refresh: Weather (10 min) • Traffic (5 min) • Transit (1 min) • Tasks (5 min)
+            {/* Footer */}
+            <div className={`mt-6 text-center ${textMuted}`}>
+              <p className="text-xs">
+                🔄 Auto-refresh: Every 15 minutes (Transit: Every 1 minute)
               </p>
-              {notificationsEnabled && (
-                <p className="text-xs">
-                  🔔 Smart alerts active: Morning (6-8 AM) & Evening (4-6 PM) commutes only
-                </p>
-              )}
-              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <p className="text-xs">
-                  <span className="inline-block mr-2">💻</span>
-                  <span className="hidden sm:inline">Professional Commute Dashboard • </span>
-                  <span>RTD N Line • Denver Metro</span>
-                </p>
-              </div>
+              <p className="text-xs mt-2">
+                Taskify || Commute Dashboard • RTD N Line • Denver Metro
+              </p>
             </div>
           </div>
         </div>
