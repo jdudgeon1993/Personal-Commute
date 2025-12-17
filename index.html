@@ -484,11 +484,11 @@
 
             setSearchResults({
               withHighway: {
-                duration: `${Math.round(withHighwayDuration / 60)} mins`,
+                durationMinutes: Math.round(withHighwayDuration / 60),
                 distance: `${(withHighwayDistance * 0.000621371).toFixed(1)} mi`
               },
               noHighway: {
-                duration: `${Math.round(noHighwayDuration / 60)} mins`,
+                durationMinutes: Math.round(noHighwayDuration / 60),
                 distance: `${(noHighwayDistance * 0.000621371).toFixed(1)} mi`
               }
             });
@@ -563,7 +563,9 @@
 
         // Use currentTime for real-time countdown (updates every second)
         const now = currentTime.getTime();
-        const minutesUntil = Math.round((train.arrivalTimestamp - now) / 60000);
+        const totalSecondsUntil = Math.floor((train.arrivalTimestamp - now) / 1000);
+        const minutesUntil = Math.floor(totalSecondsUntil / 60);
+        const secondsUntil = totalSecondsUntil % 60;
 
         let urgencyColor = isDarkMode ? 'bg-gray-700' : 'bg-gray-100';
         if (minutesUntil <= 5) urgencyColor = isDarkMode ? 'bg-red-900 bg-opacity-30' : 'bg-red-50';
@@ -574,12 +576,22 @@
         if (train.delay > 3) delayColor = 'bg-red-100 text-red-700';
         else if (train.delay > 0) delayColor = 'bg-yellow-100 text-yellow-700';
 
+        // Format countdown display with minutes and seconds
+        let countdownDisplay;
+        if (totalSecondsUntil < 0) {
+          countdownDisplay = 'Departed';
+        } else if (totalSecondsUntil < 60) {
+          countdownDisplay = `${totalSecondsUntil} sec`;
+        } else {
+          countdownDisplay = `${minutesUntil} min ${secondsUntil} sec`;
+        }
+
         return (
           <div key={idx} className={`p-4 rounded-xl ${urgencyColor} border ${borderColor}`}>
             <div className="flex justify-between items-center">
               <div>
                 <p className={`text-2xl font-bold ${textColor}`}>
-                  {minutesUntil < 0 ? 'Departed' : minutesUntil === 0 ? 'Now' : `${minutesUntil} min`}
+                  {countdownDisplay}
                 </p>
                 <p className={`text-sm ${textMuted}`}>{train.time}</p>
               </div>
@@ -959,13 +971,13 @@
                         <>
                           <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-green-900 bg-opacity-30 border-green-700' : 'bg-green-50 border-green-200'}`}>
                             <p className={`text-xs font-semibold mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-800'}`}>🛣️ With Highway</p>
-                            <p className={`text-xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-900'}`}>{searchResults.withHighway.duration}</p>
+                            <p className={`text-xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-900'}`}>{formatDuration(searchResults.withHighway.durationMinutes)}</p>
                             <p className={`text-sm ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>{searchResults.withHighway.distance}</p>
                           </div>
 
                           <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-blue-900 bg-opacity-30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
                             <p className={`text-xs font-semibold mb-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>🚗 Without Highway</p>
-                            <p className={`text-xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{searchResults.noHighway.duration}</p>
+                            <p className={`text-xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{formatDuration(searchResults.noHighway.durationMinutes)}</p>
                             <p className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>{searchResults.noHighway.distance}</p>
                           </div>
                         </>
