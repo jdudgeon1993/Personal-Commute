@@ -93,10 +93,7 @@
       REFRESH_INTERVAL: 900000, // 15 minutes
       CLOCK_INTERVAL: 1000, // 1 second for clock
       TRANSIT_INTERVAL: 60000, // 1 minute for transit (needs more frequent updates)
-      API_KEYS: {
-        GOOGLE_MAPS: window.ENV?.GOOGLE_MAPS_API_KEY || 'AIzaSyD37ON3q4SfgV7jHWdE74PtwoRdP_5gCGY',
-        OPENWEATHER: window.ENV?.OPENWEATHER_API_KEY || '1c91f81f2adfd1b633d19842869a1a11'
-      }
+      API_BASE_URL: window.location.origin // Use same origin for API calls
     };
 
     const config = {
@@ -180,7 +177,7 @@
         try {
           setLoading(prev => ({ ...prev, weather: true }));
           const response = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${config.weather.lat}&lon=${config.weather.lon}&appid=${CONSTANTS.API_KEYS.OPENWEATHER}&units=imperial`
+            `${CONSTANTS.API_BASE_URL}/api/weather?lat=${config.weather.lat}&lon=${config.weather.lon}`
           );
           const data = await response.json();
           setWeather(data);
@@ -201,7 +198,6 @@
       const fetchDriveTimes = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, drive: true }));
-          const apiKey = CONSTANTS.API_KEYS.GOOGLE_MAPS;
           const routingPreference = avoidHighways ? 'TRAFFIC_AWARE_OPTIMAL' : 'TRAFFIC_AWARE';
 
           const morningRoute = {
@@ -236,19 +232,19 @@
           };
 
           const [morningRes, eveningRes, walkRes] = await Promise.all([
-            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+            fetch(`${CONSTANTS.API_BASE_URL}/api/routes`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
+              headers: { 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
               body: JSON.stringify(morningRoute)
             }),
-            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+            fetch(`${CONSTANTS.API_BASE_URL}/api/routes`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
+              headers: { 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
               body: JSON.stringify(eveningRoute)
             }),
-            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+            fetch(`${CONSTANTS.API_BASE_URL}/api/routes`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
+              headers: { 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.staticDuration' },
               body: JSON.stringify(walkRoute)
             })
           ]);
@@ -299,22 +295,17 @@
       const fetchTransitData = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, transit: true }));
-          const apiEndpoint = 'https://rtd-n-line-api.onrender.com/api/rtd/arrivals';
 
           const [sbResponse, nbResponse] = await Promise.all([
-            fetch(`${apiEndpoint}/${config.rtdStops.southbound}?t=${Date.now()}`, {
+            fetch(`${CONSTANTS.API_BASE_URL}/api/rtd/arrivals/${config.rtdStops.southbound}`, {
               method: 'GET',
-              mode: 'cors',
               cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              signal: AbortSignal.timeout(30000)
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
             }),
-            fetch(`${apiEndpoint}/${config.rtdStops.northbound}?t=${Date.now()}`, {
+            fetch(`${CONSTANTS.API_BASE_URL}/api/rtd/arrivals/${config.rtdStops.northbound}`, {
               method: 'GET',
-              mode: 'cors',
               cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              signal: AbortSignal.timeout(30000)
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
             })
           ]);
 
@@ -408,9 +399,8 @@
 
       // Geocode address to coordinates
       const geocodeAddress = async (address) => {
-        const apiKey = CONSTANTS.API_KEYS.GOOGLE_MAPS;
         const response = await fetch(
-          `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
+          `${CONSTANTS.API_BASE_URL}/api/geocode?address=${encodeURIComponent(address)}`
         );
         const data = await response.json();
 
@@ -433,8 +423,6 @@
           const fromCoords = await geocodeAddress(searchFromAddress);
           const toCoords = await geocodeAddress(searchToAddress);
 
-          const apiKey = CONSTANTS.API_KEYS.GOOGLE_MAPS;
-
           const routeWithHighway = {
             origin: { location: { latLng: { latitude: fromCoords.lat, longitude: fromCoords.lng }}},
             destination: { location: { latLng: { latitude: toCoords.lat, longitude: toCoords.lng }}},
@@ -451,14 +439,14 @@
           };
 
           const [withHighwayRes, noHighwayRes] = await Promise.all([
-            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+            fetch(`${CONSTANTS.API_BASE_URL}/api/routes`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters' },
+              headers: { 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters' },
               body: JSON.stringify(routeWithHighway)
             }),
-            fetch(`https://routes.googleapis.com/directions/v2:computeRoutes`, {
+            fetch(`${CONSTANTS.API_BASE_URL}/api/routes`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters' },
+              headers: { 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters' },
               body: JSON.stringify(routeNoHighway)
             })
           ]);
