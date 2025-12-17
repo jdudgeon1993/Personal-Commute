@@ -1,5 +1,0 @@
-[[redirects]]
-  from = "/api-google/*"
-  to = "https://maps.googleapis.com/maps/api/:splat"
-  status = 200
-  force = true
