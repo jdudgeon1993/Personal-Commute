@@ -99,7 +99,7 @@
     const CommuteDashboard = () => {
       // State
       const [currentTime, setCurrentTime] = useState(new Date());
-      const [activeSection, setActiveSection] = useState('drive'); // drive, nline, schedule, search
+      const [activeSection, setActiveSection] = useState('drive'); // drive, nline, bus, schedule, search
       const [weather, setWeather] = useState(null);
       const [driveData, setDriveData] = useState(null);
       const [transitDataSB, setTransitDataSB] = useState(null);
@@ -537,6 +537,17 @@
         setLastRefresh(new Date());
       };
 
+      // Helper function to format duration
+      const formatDuration = (minutes) => {
+        if (minutes >= 60) {
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          if (mins === 0) return `${hours} hr`;
+          return `${hours} hr ${mins} min`;
+        }
+        return `${minutes} mins`;
+      };
+
       // Theme colors
       const theme = isDarkMode
         ? 'from-gray-900 to-gray-800 text-white'
@@ -546,11 +557,12 @@
       const textMuted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
       const borderColor = isDarkMode ? 'border-gray-700' : 'border-gray-200';
 
-      // Render train card
+      // Render train card with real-time countdown
       const renderTrainCard = (train, idx) => {
         if (!train.arrivalTimestamp) return null;
 
-        const now = Date.now();
+        // Use currentTime for real-time countdown (updates every second)
+        const now = currentTime.getTime();
         const minutesUntil = Math.round((train.arrivalTimestamp - now) / 60000);
 
         let urgencyColor = isDarkMode ? 'bg-gray-700' : 'bg-gray-100';
@@ -681,19 +693,19 @@
                       <div className="space-y-3">
                         <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-orange-900 bg-opacity-30 border-orange-700' : 'bg-orange-50 border-orange-200'}`}>
                           <p className={`text-xs font-semibold mb-2 ${isDarkMode ? 'text-orange-400' : 'text-orange-800'}`}>🚗 Home → Garage</p>
-                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>{driveData.morning.duration.text}</p>
+                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>{formatDuration(Math.round(driveData.morning.duration.value / 60))}</p>
                           <p className={`text-sm ${isDarkMode ? 'text-orange-400' : 'text-orange-700'}`}>{driveData.morning.distance.text}</p>
                         </div>
 
                         <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-blue-900 bg-opacity-30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
                           <p className={`text-xs font-semibold mb-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>🚶 Garage → Work</p>
-                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{driveData.walk.duration.text}</p>
+                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{formatDuration(Math.round(driveData.walk.duration.value / 60))}</p>
                           <p className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>{driveData.walk.distance.text}</p>
                         </div>
 
                         <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-purple-900 bg-opacity-30 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
                           <p className={`text-xs font-semibold mb-2 ${isDarkMode ? 'text-purple-400' : 'text-purple-800'}`}>🏠 Garage → Home</p>
-                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>{driveData.evening.duration.text}</p>
+                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>{formatDuration(Math.round(driveData.evening.duration.value / 60))}</p>
                           <p className={`text-sm ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>{driveData.evening.distance.text}</p>
                         </div>
                       </div>
@@ -767,6 +779,50 @@
                   <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
                     <p className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
                       🔴 Live RTD data • Updates every minute
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Bus Schedule Section */}
+              {activeSection === 'bus' && (
+                <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">🚌</span>
+                    <h2 className={`text-xl sm:text-2xl font-bold ${textColor}`}>Downtown Shuttle</h2>
+                  </div>
+
+                  <div className={`p-4 rounded-xl mb-4 ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
+                    <p className={`font-semibold mb-3 text-base ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>🚌 Available Shuttle Services</p>
+
+                    <div className={`space-y-4 text-sm ${isDarkMode ? 'text-blue-200' : 'text-blue-800'}`}>
+                      <div>
+                        <p className="font-semibold text-base mb-2">16th Street FreeRide</p>
+                        <ul className="space-y-1 pl-4">
+                          <li>• Free shuttle every ~5 minutes</li>
+                          <li>• Route: 16th Street Mall</li>
+                          <li>• Hours: 5:30 AM - 12:30 AM daily</li>
+                          <li>• Connects Union Station ↔ Civic Center</li>
+                          <li>• Walk from Union Station: 4-7 minutes</li>
+                        </ul>
+                      </div>
+
+                      <div className={`pt-3 border-t ${isDarkMode ? 'border-blue-700' : 'border-blue-300'}`}>
+                        <p className="font-semibold text-base mb-2">MetroRide - Civic Center Station</p>
+                        <ul className="space-y-1 pl-4">
+                          <li>• Free downtown circulator bus</li>
+                          <li>• Route: Civic Center ↔ Union Station</li>
+                          <li>• Hours: Weekdays 6:30 AM - 7:00 PM</li>
+                          <li>• Frequency: Every 5-10 minutes</li>
+                          <li>• Stops near 16th Street Mall</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <p className={`text-xs ${textMuted}`}>
+                      ℹ️ Both services are FREE and connect Union Station to downtown Denver
                     </p>
                   </div>
                 </div>
@@ -962,7 +1018,7 @@
               <div className="flex justify-around items-center">
                 <button
                   onClick={() => setActiveSection('drive')}
-                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all ${
                     activeSection === 'drive'
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
@@ -974,7 +1030,7 @@
 
                 <button
                   onClick={() => setActiveSection('nline')}
-                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all ${
                     activeSection === 'nline'
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
@@ -985,8 +1041,20 @@
                 </button>
 
                 <button
+                  onClick={() => setActiveSection('bus')}
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all ${
+                    activeSection === 'bus'
+                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      : textMuted
+                  }`}
+                >
+                  <span className="text-2xl">🚌</span>
+                  <span className="text-xs font-medium">Bus</span>
+                </button>
+
+                <button
                   onClick={() => setActiveSection('schedule')}
-                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all ${
                     activeSection === 'schedule'
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
@@ -998,7 +1066,7 @@
 
                 <button
                   onClick={() => setActiveSection('search')}
-                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all ${
                     activeSection === 'search'
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
