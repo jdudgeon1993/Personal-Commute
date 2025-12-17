@@ -291,23 +291,33 @@
         }
       }, [avoidHighways]);
 
-      // Fetch transit data
+      // Fetch transit data - call RTD API directly (public API, no auth needed)
       const fetchTransitData = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, transit: true }));
+          const apiEndpoint = 'https://rtd-n-line-api.onrender.com/api/rtd/arrivals';
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
           const [sbResponse, nbResponse] = await Promise.all([
-            fetch(`${CONSTANTS.API_BASE_URL}/api/rtd/arrivals/${config.rtdStops.southbound}`, {
+            fetch(`${apiEndpoint}/${config.rtdStops.southbound}?t=${Date.now()}`, {
               method: 'GET',
+              mode: 'cors',
               cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              signal: controller.signal
             }),
-            fetch(`${CONSTANTS.API_BASE_URL}/api/rtd/arrivals/${config.rtdStops.northbound}`, {
+            fetch(`${apiEndpoint}/${config.rtdStops.northbound}?t=${Date.now()}`, {
               method: 'GET',
+              mode: 'cors',
               cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              signal: controller.signal
             })
           ]);
+
+          clearTimeout(timeoutId);
 
           const sbData = await sbResponse.json();
           const nbData = await nbResponse.json();
