@@ -32,6 +32,19 @@
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
     }
+    /* Fixed bottom navigation */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    /* Content area with bottom padding for nav */
+    .content-area {
+      padding-bottom: 100px;
+    }
   </style>
 </head>
 <body>
@@ -43,18 +56,18 @@
 
   <script type="text/babel">
     /**
-     * Taskify Commute Dashboard - Redesigned
+     * Taskify Commute Dashboard - Redesigned with Bottom Navigation
      *
      * FEATURES:
-     * - Tab-based navigation (Drive Time, N Line, Today's Schedule, Search Locator)
-     * - No time-based visibility sequences - everything always visible
-     * - 15-minute unified refresh interval with manual refresh button
-     * - Simplified greeting system (Good Morning/Evening, Workday/Weekend)
+     * - Bottom navigation bar (like Personal Calendar app)
+     * - Content hidden until section is clicked
+     * - Address-based search (not lat/lng)
+     * - 15-minute unified refresh interval
      * - Weather integration in header
-     * - Clean, simple layout
+     * - Clean, mobile-first layout
      */
 
-    const { useState, useEffect, useCallback, useMemo } = React;
+    const { useState, useEffect, useCallback } = React;
 
     // Constants
     const CONSTANTS = {
@@ -86,15 +99,15 @@
     const CommuteDashboard = () => {
       // State
       const [currentTime, setCurrentTime] = useState(new Date());
-      const [activeTab, setActiveTab] = useState('drive'); // drive, nline, schedule, search
+      const [activeSection, setActiveSection] = useState('drive'); // drive, nline, schedule, search
       const [weather, setWeather] = useState(null);
       const [driveData, setDriveData] = useState(null);
       const [transitDataSB, setTransitDataSB] = useState(null);
       const [transitDataNB, setTransitDataNB] = useState(null);
       const [todayTasks, setTodayTasks] = useState([]);
       const [todayEvents, setTodayEvents] = useState([]);
-      const [searchFrom, setSearchFrom] = useState('');
-      const [searchTo, setSearchTo] = useState('');
+      const [searchFromAddress, setSearchFromAddress] = useState('');
+      const [searchToAddress, setSearchToAddress] = useState('');
       const [searchResults, setSearchResults] = useState(null);
       const [avoidHighways, setAvoidHighways] = useState(false);
       const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -403,17 +416,38 @@
         }
       }, [plannerToken]);
 
-      // Search location drive times
+      // Geocode address to coordinates
+      const geocodeAddress = async (address) => {
+        const apiKey = CONSTANTS.API_KEYS.GOOGLE_MAPS;
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
+        );
+        const data = await response.json();
+
+        if (data.results && data.results.length > 0) {
+          const location = data.results[0].geometry.location;
+          return { lat: location.lat, lng: location.lng };
+        }
+        throw new Error('Address not found');
+      };
+
+      // Search location drive times with addresses
       const searchDriveTimes = useCallback(async () => {
-        if (!searchFrom || !searchTo) return;
+        if (!searchFromAddress || !searchToAddress) return;
 
         try {
           setLoading(prev => ({ ...prev, search: true }));
+          setSearchResults(null);
+
+          // Geocode both addresses
+          const fromCoords = await geocodeAddress(searchFromAddress);
+          const toCoords = await geocodeAddress(searchToAddress);
+
           const apiKey = CONSTANTS.API_KEYS.GOOGLE_MAPS;
 
           const routeWithHighway = {
-            origin: { location: { latLng: { latitude: parseFloat(searchFrom.split(',')[0]), longitude: parseFloat(searchFrom.split(',')[1]) }}},
-            destination: { location: { latLng: { latitude: parseFloat(searchTo.split(',')[0]), longitude: parseFloat(searchTo.split(',')[1]) }}},
+            origin: { location: { latLng: { latitude: fromCoords.lat, longitude: fromCoords.lng }}},
+            destination: { location: { latLng: { latitude: toCoords.lat, longitude: toCoords.lng }}},
             travelMode: 'DRIVE',
             routingPreference: 'TRAFFIC_AWARE',
             computeAlternativeRoutes: false,
@@ -461,11 +495,11 @@
           }
         } catch (error) {
           console.error('Search error:', error);
-          setSearchResults({ error: 'Unable to calculate route' });
+          setSearchResults({ error: error.message || 'Unable to calculate route' });
         } finally {
           setLoading(prev => ({ ...prev, search: false }));
         }
-      }, [searchFrom, searchTo]);
+      }, [searchFromAddress, searchToAddress]);
 
       // Initial data fetch
       useEffect(() => {
@@ -548,126 +582,70 @@
       };
 
       return (
-        <div className={`min-h-screen bg-gradient-to-br ${theme} p-4 sm:p-6`}>
-          <div className="max-w-6xl mx-auto">
+        <div className={`min-h-screen bg-gradient-to-br ${theme}`}>
+          <div className="max-w-6xl mx-auto content-area">
             {/* Header */}
-            <div className={`${cardBg} rounded-2xl shadow-xl p-6 mb-6 border ${borderColor}`}>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div className={`${cardBg} shadow-lg p-4 sm:p-6 border-b ${borderColor} sticky top-0 z-40`}>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
-                  <h1 className={`text-3xl sm:text-4xl font-bold ${textColor} mb-2`}>
+                  <h1 className={`text-2xl sm:text-3xl font-bold ${textColor} mb-1`}>
                     Taskify || Commute Dashboard
                   </h1>
-                  <p className={`text-lg ${textMuted}`}>
+                  <p className={`text-sm ${textMuted}`}>
                     {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} • {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   </p>
-                  <div className="mt-2">
-                    <p className={`text-xl font-semibold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                      {greeting.timeGreeting} • {greeting.contextGreeting}
-                    </p>
-                  </div>
+                  <p className={`text-base font-semibold mt-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                    {greeting.timeGreeting} • {greeting.contextGreeting}
+                  </p>
                 </div>
 
                 {/* Weather widget in header */}
                 {weather && !weather._isFallback && (
-                  <div className={`flex items-center gap-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} px-4 py-3 rounded-xl`}>
-                    <img src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@2x.png`} alt={weather.weather[0].description} className="w-16 h-16" />
+                  <div className={`flex items-center gap-3 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} px-3 py-2 rounded-xl`}>
+                    <img src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@2x.png`} alt={weather.weather[0].description} className="w-12 h-12" />
                     <div>
-                      <p className={`text-3xl font-bold ${textColor}`}>{Math.round(weather.main.temp)}°F</p>
-                      <p className={`text-sm ${textMuted} capitalize`}>{weather.weather[0].description}</p>
+                      <p className={`text-2xl font-bold ${textColor}`}>{Math.round(weather.main.temp)}°F</p>
+                      <p className={`text-xs ${textMuted} capitalize`}>{weather.weather[0].description}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Controls */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mt-3">
                 <button
                   onClick={handleManualRefresh}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
-                  aria-label="Refresh all data"
+                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
                 >
-                  <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Refresh Now
+                  🔄 Refresh
                 </button>
 
                 <button
                   onClick={() => setIsDarkMode(!isDarkMode)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${isDarkMode ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
-                  aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all ${isDarkMode ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
                 >
-                  {isDarkMode ? '☀️ Light' : '🌙 Dark'}
+                  {isDarkMode ? '☀️' : '🌙'}
                 </button>
 
-                <div className={`px-3 py-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} ${textMuted} text-sm`}>
-                  Last refresh: {lastRefresh.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                <div className={`px-3 py-1.5 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} ${textMuted} text-xs`}>
+                  {lastRefresh.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
             </div>
 
-            {/* Navigation Tabs */}
-            <div className={`${cardBg} rounded-2xl shadow-xl p-2 mb-6 border ${borderColor}`}>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setActiveTab('drive')}
-                  className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'drive'
-                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                      : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  🚗 Drive Time
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('nline')}
-                  className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'nline'
-                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                      : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  🚆 N Line Schedule
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('schedule')}
-                  className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'schedule'
-                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                      : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  📅 Today's Schedule
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('search')}
-                  className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'search'
-                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                      : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  🔍 Search Locator
-                </button>
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            <div className="slide-in">
-              {/* Drive Time Tab */}
-              {activeTab === 'drive' && (
-                <div className={`${cardBg} rounded-2xl shadow-xl p-6 border ${borderColor}`}>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className={`text-2xl font-bold ${textColor}`}>🚗 Drive Times</h2>
+            {/* Content Area - Only show active section */}
+            <div className="p-4 slide-in">
+              {/* Drive Time Section */}
+              {activeSection === 'drive' && (
+                <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className={`text-xl sm:text-2xl font-bold ${textColor}`}>🚗 Drive Times</h2>
                     <button
                       onClick={fetchDriveTimes}
                       className={`px-3 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
                       disabled={loading.drive}
                     >
-                      {loading.drive ? '⏳' : '🔄'} Refresh
+                      {loading.drive ? '⏳' : '🔄'}
                     </button>
                   </div>
 
@@ -675,17 +653,17 @@
                     <>
                       {driveData._isFallback && (
                         <div className={`p-3 rounded-lg mb-4 ${isDarkMode ? 'bg-yellow-900 bg-opacity-30 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}>
-                          <p className="text-sm">⚠️ Using estimated times - Google Maps API unavailable</p>
+                          <p className="text-sm">⚠️ Using estimated times</p>
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <span className={`text-sm font-medium ${textColor}`}>Avoid Highways</span>
                           <div className="relative">
                             <input type="checkbox" checked={avoidHighways} onChange={(e) => setAvoidHighways(e.target.checked)} className="sr-only" />
-                            <div className={`w-14 h-8 rounded-full transition-colors ${avoidHighways ? 'bg-green-500' : 'bg-gray-300'}`}>
-                              <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${avoidHighways ? 'translate-x-6' : ''}`} />
+                            <div className={`w-12 h-6 rounded-full transition-colors ${avoidHighways ? 'bg-green-500' : 'bg-gray-300'}`}>
+                              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${avoidHighways ? 'translate-x-6' : ''}`} />
                             </div>
                           </div>
                         </label>
@@ -694,36 +672,36 @@
                           href={`https://www.google.com/maps/dir/${config.locations.home.lat},${config.locations.home.lng}/${config.locations.work.lat},${config.locations.work.lng}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`px-4 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
                         >
-                          🗺️ Open in Maps
+                          🗺️ Maps
                         </a>
                       </div>
 
-                      <div className="grid md:grid-cols-3 gap-4">
-                        <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-orange-900 bg-opacity-30 border-orange-700' : 'bg-orange-50 border-orange-200'}`}>
-                          <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-orange-400' : 'text-orange-800'}`}>🚗 Home → Garage</p>
-                          <p className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>{driveData.morning.duration.text}</p>
+                      <div className="space-y-3">
+                        <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-orange-900 bg-opacity-30 border-orange-700' : 'bg-orange-50 border-orange-200'}`}>
+                          <p className={`text-xs font-semibold mb-2 ${isDarkMode ? 'text-orange-400' : 'text-orange-800'}`}>🚗 Home → Garage</p>
+                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>{driveData.morning.duration.text}</p>
                           <p className={`text-sm ${isDarkMode ? 'text-orange-400' : 'text-orange-700'}`}>{driveData.morning.distance.text}</p>
                         </div>
 
-                        <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-blue-900 bg-opacity-30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
-                          <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>🚶 Garage → Work</p>
-                          <p className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{driveData.walk.duration.text}</p>
+                        <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-blue-900 bg-opacity-30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
+                          <p className={`text-xs font-semibold mb-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>🚶 Garage → Work</p>
+                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{driveData.walk.duration.text}</p>
                           <p className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>{driveData.walk.distance.text}</p>
                         </div>
 
-                        <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-purple-900 bg-opacity-30 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
-                          <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-purple-400' : 'text-purple-800'}`}>🏠 Garage → Home</p>
-                          <p className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>{driveData.evening.duration.text}</p>
+                        <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-purple-900 bg-opacity-30 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
+                          <p className={`text-xs font-semibold mb-2 ${isDarkMode ? 'text-purple-400' : 'text-purple-800'}`}>🏠 Garage → Home</p>
+                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>{driveData.evening.duration.text}</p>
                           <p className={`text-sm ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>{driveData.evening.distance.text}</p>
                         </div>
                       </div>
 
-                      <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                      <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                         <p className={`text-sm ${textColor}`}>
-                          <span className="font-semibold">Total commute time: </span>
-                          {Math.round(driveData.morning.duration.value / 60) + Math.round(driveData.walk.duration.value / 60)} minutes
+                          <span className="font-semibold">Total: </span>
+                          {Math.round(driveData.morning.duration.value / 60) + Math.round(driveData.walk.duration.value / 60)} min
                         </p>
                       </div>
                     </>
@@ -731,33 +709,33 @@
                 </div>
               )}
 
-              {/* N Line Schedule Tab */}
-              {activeTab === 'nline' && (
-                <div className={`${cardBg} rounded-2xl shadow-xl p-6 border ${borderColor}`}>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className={`text-2xl font-bold ${textColor}`}>🚆 RTD N Line Schedule</h2>
+              {/* N Line Schedule Section */}
+              {activeSection === 'nline' && (
+                <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className={`text-xl sm:text-2xl font-bold ${textColor}`}>🚆 N Line</h2>
                     <button
                       onClick={fetchTransitData}
                       className={`px-3 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
                       disabled={loading.transit}
                     >
-                      {loading.transit ? '⏳' : '🔄'} Refresh
+                      {loading.transit ? '⏳' : '🔄'}
                     </button>
                   </div>
 
                   {/* Southbound */}
                   <div className="mb-6">
                     <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-orange-700' : 'border-orange-300'}`}>
-                      <span className="text-2xl">⬇️</span>
-                      <h3 className={`text-xl font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Southbound</h3>
-                      <span className={`text-sm ${textMuted}`}>To Downtown / Union Station</span>
+                      <span className="text-xl">⬇️</span>
+                      <h3 className={`text-lg font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Southbound</h3>
+                      <span className={`text-xs ${textMuted}`}>To Downtown</span>
                     </div>
                     <div className="space-y-3">
                       {transitDataSB && transitDataSB.length > 0 ? (
                         transitDataSB.map((train, idx) => renderTrainCard(train, idx))
                       ) : (
                         <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                          <p className={textMuted}>No upcoming southbound trains</p>
+                          <p className={textMuted}>No upcoming trains</p>
                         </div>
                       )}
                     </div>
@@ -766,13 +744,13 @@
                   {/* Northbound */}
                   <div>
                     <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-purple-700' : 'border-purple-300'}`}>
-                      <span className="text-2xl">⬆️</span>
-                      <h3 className={`text-xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Northbound</h3>
-                      <span className={`text-sm ${textMuted}`}>To Northglenn/112th</span>
+                      <span className="text-xl">⬆️</span>
+                      <h3 className={`text-lg font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Northbound</h3>
+                      <span className={`text-xs ${textMuted}`}>To Northglenn</span>
                     </div>
-                    <div className={`mb-3 p-3 rounded-lg ${isDarkMode ? 'bg-purple-900 bg-opacity-20' : 'bg-purple-50'}`}>
+                    <div className={`mb-3 p-2 rounded-lg ${isDarkMode ? 'bg-purple-900 bg-opacity-20' : 'bg-purple-50'}`}>
                       <p className={`text-xs ${isDarkMode ? 'text-purple-300' : 'text-purple-800'}`}>
-                        ℹ️ Trains sit at Union Station for 15 min before departure. Times show DEPARTURE countdown.
+                        ℹ️ Times show departure countdown
                       </p>
                     </div>
                     <div className="space-y-3">
@@ -780,32 +758,32 @@
                         transitDataNB.map((train, idx) => renderTrainCard(train, idx))
                       ) : (
                         <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                          <p className={textMuted}>No upcoming northbound trains</p>
+                          <p className={textMuted}>No upcoming trains</p>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                    <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                      <span className="font-semibold">🔴 Live RTD data</span> • Updates every minute
+                  <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
+                    <p className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                      🔴 Live RTD data • Updates every minute
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Today's Schedule Tab */}
-              {activeTab === 'schedule' && (
-                <div className={`${cardBg} rounded-2xl shadow-xl p-6 border ${borderColor}`}>
-                  <h2 className={`text-2xl font-bold ${textColor} mb-6`}>📅 Today's Schedule</h2>
+              {/* Today's Schedule Section */}
+              {activeSection === 'schedule' && (
+                <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
+                  <h2 className={`text-xl sm:text-2xl font-bold ${textColor} mb-4`}>📅 Today's Schedule</h2>
 
                   {!plannerToken ? (
-                    <div className={`text-center py-12 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded-xl`}>
-                      <p className={`text-lg mb-4 ${textColor}`}>Connect your planner to see today's tasks and events</p>
+                    <div className={`text-center py-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded-xl`}>
+                      <p className={`text-base mb-4 ${textColor}`}>Connect planner</p>
                       <input
                         type="text"
-                        placeholder="Enter Planner Token (e.g., PLAN-ABC123)"
-                        className={`px-4 py-2 rounded-lg border mb-4 ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        placeholder="Token (PLAN-ABC123)"
+                        className={`w-full max-w-xs px-4 py-2 rounded-lg border text-center ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {
                             setPlannerToken(e.target.value);
@@ -813,22 +791,22 @@
                           }
                         }}
                       />
-                      <p className={`text-xs ${textMuted}`}>Press Enter to save</p>
+                      <p className={`text-xs mt-2 ${textMuted}`}>Press Enter</p>
                     </div>
                   ) : (
                     <>
                       {loading.tasks ? (
                         <div className="text-center py-8">
                           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                          <p className={textMuted}>Loading schedule...</p>
+                          <p className={textMuted}>Loading...</p>
                         </div>
                       ) : (
                         <>
                           {/* Tasks */}
                           <div className="mb-6">
-                            <h3 className={`text-xl font-semibold ${textColor} mb-3`}>✅ Tasks</h3>
+                            <h3 className={`text-lg font-semibold ${textColor} mb-3`}>✅ Tasks</h3>
                             {todayTasks.length === 0 ? (
-                              <p className={textMuted}>No tasks for today</p>
+                              <p className={textMuted}>No tasks</p>
                             ) : (
                               <div className="space-y-2">
                                 {todayTasks.map((task, idx) => (
@@ -843,9 +821,9 @@
 
                           {/* Events */}
                           <div>
-                            <h3 className={`text-xl font-semibold ${textColor} mb-3`}>📆 Events</h3>
+                            <h3 className={`text-lg font-semibold ${textColor} mb-3`}>📆 Events</h3>
                             {todayEvents.length === 0 ? (
-                              <p className={textMuted}>No events for today</p>
+                              <p className={textMuted}>No events</p>
                             ) : (
                               <div className="space-y-2">
                                 {todayEvents.map((event, idx) => (
@@ -865,7 +843,7 @@
                             }}
                             className="mt-4 text-sm text-red-500 hover:text-red-600"
                           >
-                            Disconnect planner
+                            Disconnect
                           </button>
                         </>
                       )}
@@ -874,64 +852,64 @@
                 </div>
               )}
 
-              {/* Search Locator Tab */}
-              {activeTab === 'search' && (
-                <div className={`${cardBg} rounded-2xl shadow-xl p-6 border ${borderColor}`}>
-                  <h2 className={`text-2xl font-bold ${textColor} mb-6`}>🔍 Search Drive Times</h2>
+              {/* Search Locator Section */}
+              {activeSection === 'search' && (
+                <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
+                  <h2 className={`text-xl sm:text-2xl font-bold ${textColor} mb-4`}>🔍 Search Drive Times</h2>
 
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 mb-4">
                     <div>
-                      <label className={`block text-sm font-medium ${textColor} mb-2`}>From Location (lat,lng)</label>
+                      <label className={`block text-sm font-medium ${textColor} mb-1`}>From Address</label>
                       <input
                         type="text"
-                        value={searchFrom}
-                        onChange={(e) => setSearchFrom(e.target.value)}
-                        placeholder="39.9067,-104.9875"
-                        className={`w-full px-4 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        value={searchFromAddress}
+                        onChange={(e) => setSearchFromAddress(e.target.value)}
+                        placeholder="123 Main St, Denver, CO"
+                        className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                       />
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium ${textColor} mb-2`}>To Location (lat,lng)</label>
+                      <label className={`block text-sm font-medium ${textColor} mb-1`}>To Address</label>
                       <input
                         type="text"
-                        value={searchTo}
-                        onChange={(e) => setSearchTo(e.target.value)}
-                        placeholder="39.7467,-104.9898"
-                        className={`w-full px-4 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        value={searchToAddress}
+                        onChange={(e) => setSearchToAddress(e.target.value)}
+                        placeholder="456 Market St, Denver, CO"
+                        className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                       />
                     </div>
 
                     <button
                       onClick={searchDriveTimes}
-                      disabled={!searchFrom || !searchTo || loading.search}
-                      className={`w-full px-4 py-3 rounded-lg font-semibold ${
-                        !searchFrom || !searchTo || loading.search
+                      disabled={!searchFromAddress || !searchToAddress || loading.search}
+                      className={`w-full px-4 py-2.5 rounded-lg font-semibold ${
+                        !searchFromAddress || !searchToAddress || loading.search
                           ? 'bg-gray-400 cursor-not-allowed'
                           : isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
                       } text-white transition-all`}
                     >
-                      {loading.search ? 'Searching...' : 'Search Drive Times'}
+                      {loading.search ? 'Searching...' : '🔍 Search'}
                     </button>
                   </div>
 
                   {searchResults && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {searchResults.error ? (
                         <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-red-900 bg-opacity-30 text-red-300' : 'bg-red-50 text-red-800'}`}>
-                          <p>{searchResults.error}</p>
+                          <p className="text-sm">{searchResults.error}</p>
                         </div>
                       ) : (
                         <>
-                          <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-green-900 bg-opacity-30 border-green-700' : 'bg-green-50 border-green-200'}`}>
-                            <p className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-green-400' : 'text-green-800'}`}>🛣️ With Highway</p>
-                            <p className={`text-2xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-900'}`}>{searchResults.withHighway.duration}</p>
+                          <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-green-900 bg-opacity-30 border-green-700' : 'bg-green-50 border-green-200'}`}>
+                            <p className={`text-xs font-semibold mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-800'}`}>🛣️ With Highway</p>
+                            <p className={`text-xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-900'}`}>{searchResults.withHighway.duration}</p>
                             <p className={`text-sm ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>{searchResults.withHighway.distance}</p>
                           </div>
 
-                          <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'bg-blue-900 bg-opacity-30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
-                            <p className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>🚗 Without Highway</p>
-                            <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{searchResults.noHighway.duration}</p>
+                          <div className={`p-4 rounded-xl border-2 ${isDarkMode ? 'bg-blue-900 bg-opacity-30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
+                            <p className={`text-xs font-semibold mb-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-800'}`}>🚗 Without Highway</p>
+                            <p className={`text-xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>{searchResults.noHighway.duration}</p>
                             <p className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>{searchResults.noHighway.distance}</p>
                           </div>
                         </>
@@ -939,31 +917,29 @@
                     </div>
                   )}
 
-                  <div className={`mt-6 p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                    <p className={`text-sm ${textMuted} mb-2`}>
-                      <span className="font-semibold">Quick locations:</span>
-                    </p>
+                  <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <p className={`text-xs ${textMuted} mb-2 font-semibold`}>Quick Locations:</p>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <button
-                        onClick={() => setSearchFrom('39.9067,-104.9875')}
+                        onClick={() => setSearchFromAddress('104th Ave & Washington St, Northglenn, CO')}
                         className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         Home
                       </button>
                       <button
-                        onClick={() => setSearchFrom('39.7477,-104.9898')}
+                        onClick={() => setSearchFromAddress('Union Station, Denver, CO')}
                         className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         Garage
                       </button>
                       <button
-                        onClick={() => setSearchTo('39.7477,-104.9898')}
+                        onClick={() => setSearchToAddress('Union Station, Denver, CO')}
                         className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         Garage
                       </button>
                       <button
-                        onClick={() => setSearchTo('39.7465,-104.9914')}
+                        onClick={() => setSearchToAddress('1700 Broadway, Denver, CO')}
                         className={`px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         Work
@@ -974,14 +950,64 @@
               )}
             </div>
 
-            {/* Footer */}
-            <div className={`mt-6 text-center ${textMuted}`}>
-              <p className="text-xs">
-                🔄 Auto-refresh: Every 15 minutes (Transit: Every 1 minute)
-              </p>
-              <p className="text-xs mt-2">
-                Taskify || Commute Dashboard • RTD N Line • Denver Metro
-              </p>
+            {/* Footer info */}
+            <div className={`text-center py-4 ${textMuted}`}>
+              <p className="text-xs">Auto-refresh: 15 min (Transit: 1 min)</p>
+            </div>
+          </div>
+
+          {/* Bottom Navigation Bar */}
+          <div className={`bottom-nav ${cardBg} border-t ${borderColor} shadow-lg`}>
+            <div className="max-w-6xl mx-auto px-2 py-3">
+              <div className="flex justify-around items-center">
+                <button
+                  onClick={() => setActiveSection('drive')}
+                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                    activeSection === 'drive'
+                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      : textMuted
+                  }`}
+                >
+                  <span className="text-2xl">🚗</span>
+                  <span className="text-xs font-medium">Drive</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveSection('nline')}
+                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                    activeSection === 'nline'
+                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      : textMuted
+                  }`}
+                >
+                  <span className="text-2xl">🚆</span>
+                  <span className="text-xs font-medium">N Line</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveSection('schedule')}
+                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                    activeSection === 'schedule'
+                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      : textMuted
+                  }`}
+                >
+                  <span className="text-2xl">📅</span>
+                  <span className="text-xs font-medium">Schedule</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveSection('search')}
+                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                    activeSection === 'search'
+                      ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      : textMuted
+                  }`}
+                >
+                  <span className="text-2xl">🔍</span>
+                  <span className="text-xs font-medium">Search</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
