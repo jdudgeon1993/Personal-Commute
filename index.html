@@ -45,6 +45,25 @@
     .content-area {
       padding-bottom: 100px;
     }
+    /* Smooth scroll */
+    html {
+      scroll-behavior: smooth;
+    }
+    /* Loading skeleton */
+    @keyframes shimmer {
+      0% { background-position: -1000px 0; }
+      100% { background-position: 1000px 0; }
+    }
+    .skeleton {
+      animation: shimmer 2s infinite;
+      background: linear-gradient(to right, #f0f0f0 4%, #f8f8f8 25%, #f0f0f0 36%);
+      background-size: 1000px 100%;
+    }
+    .skeleton-dark {
+      animation: shimmer 2s infinite;
+      background: linear-gradient(to right, #374151 4%, #4b5563 25%, #374151 36%);
+      background-size: 1000px 100%;
+    }
   </style>
 </head>
 <body>
@@ -133,6 +152,7 @@
         }
       });
       const [lastRefresh, setLastRefresh] = useState(new Date());
+      const [refreshSuccess, setRefreshSuccess] = useState(false);
 
       // Save dark mode preference
       useEffect(() => {
@@ -528,14 +548,21 @@
         return () => clearInterval(interval);
       }, [fetchTransitData]);
 
-      // Manual refresh all
+      // Manual refresh all with success feedback
       const handleManualRefresh = () => {
         fetchWeather();
         fetchDriveTimes();
         fetchTransitData();
         if (plannerToken) fetchTodaySchedule();
         setLastRefresh(new Date());
+        setRefreshSuccess(true);
+        setTimeout(() => setRefreshSuccess(false), 2000);
       };
+
+      // Scroll to top when changing sections
+      useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, [activeSection]);
 
       // Helper function to format duration
       const formatDuration = (minutes) => {
@@ -639,16 +666,22 @@
               <div className="flex flex-wrap gap-2 mt-3">
                 <button
                   onClick={handleManualRefresh}
-                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all ${
+                    refreshSuccess
+                      ? 'bg-green-600 text-white'
+                      : isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`}
+                  aria-label="Refresh all data"
                 >
-                  🔄 Refresh
+                  {refreshSuccess ? '✓ Refreshed' : '🔄 Refresh'}
                 </button>
 
                 <button
                   onClick={() => setIsDarkMode(!isDarkMode)}
                   className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all ${isDarkMode ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                  aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
-                  {isDarkMode ? '☀️' : '🌙'}
+                  {isDarkMode ? '☀️ Light' : '🌙 Dark'}
                 </button>
 
                 <div className={`px-3 py-1.5 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} ${textMuted} text-xs`}>
@@ -673,7 +706,13 @@
                     </button>
                   </div>
 
-                  {driveData && (
+                  {loading.drive && !driveData ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className={`p-4 rounded-xl ${isDarkMode ? 'skeleton-dark' : 'skeleton'} h-24`}></div>
+                      ))}
+                    </div>
+                  ) : driveData && (
                     <>
                       {driveData._isFallback && (
                         <div className={`p-3 rounded-lg mb-4 ${isDarkMode ? 'bg-yellow-900 bg-opacity-30 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}>
@@ -925,41 +964,54 @@
                 <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
                   <h2 className={`text-xl sm:text-2xl font-bold ${textColor} mb-4`}>🔍 Search Drive Times</h2>
 
-                  <div className="space-y-3 mb-4">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (searchFromAddress && searchToAddress && !loading.search) {
+                        searchDriveTimes();
+                      }
+                    }}
+                    className="space-y-3 mb-4"
+                  >
                     <div>
-                      <label className={`block text-sm font-medium ${textColor} mb-1`}>From Address</label>
+                      <label htmlFor="from-address" className={`block text-sm font-medium ${textColor} mb-1`}>From Address</label>
                       <input
+                        id="from-address"
                         type="text"
                         value={searchFromAddress}
                         onChange={(e) => setSearchFromAddress(e.target.value)}
                         placeholder="123 Main St, Denver, CO"
-                        className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        aria-label="Starting address"
+                        className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`}
                       />
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium ${textColor} mb-1`}>To Address</label>
+                      <label htmlFor="to-address" className={`block text-sm font-medium ${textColor} mb-1`}>To Address</label>
                       <input
+                        id="to-address"
                         type="text"
                         value={searchToAddress}
                         onChange={(e) => setSearchToAddress(e.target.value)}
                         placeholder="456 Market St, Denver, CO"
-                        className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        aria-label="Destination address"
+                        className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`}
                       />
                     </div>
 
                     <button
-                      onClick={searchDriveTimes}
+                      type="submit"
                       disabled={!searchFromAddress || !searchToAddress || loading.search}
                       className={`w-full px-4 py-2.5 rounded-lg font-semibold ${
                         !searchFromAddress || !searchToAddress || loading.search
                           ? 'bg-gray-400 cursor-not-allowed'
                           : isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
                       } text-white transition-all`}
+                      aria-label="Search drive times"
                     >
                       {loading.search ? 'Searching...' : '🔍 Search'}
                     </button>
-                  </div>
+                  </form>
 
                   {searchResults && (
                     <div className="space-y-3">
@@ -1025,9 +1077,9 @@
           </div>
 
           {/* Bottom Navigation Bar */}
-          <div className={`bottom-nav ${cardBg} border-t ${borderColor} shadow-lg`}>
+          <nav className={`bottom-nav ${cardBg} border-t ${borderColor} shadow-lg`} aria-label="Main navigation" role="navigation">
             <div className="max-w-6xl mx-auto px-2 py-3">
-              <div className="flex justify-around items-center">
+              <div className="flex justify-around items-center" role="tablist">
                 <button
                   onClick={() => setActiveSection('drive')}
                   className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all ${
@@ -1035,8 +1087,10 @@
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
                   }`}
+                  aria-label="Drive times section"
+                  aria-current={activeSection === 'drive' ? 'page' : undefined}
                 >
-                  <span className="text-2xl">🚗</span>
+                  <span className="text-2xl" aria-hidden="true">🚗</span>
                   <span className="text-xs font-medium">Drive</span>
                 </button>
 
@@ -1047,8 +1101,10 @@
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
                   }`}
+                  aria-label="N Line schedule section"
+                  aria-current={activeSection === 'nline' ? 'page' : undefined}
                 >
-                  <span className="text-2xl">🚆</span>
+                  <span className="text-2xl" aria-hidden="true">🚆</span>
                   <span className="text-xs font-medium">N Line</span>
                 </button>
 
@@ -1059,8 +1115,10 @@
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
                   }`}
+                  aria-label="Bus schedule section"
+                  aria-current={activeSection === 'bus' ? 'page' : undefined}
                 >
-                  <span className="text-2xl">🚌</span>
+                  <span className="text-2xl" aria-hidden="true">🚌</span>
                   <span className="text-xs font-medium">Bus</span>
                 </button>
 
@@ -1071,8 +1129,10 @@
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
                   }`}
+                  aria-label="Today's schedule section"
+                  aria-current={activeSection === 'schedule' ? 'page' : undefined}
                 >
-                  <span className="text-2xl">📅</span>
+                  <span className="text-2xl" aria-hidden="true">📅</span>
                   <span className="text-xs font-medium">Schedule</span>
                 </button>
 
@@ -1083,13 +1143,15 @@
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
                   }`}
+                  aria-label="Search locator section"
+                  aria-current={activeSection === 'search' ? 'page' : undefined}
                 >
-                  <span className="text-2xl">🔍</span>
+                  <span className="text-2xl" aria-hidden="true">🔍</span>
                   <span className="text-xs font-medium">Search</span>
                 </button>
               </div>
             </div>
-          </div>
+          </nav>
         </div>
       );
     };
