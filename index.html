@@ -28,6 +28,13 @@
     .slide-in {
       animation: slideIn 0.3s ease-out;
     }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
     *:focus-visible {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
@@ -138,8 +145,17 @@
         transit: true,
         search: false
       });
+      const [isInitialLoad, setIsInitialLoad] = useState(true);
       const [lastRefresh, setLastRefresh] = useState(new Date());
       const [refreshSuccess, setRefreshSuccess] = useState(false);
+
+      // Check if initial load is complete
+      useEffect(() => {
+        if (!loading.weather && !loading.drive && !loading.transit && isInitialLoad) {
+          // Small delay for smooth transition
+          setTimeout(() => setIsInitialLoad(false), 500);
+        }
+      }, [loading.weather, loading.drive, loading.transit, isInitialLoad]);
 
       // Save dark mode preference
       useEffect(() => {
@@ -597,8 +613,50 @@
         );
       };
 
+      // Loading Screen Component
+      if (isInitialLoad) {
+        return (
+          <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br ${theme}`}>
+            <div className="text-center px-4">
+              <div className="mb-8">
+                <h1 className={`text-4xl sm:text-5xl font-bold ${textColor} mb-2`}>
+                  Taskify
+                </h1>
+                <p className={`text-xl ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                  Commute Dashboard
+                </p>
+              </div>
+
+              {/* Loading Animation */}
+              <div className="mb-6">
+                <div className={`inline-block animate-spin rounded-full h-16 w-16 border-b-4 ${isDarkMode ? 'border-blue-500' : 'border-blue-600'} mb-4`}></div>
+              </div>
+
+              {/* Loading Status */}
+              <div className={`space-y-2 ${textMuted}`}>
+                <p className="text-sm">Loading your commute data...</p>
+                <div className="flex justify-center gap-4 text-xs mt-4">
+                  <span className={loading.weather ? 'opacity-50' : 'opacity-100'}>
+                    {loading.weather ? '⏳' : '✓'} Weather
+                  </span>
+                  <span className={loading.drive ? 'opacity-50' : 'opacity-100'}>
+                    {loading.drive ? '⏳' : '✓'} Routes
+                  </span>
+                  <span className={loading.transit ? 'opacity-50' : 'opacity-100'}>
+                    {loading.transit ? '⏳' : '✓'} Transit
+                  </span>
+                </div>
+                <p className="text-xs mt-4 opacity-70">
+                  This may take up to 45 seconds on first load
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <div className={`min-h-screen bg-gradient-to-br ${theme}`}>
+        <div className={`min-h-screen bg-gradient-to-br ${theme} fade-in`}>
           <div className="max-w-6xl mx-auto content-area">
             {/* Header */}
             <div className={`${cardBg} shadow-lg p-4 sm:p-6 border-b ${borderColor} sticky top-0 z-40`}>
