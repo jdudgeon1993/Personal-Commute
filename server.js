@@ -159,20 +159,33 @@ app.get('/api/rtd/gline/:stopId', async (req, res) => {
             const arrival = stopUpdate.arrival;
             const departure = stopUpdate.departure;
 
-            if (arrival && arrival.time) {
-              const arrivalTime = Number(arrival.time);
-              const scheduledTime = arrival.time; // Use actual scheduled time if available
+            // Use departure time if available (for departures FROM a stop), otherwise arrival time
+            const timeToUse = departure && departure.time ? departure.time : (arrival && arrival.time ? arrival.time : null);
+
+            if (timeToUse) {
+              const timestamp = Number(timeToUse);
+              const formatTime = (time) => new Date(time * 1000).toLocaleTimeString('en-US', {
+                timeZone: 'America/Denver',
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+              });
 
               arrivals.push({
                 route: trip.routeId,
                 routeId: trip.routeId,
                 tripId: trip.tripId,
                 directionId: trip.directionId || 0,
-                arrivalTime: arrivalTime,
-                scheduledArrivalTime: scheduledTime,
-                arrivalTimeFormatted: new Date(arrivalTime * 1000).toLocaleTimeString('en-US'),
+                // Include both arrival and departure
+                arrivalTime: arrival && arrival.time ? Number(arrival.time) : timestamp,
+                departureTime: departure && departure.time ? Number(departure.time) : timestamp,
+                arrivalTimeFormatted: arrival && arrival.time ? formatTime(Number(arrival.time)) : formatTime(timestamp),
+                departureTimeFormatted: departure && departure.time ? formatTime(Number(departure.time)) : formatTime(timestamp),
+                scheduledArrivalTime: arrival && arrival.time ? arrival.time : timeToUse,
                 status: 'Scheduled',
-                stopId: stopId
+                stopId: stopId,
+                isDeparture: !!(departure && departure.time) // Flag to indicate if this has departure time
               });
             }
           }
