@@ -580,80 +580,84 @@
         }
       }, []);
 
-      // Fetch B Line data - try Westminster station where B Line definitely stops
+      // Fetch B Line data - Transit Land shows route "1" goes to Westminster
       const fetchBLineData = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, bLine: true }));
-          const apiEndpoint = `${CONSTANTS.API_BASE_URL}/api/rtd/gline`; // Uses same GTFS-RT endpoint
+          const apiEndpoint = `${CONSTANTS.API_BASE_URL}/api/rtd/gline`;
 
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 45000);
+          // Try multiple Union Station platforms to find B Line (Track 8)
+          const platformsToTry = [
+            34722, // B Line Union Station (from config)
+            34723, // From Transit Land
+            34781, // G Line platform (might be shared)
+            34314, // From Transit Land
+            34667, // From Transit Land
+            34668  // From Transit Land
+          ];
 
-          // Try Westminster (northern terminus) - B Line definitely stops here
-          console.log('🔍 Attempting to fetch B Line from Westminster (34767)...');
-          const response = await fetch(`${apiEndpoint}/34767?t=${Date.now()}`, {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            signal: controller.signal
-          });
+          console.log('🔍 Searching for B Line across multiple Union Station platforms...');
 
-          clearTimeout(timeoutId);
-          const data = await response.json();
+          let bLineFound = false;
 
-          console.log('🔍 B Line at Westminster (34767) Response:', data);
+          for (const platformId of platformsToTry) {
+            console.log(`\n🔍 Trying Union Station platform ${platformId}...`);
 
-          const allArrivals = data.arrivals || [];
-
-          console.log(`📊 Total arrivals at Westminster: ${allArrivals.length}`);
-          if (allArrivals.length > 0) {
-            console.log('📊 First arrival sample:', allArrivals[0]);
-            console.log('🚆 All routes found:', [...new Set(allArrivals.map(a => a.route))]);
-            console.log('🔢 All routeIds found:', [...new Set(allArrivals.map(a => a.routeId))]);
-            console.log('➡️ Direction IDs found:', [...new Set(allArrivals.map(a => a.directionId))]);
-
-            // Filter for B Line - try ALL possible variations
-            const bLineArrivals = allArrivals.filter(a => {
-              const routeMatch = a.routeId?.includes('B') || a.routeId === 'B';
-              const nameMatch = a.route?.includes('B');
-              const isBLine = routeMatch || nameMatch;
-
-              // Log EVERY arrival for debugging
-              console.log(`🔎 Checking arrival: route="${a.route}", routeId="${a.routeId}", directionId=${a.directionId}, isBLine=${isBLine}`);
-
-              return isBLine;
+            const response = await fetch(`${apiEndpoint}/${platformId}?t=${Date.now()}`, {
+              method: 'GET',
+              mode: 'cors',
+              cache: 'no-cache',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
             });
 
-            console.log(`🚆 B Line arrivals at Westminster: ${bLineArrivals.length}`);
-            if (bLineArrivals.length > 0) {
-              console.log('✅ Found B Line trains!', bLineArrivals);
-              console.log('✅ B Line route ID is:', bLineArrivals[0].routeId);
-            } else {
-              console.log('❌ No B Line trains found. This might not be a B Line stop, or no trains scheduled.');
+            const data = await response.json();
+            const allArrivals = data.arrivals || [];
+
+            if (allArrivals.length > 0) {
+              console.log(`   📊 Found ${allArrivals.length} arrivals at platform ${platformId}`);
+              console.log(`   🔢 RouteIDs:`, [...new Set(allArrivals.map(a => a.routeId))]);
+
+              // Check for B Line - try route "1" (from Transit Land), "113B", or "B"
+              const bLineArrivals = allArrivals.filter(a =>
+                a.routeId === '1' || // Transit Land shows route "1" to Westminster
+                a.routeId === '113B' ||
+                a.routeId === 'B' ||
+                a.route?.includes('Westminster')
+              );
+
+              if (bLineArrivals.length > 0) {
+                console.log(`   ✅ FOUND B LINE at platform ${platformId}!`);
+                console.log(`   ✅ B Line route ID: "${bLineArrivals[0].routeId}"`);
+                console.log(`   ✅ B Line arrivals:`, bLineArrivals);
+
+                // Departures FROM Union Station (direction may vary)
+                const dir0 = bLineArrivals.filter(a => a.directionId === 0).slice(0, 3).map(arrival => ({
+                  time: arrival.arrivalTimeFormatted,
+                  arrivalTimestamp: arrival.arrivalTime * 1000,
+                  delay: 0,
+                  status: arrival.status || 'On Time'
+                }));
+
+                const dir1 = bLineArrivals.filter(a => a.directionId === 1).slice(0, 3).map(arrival => ({
+                  time: arrival.arrivalTimeFormatted,
+                  arrivalTimestamp: arrival.arrivalTime * 1000,
+                  delay: 0,
+                  status: arrival.status || 'On Time'
+                }));
+
+                console.log(`   🚆 Direction 0: ${dir0.length} trains, Direction 1: ${dir1.length} trains`);
+
+                // Northbound departures to Westminster
+                setBLineNorthbound(dir0.length > 0 ? dir0 : dir1);
+                setBLineSouthbound([]); // No southbound FROM Union Station
+                bLineFound = true;
+                break;
+              }
             }
+          }
 
-            // Process the trains (southbound to Union Station)
-            const southbound = bLineArrivals.filter(a => a.directionId === 1).slice(0, 3).map(arrival => ({
-              time: arrival.arrivalTimeFormatted,
-              arrivalTimestamp: arrival.arrivalTime * 1000,
-              delay: 0,
-              status: arrival.status || 'On Time'
-            }));
-
-            const northbound = bLineArrivals.filter(a => a.directionId === 0).slice(0, 3).map(arrival => ({
-              time: arrival.arrivalTimeFormatted,
-              arrivalTimestamp: arrival.arrivalTime * 1000,
-              delay: 0,
-              status: arrival.status || 'On Time'
-            }));
-
-            console.log(`🚆 B Line: ${southbound.length} southbound, ${northbound.length} northbound`);
-
-            setBLineSouthbound(southbound);
-            setBLineNorthbound(northbound);
-          } else {
-            console.log('⚠️ No arrivals found at Westminster!');
+          if (!bLineFound) {
+            console.log('❌ B Line not found at any Union Station platform');
             setBLineSouthbound([]);
             setBLineNorthbound([]);
           }
