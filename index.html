@@ -589,8 +589,9 @@
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-          // Fetch from Union Station - B Line platform
-          const response = await fetch(`${apiEndpoint}/${config.bLineStops.unionStation}?t=${Date.now()}`, {
+          // Try G Line's Union Station stop first (34781) - might be shared platform
+          console.log('🔍 Attempting to fetch B Line from Union Station stop 34781 (G Line platform)...');
+          const response = await fetch(`${apiEndpoint}/34781?t=${Date.now()}`, {
             method: 'GET',
             mode: 'cors',
             cache: 'no-cache',
@@ -601,49 +602,57 @@
           clearTimeout(timeoutId);
           const data = await response.json();
 
-          console.log('🔍 B Line at Union Station (34722) - Raw data:', data);
+          console.log('🔍 B Line at Union Station (34781) Response:', data);
 
           const allArrivals = data.arrivals || [];
 
-          // DEBUG: Log all unique routes at this stop
+          console.log(`📊 Total arrivals at Union Station: ${allArrivals.length}`);
           if (allArrivals.length > 0) {
-            const uniqueRoutes = [...new Set(allArrivals.map(a => a.routeId))];
-            console.log('📊 All routes at Union Station (B Line platform):', uniqueRoutes);
-            console.log('📊 All route names:', [...new Set(allArrivals.map(a => a.route || 'N/A'))]);
-            console.log('📊 Sample arrival:', allArrivals[0]);
+            console.log('📊 First arrival sample:', allArrivals[0]);
+            console.log('🚆 All routes found:', [...new Set(allArrivals.map(a => a.route))]);
+            console.log('🔢 All routeIds found:', [...new Set(allArrivals.map(a => a.routeId))]);
+            console.log('➡️ Direction IDs found:', [...new Set(allArrivals.map(a => a.directionId))]);
+
+            // Filter for B Line - try multiple route ID formats
+            const bLineArrivals = allArrivals.filter(a => {
+              const routeMatch = a.routeId === '113B' || a.routeId === 'B' ||
+                                a.routeId === 'B-Line' || a.routeId?.startsWith('113B');
+              const nameMatch = a.route === 'B Line' || a.route === 'B';
+              const isBLine = routeMatch || nameMatch;
+
+              // Log each check for debugging
+              if (a.routeId?.includes('B') || a.route?.includes('B')) {
+                console.log(`🔎 Checking arrival: route="${a.route}", routeId="${a.routeId}", directionId=${a.directionId}, isBLine=${isBLine}`);
+              }
+
+              return isBLine;
+            });
+
+            console.log(`🚆 B Line arrivals at Union Station: ${bLineArrivals.length}`);
+            if (bLineArrivals.length > 0) {
+              console.log('✅ Found B Line trains!', bLineArrivals);
+            }
+
+            // Departures FROM Union Station going northbound to Westminster
+            const northbound = bLineArrivals.filter(a => a.directionId === 0).slice(0, 3).map(arrival => ({
+              time: arrival.arrivalTimeFormatted,
+              arrivalTimestamp: arrival.arrivalTime * 1000,
+              delay: 0,
+              status: arrival.status || 'On Time'
+            }));
+
+            // Southbound doesn't make sense FROM Union Station
+            const southbound = [];
+
+            console.log(`🚆 B Line: ${northbound.length} northbound departures from Union Station`);
+
+            setBLineSouthbound(southbound);
+            setBLineNorthbound(northbound);
           } else {
-            console.log('⚠️ No arrivals found at Union Station B Line platform (stop 34722)');
+            console.log('⚠️ No arrivals found at Union Station!');
+            setBLineSouthbound([]);
+            setBLineNorthbound([]);
           }
-
-          // Filter for B Line - try multiple route ID formats
-          const bLineArrivals = allArrivals.filter(a => {
-            const routeMatch = a.routeId === '113B' || a.routeId === 'B' ||
-                              a.routeId === 'B-Line' || a.routeId?.includes('B');
-            const nameMatch = a.route === 'B Line' || a.route === 'B' || a.route?.includes('B');
-            return routeMatch || nameMatch;
-          });
-
-          console.log(`🚆 B Line filtered arrivals: ${bLineArrivals.length}`);
-          if (bLineArrivals.length > 0) {
-            console.log('✅ Found B Line trains!', bLineArrivals);
-          }
-
-          // Departures FROM Union Station going northbound to Westminster
-          const northbound = bLineArrivals.filter(a => a.directionId === 0).slice(0, 3).map(arrival => ({
-            time: arrival.arrivalTimeFormatted,
-            arrivalTimestamp: arrival.arrivalTime * 1000,
-            delay: 0,
-            status: arrival.status || 'On Time'
-          }));
-
-          // Note: Southbound to Union Station doesn't make sense when querying FROM Union Station
-          // So we'll leave southbound empty for now
-          const southbound = [];
-
-          console.log(`🚆 B Line: ${northbound.length} departures northbound from Union Station`);
-
-          setBLineSouthbound(southbound);
-          setBLineNorthbound(northbound);
         } catch (error) {
           console.error('B Line error:', error);
           setBLineSouthbound([]);
