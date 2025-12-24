@@ -116,6 +116,12 @@
       rtdStops: {
         southbound: '35254',
         northbound: '34668'
+      },
+      gLineStops: {
+        unionStation: '34781',  // Track 7 - Eastbound terminus
+        pecosJunction: '34508', // Transfer point
+        goldStrike: '34506',    // 60th/Sheridan - Primary boarding point
+        oldeTown: '33833'       // Westbound destination
       }
     };
 
@@ -127,6 +133,8 @@
       const [driveData, setDriveData] = useState(null);
       const [transitDataSB, setTransitDataSB] = useState(null);
       const [transitDataNB, setTransitDataNB] = useState(null);
+      const [gLineEastbound, setGLineEastbound] = useState(null); // Trains going to Union Station
+      const [gLineWestbound, setGLineWestbound] = useState(null); // Trains going to Olde Town
       const [searchFromAddress, setSearchFromAddress] = useState('');
       const [searchToAddress, setSearchToAddress] = useState('');
       const [searchResults, setSearchResults] = useState(null);
@@ -143,7 +151,12 @@
         weather: true,
         drive: true,
         transit: true,
+        gLine: true,
         search: false
+      });
+      const [visibleLines, setVisibleLines] = useState({
+        nLine: true,
+        gLine: true
       });
       const [isInitialLoad, setIsInitialLoad] = useState(true);
       const [lastRefresh, setLastRefresh] = useState(new Date());
@@ -423,6 +436,113 @@
         }
       }, []);
 
+      // Fetch G Line data from Gold Strike station
+      const fetchGLineData = useCallback(async () => {
+        try {
+          setLoading(prev => ({ ...prev, gLine: true }));
+          const apiEndpoint = 'https://rtd-n-line-api.onrender.com/api/rtd/arrivals';
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+
+          // Fetch from Gold Strike (primary boarding point)
+          const response = await fetch(`${apiEndpoint}/${config.gLineStops.goldStrike}?t=${Date.now()}`, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          const data = await response.json();
+
+          // Process eastbound (to Union Station)
+          let eastboundTrains = [];
+          if (data.arrivals && Array.isArray(data.arrivals) && data.arrivals.length > 0) {
+            const filteredEB = data.arrivals.filter(arrival => {
+              const isGLine = arrival.routeId === '117G' || arrival.route === 'G Line' || arrival.route === 'G';
+              return isGLine && arrival.directionId === 1; // Assuming 1 = eastbound
+            });
+
+            eastboundTrains = filteredEB.slice(0, 3).map(arrival => {
+              let arrivalTimestamp = null;
+              let displayTime = arrival.arrivalTimeFormatted;
+              let delayMinutes = 0;
+
+              if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
+                arrivalTimestamp = arrival.arrivalTime * 1000;
+                const arrivalDate = new Date(arrivalTimestamp);
+                displayTime = arrivalDate.toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                });
+
+                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
+                }
+              }
+
+              return {
+                time: displayTime,
+                arrivalTimestamp: arrivalTimestamp,
+                delay: delayMinutes,
+                status: arrival.status || 'On Time'
+              };
+            });
+          }
+
+          // Process westbound (to Olde Town)
+          let westboundTrains = [];
+          if (data.arrivals && Array.isArray(data.arrivals) && data.arrivals.length > 0) {
+            const filteredWB = data.arrivals.filter(arrival => {
+              const isGLine = arrival.routeId === '117G' || arrival.route === 'G Line' || arrival.route === 'G';
+              return isGLine && arrival.directionId === 0; // Assuming 0 = westbound
+            });
+
+            westboundTrains = filteredWB.slice(0, 3).map(arrival => {
+              let arrivalTimestamp = null;
+              let displayTime = arrival.arrivalTimeFormatted;
+              let delayMinutes = 0;
+
+              if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
+                arrivalTimestamp = arrival.arrivalTime * 1000;
+                const arrivalDate = new Date(arrivalTimestamp);
+                displayTime = arrivalDate.toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                });
+
+                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
+                }
+              }
+
+              return {
+                time: displayTime,
+                arrivalTimestamp: arrivalTimestamp,
+                delay: delayMinutes,
+                status: arrival.status || 'On Time'
+              };
+            });
+          }
+
+          setGLineEastbound(eastboundTrains);
+          setGLineWestbound(westboundTrains);
+        } catch (error) {
+          console.error('G Line error:', error);
+          setGLineEastbound([]);
+          setGLineWestbound([]);
+        } finally {
+          setLoading(prev => ({ ...prev, gLine: false }));
+        }
+      }, []);
+
       // Geocode address to coordinates
       const geocodeAddress = async (address) => {
         const response = await fetch(
@@ -510,7 +630,8 @@
         fetchWeather();
         fetchDriveTimes();
         fetchTransitData();
-      }, [fetchWeather, fetchDriveTimes, fetchTransitData]);
+        fetchGLineData();
+      }, [fetchWeather, fetchDriveTimes, fetchTransitData, fetchGLineData]);
 
       // 15-minute refresh for weather and drive times
       useEffect(() => {
@@ -526,15 +647,17 @@
       useEffect(() => {
         const interval = setInterval(() => {
           fetchTransitData();
+          fetchGLineData();
         }, CONSTANTS.TRANSIT_INTERVAL);
         return () => clearInterval(interval);
-      }, [fetchTransitData]);
+      }, [fetchTransitData, fetchGLineData]);
 
       // Manual refresh all with success feedback
       const handleManualRefresh = () => {
         fetchWeather();
         fetchDriveTimes();
         fetchTransitData();
+        fetchGLineData();
         setLastRefresh(new Date());
         setRefreshSuccess(true);
         setTimeout(() => setRefreshSuccess(false), 2000);
@@ -795,19 +918,51 @@
                 </div>
               )}
 
-              {/* N Line Schedule Section */}
+              {/* Transit Lines Section (N Line & G Line) */}
               {activeSection === 'nline' && (
-                <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className={`text-xl sm:text-2xl font-bold ${textColor}`}>🚆 N Line</h2>
-                    <button
-                      onClick={fetchTransitData}
-                      className={`px-3 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
-                      disabled={loading.transit}
-                    >
-                      {loading.transit ? '⏳' : '🔄'}
-                    </button>
+                <div className="space-y-4">
+                  {/* Line Visibility Toggles */}
+                  <div className={`${cardBg} rounded-xl shadow-lg p-3 border ${borderColor}`}>
+                    <div className="flex items-center gap-3 justify-between">
+                      <span className={`text-sm font-semibold ${textColor}`}>Show Lines:</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setVisibleLines(prev => ({ ...prev, nLine: !prev.nLine }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            visibleLines.nLine
+                              ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
+                              : isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
+                          }`}
+                        >
+                          N Line
+                        </button>
+                        <button
+                          onClick={() => setVisibleLines(prev => ({ ...prev, gLine: !prev.gLine }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            visibleLines.gLine
+                              ? isDarkMode ? 'bg-orange-600 text-white' : 'bg-orange-500 text-white'
+                              : isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
+                          }`}
+                        >
+                          G Line
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => { fetchTransitData(); fetchGLineData(); }}
+                        className={`px-3 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        disabled={loading.transit || loading.gLine}
+                      >
+                        {(loading.transit || loading.gLine) ? '⏳' : '🔄'}
+                      </button>
+                    </div>
                   </div>
+
+                  {/* N Line Card */}
+                  {visibleLines.nLine && (
+                    <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className={`text-xl sm:text-2xl font-bold ${textColor}`}>🚆 N Line</h2>
+                      </div>
 
                   {/* Southbound */}
                   <div className="mb-6">
@@ -855,6 +1010,105 @@
                       🔴 Live RTD data • Updates every minute
                     </p>
                   </div>
+                    </div>
+                  )}
+
+                  {/* G Line Card with Linear Visualization */}
+                  {visibleLines.gLine && (
+                    <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className={`text-xl sm:text-2xl font-bold ${textColor}`}>🚆 G Line</h2>
+                      </div>
+
+                      {/* Linear Route Visualization */}
+                      <div className="mb-6">
+                        <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-xs font-semibold ${textMuted}`}>WEST</span>
+                            <span className={`text-xs font-semibold ${textMuted}`}>EAST</span>
+                          </div>
+
+                          {/* Route Line */}
+                          <div className="relative flex items-center justify-between py-3">
+                            {/* Olde Town */}
+                            <div className="flex flex-col items-center flex-1">
+                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'}`}></div>
+                              <span className={`text-xs mt-1 ${textMuted} text-center`}>Olde<br/>Town</span>
+                            </div>
+                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'}`}></div>
+
+                            {/* Gold Strike (Highlighted) */}
+                            <div className="flex flex-col items-center flex-1">
+                              <div className={`w-4 h-4 rounded-full ${isDarkMode ? 'bg-orange-400' : 'bg-orange-500'} border-4 ${isDarkMode ? 'border-orange-600' : 'border-orange-700'} shadow-lg`}></div>
+                              <span className={`text-xs mt-1 font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'} text-center`}>Gold<br/>Strike</span>
+                            </div>
+                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'}`}></div>
+
+                            {/* Pecos Junction */}
+                            <div className="flex flex-col items-center flex-1">
+                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'}`}></div>
+                              <span className={`text-xs mt-1 ${textMuted} text-center`}>Pecos<br/>Jct</span>
+                            </div>
+                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'}`}></div>
+
+                            {/* Union Station */}
+                            <div className="flex flex-col items-center flex-1">
+                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'}`}></div>
+                              <span className={`text-xs mt-1 ${textMuted} text-center`}>Union<br/>Stn</span>
+                            </div>
+                          </div>
+
+                          <div className={`mt-2 p-2 rounded-lg ${isDarkMode ? 'bg-orange-900 bg-opacity-20' : 'bg-orange-50'}`}>
+                            <p className={`text-xs text-center ${isDarkMode ? 'text-orange-300' : 'text-orange-800'}`}>
+                              📍 Boarding at Gold Strike
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Eastbound Trains (To Union Station) */}
+                      <div className="mb-6">
+                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-blue-700' : 'border-blue-300'}`}>
+                          <span className="text-xl">→</span>
+                          <h3 className={`text-lg font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>Eastbound</h3>
+                          <span className={`text-xs ${textMuted}`}>To Union Station</span>
+                        </div>
+                        <div className="space-y-3">
+                          {gLineEastbound && gLineEastbound.length > 0 ? (
+                            gLineEastbound.map((train, idx) => renderTrainCard(train, idx))
+                          ) : (
+                            <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                              <p className={textMuted}>No upcoming trains</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Westbound Trains (To Olde Town) */}
+                      <div>
+                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-orange-700' : 'border-orange-300'}`}>
+                          <span className="text-xl">←</span>
+                          <h3 className={`text-lg font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Westbound</h3>
+                          <span className={`text-xs ${textMuted}`}>To Olde Town Arvada</span>
+                        </div>
+                        <div className="space-y-3">
+                          {gLineWestbound && gLineWestbound.length > 0 ? (
+                            gLineWestbound.map((train, idx) => renderTrainCard(train, idx))
+                          ) : (
+                            <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                              <p className={textMuted}>No upcoming trains</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
+                        <p className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                          🔴 Live RTD data • Updates every minute
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
