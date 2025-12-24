@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const GtfsRealtimeBindings = require('gtfs-realtime-bindings');
 require('dotenv').config();
 
 const app = express();
@@ -130,30 +131,76 @@ app.get('/api/rtd/arrivals/:stopId', async (req, res) => {
 app.get('/api/rtd/gline/:stopId', async (req, res) => {
   try {
     const { stopId } = req.params;
-    console.log(`🔍 Fetching G Line data for stop ${stopId}`);
+    console.log(`🔍 Fetching G Line data for stop ${stopId} from GTFS-RT`);
 
-    const response = await fetch(
-      `https://rtd-n-line-api.onrender.com/api/rtd/arrivals/${stopId}?t=${Date.now()}`,
-      {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    const data = await response.json();
-    console.log(`📊 G Line response for stop ${stopId}:`, JSON.stringify(data, null, 2));
+    // Fetch RTD's GTFS-RT TripUpdate feed
+    const response = await fetch('https://www.rtd-denver.com/files/gtfs-rt/TripUpdate.pb');
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: 'RTD G Line API error' });
+      throw new Error(`GTFS-RT feed returned ${response.status}`);
     }
 
-    res.json(data);
+    const buffer = await response.arrayBuffer();
+    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
+
+    console.log(`📊 GTFS-RT feed has ${feed.entity.length} entities`);
+
+    // Parse arrivals for this stop
+    const arrivals = [];
+    const now = Math.floor(Date.now() / 1000);
+
+    for (const entity of feed.entity) {
+      if (entity.tripUpdate) {
+        const trip = entity.tripUpdate.trip;
+        const stopTimeUpdates = entity.tripUpdate.stopTimeUpdate || [];
+
+        for (const stopUpdate of stopTimeUpdates) {
+          if (stopUpdate.stopId === stopId) {
+            const arrival = stopUpdate.arrival;
+            const departure = stopUpdate.departure;
+
+            if (arrival && arrival.time) {
+              const arrivalTime = Number(arrival.time);
+              const scheduledTime = arrival.time; // Use actual scheduled time if available
+
+              arrivals.push({
+                route: trip.routeId,
+                routeId: trip.routeId,
+                tripId: trip.tripId,
+                directionId: trip.directionId || 0,
+                arrivalTime: arrivalTime,
+                scheduledArrivalTime: scheduledTime,
+                arrivalTimeFormatted: new Date(arrivalTime * 1000).toLocaleTimeString('en-US'),
+                status: 'Scheduled',
+                stopId: stopId
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Sort by arrival time
+    arrivals.sort((a, b) => a.arrivalTime - b.arrivalTime);
+
+    const result = {
+      stopId: stopId,
+      stopName: stopId,
+      timestamp: Date.now(),
+      feedTimestamp: Number(feed.header.timestamp) * 1000,
+      feedAgeMinutes: Math.floor((now - Number(feed.header.timestamp)) / 60),
+      arrivals: arrivals
+    };
+
+    console.log(`✅ Found ${arrivals.length} arrivals at stop ${stopId}`);
+    if (arrivals.length > 0) {
+      console.log(`🚆 Routes at this stop:`, [...new Set(arrivals.map(a => a.routeId))]);
+    }
+
+    res.json(result);
   } catch (error) {
-    console.error('❌ RTD G Line API error:', error);
-    res.status(500).json({ error: 'Failed to fetch G Line data', details: error.message });
+    console.error('❌ GTFS-RT error:', error);
+    res.status(500).json({ error: 'Failed to fetch GTFS-RT data', details: error.message });
   }
 });
 
