@@ -601,14 +601,25 @@
           clearTimeout(timeoutId);
           const data = await response.json();
 
-          console.log('🔍 B Line at Pecos Junction:', data);
+          console.log('🔍 B Line at Pecos Junction - Raw data:', data);
 
           const allArrivals = data.arrivals || [];
 
-          // Filter for B Line (route 113B)
+          // DEBUG: Log all unique routes at this stop
+          if (allArrivals.length > 0) {
+            const uniqueRoutes = [...new Set(allArrivals.map(a => a.routeId))];
+            console.log('📊 All routes at Pecos Junction:', uniqueRoutes);
+            console.log('📊 Sample arrival:', allArrivals[0]);
+          } else {
+            console.log('⚠️ No arrivals found at Pecos Junction (stop 34508)');
+          }
+
+          // Filter for B Line (route 113B or just B)
           const bLineArrivals = allArrivals.filter(a =>
-            a.routeId === '113B' || a.route === 'B Line' || a.route === 'B'
+            a.routeId === '113B' || a.routeId === 'B' || a.route === 'B Line' || a.route === 'B'
           );
+
+          console.log(`🚆 B Line filtered arrivals: ${bLineArrivals.length}`);
 
           // Southbound to Union Station (directionId might be 1 or 0, we'll log to find out)
           const southbound = bLineArrivals.filter(a => a.directionId === 1).slice(0, 3).map(arrival => ({
@@ -1531,11 +1542,11 @@
                       ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                       : textMuted
                   }`}
-                  aria-label="N Line schedule section"
+                  aria-label="Rail transit schedule section"
                   aria-current={activeSection === 'nline' ? 'page' : undefined}
                 >
                   <span className="text-2xl" aria-hidden="true">🚆</span>
-                  <span className="text-xs font-medium">N Line</span>
+                  <span className="text-xs font-medium">Transit</span>
                 </button>
 
                 <button
