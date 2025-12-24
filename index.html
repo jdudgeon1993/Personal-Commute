@@ -458,11 +458,21 @@
 
           const data = await response.json();
 
+          // DEBUG: Log the API response to see what we're getting
+          console.log('🔍 G Line API Response from Gold Strike (Stop 34506):', data);
+          if (data.arrivals && data.arrivals.length > 0) {
+            console.log('📊 First arrival sample:', data.arrivals[0]);
+            console.log('🚆 All routes found:', [...new Set(data.arrivals.map(a => a.route))]);
+            console.log('🔢 All routeIds found:', [...new Set(data.arrivals.map(a => a.routeId))]);
+            console.log('➡️ Direction IDs found:', [...new Set(data.arrivals.map(a => a.directionId))]);
+          }
+
           // Process eastbound (to Union Station)
           let eastboundTrains = [];
           if (data.arrivals && Array.isArray(data.arrivals) && data.arrivals.length > 0) {
             const filteredEB = data.arrivals.filter(arrival => {
               const isGLine = arrival.routeId === '117G' || arrival.route === 'G Line' || arrival.route === 'G';
+              console.log(`🔎 Checking arrival: route="${arrival.route}", routeId="${arrival.routeId}", directionId=${arrival.directionId}, isGLine=${isGLine}`);
               return isGLine && arrival.directionId === 1; // Assuming 1 = eastbound
             });
 
