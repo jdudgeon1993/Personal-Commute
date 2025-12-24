@@ -170,7 +170,13 @@ app.get('/api/rtd/gline/:stopId', async (req, res) => {
                 directionId: trip.directionId || 0,
                 arrivalTime: arrivalTime,
                 scheduledArrivalTime: scheduledTime,
-                arrivalTimeFormatted: new Date(arrivalTime * 1000).toLocaleTimeString('en-US'),
+                arrivalTimeFormatted: new Date(arrivalTime * 1000).toLocaleTimeString('en-US', {
+                  timeZone: 'America/Denver',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: true
+                }),
                 status: 'Scheduled',
                 stopId: stopId
               });
