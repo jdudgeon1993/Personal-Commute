@@ -127,8 +127,8 @@
         oldeTown: '33833'          // Westbound destination
       },
       bLineStops: {
-        unionStation: '34722',     // Southern terminus
-        pecosJunction: '34508',    // Middle stop - Primary boarding point
+        unionStation: '34782',     // Track 8 - B Line eastbound platform
+        pecosJunction: '34508',    // Transfer point
         westminster: '34767'       // Northern terminus
       }
     };
@@ -580,15 +580,15 @@
         }
       }, []);
 
-      // Fetch B Line data - check Westminster to see if B Line exists in GTFS at all
+      // Fetch B Line data from Union Station Track 8 (route ID: 113B)
       const fetchBLineData = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, bLine: true }));
           const apiEndpoint = `${CONSTANTS.API_BASE_URL}/api/rtd/gline`;
 
-          console.log('🔍 Checking Westminster (34767) for ANY B Line data in GTFS feed...');
+          console.log('🔍 Fetching B Line from Union Station Track 8 (stop 34782)...');
 
-          const response = await fetch(`${apiEndpoint}/34767?t=${Date.now()}`, {
+          const response = await fetch(`${apiEndpoint}/${config.bLineStops.unionStation}?t=${Date.now()}`, {
             method: 'GET',
             mode: 'cors',
             cache: 'no-cache',
@@ -598,31 +598,41 @@
           const data = await response.json();
           const allArrivals = data.arrivals || [];
 
-          console.log(`📊 Westminster has ${allArrivals.length} total arrivals`);
+          console.log(`📊 Union Station Track 8 has ${allArrivals.length} total arrivals`);
 
           if (allArrivals.length > 0) {
-            const uniqueRoutes = [...new Set(allArrivals.map(a => a.routeId))];
-            console.log('🔢 All routes at Westminster:', uniqueRoutes);
-            console.log('📊 Sample arrivals:', allArrivals.slice(0, 3));
+            console.log('🔢 All routes at Track 8:', [...new Set(allArrivals.map(a => a.routeId))]);
+            console.log('📊 Sample arrival:', allArrivals[0]);
 
-            // Look for ANYTHING that could be B Line
-            const possibleBLine = allArrivals.filter(a => {
-              // Try everything: B, 1, 113B, Westminster, etc.
-              return a.routeId?.includes('B') ||
-                     a.routeId === '1' ||
-                     a.route?.includes('B') ||
-                     a.route?.includes('Westminster');
-            });
+            // Filter for B Line (route ID: 113B from GTFS data)
+            const bLineArrivals = allArrivals.filter(a =>
+              a.routeId === '113B' || a.route === 'B Line' || a.route === 'B'
+            );
 
-            console.log(`🔎 Possible B Line matches: ${possibleBLine.length}`);
-            if (possibleBLine.length > 0) {
-              console.log('✅ Found possible B Line!', possibleBLine);
+            console.log(`🚆 B Line arrivals at Union Station: ${bLineArrivals.length}`);
+
+            if (bLineArrivals.length > 0) {
+              console.log('✅ Found B Line trains!', bLineArrivals);
+
+              // Departures FROM Union Station going to Westminster (northbound)
+              const northbound = bLineArrivals.filter(a => a.directionId === 0).slice(0, 3).map(arrival => ({
+                time: arrival.arrivalTimeFormatted,
+                arrivalTimestamp: arrival.arrivalTime * 1000,
+                delay: 0,
+                status: arrival.status || 'On Time'
+              }));
+
+              console.log(`🚆 B Line northbound departures from Union Station: ${northbound.length}`);
+
+              setBLineNorthbound(northbound);
+              setBLineSouthbound([]); // No southbound FROM Union Station
+            } else {
+              console.log('⚠️ No B Line trains found (route 113B not in arrivals)');
+              setBLineSouthbound([]);
+              setBLineNorthbound([]);
             }
-
-            setBLineSouthbound([]);
-            setBLineNorthbound([]);
           } else {
-            console.log('⚠️ Westminster has NO arrivals - B Line may not be in GTFS-RT feed at all');
+            console.log('⚠️ No arrivals at Union Station Track 8');
             setBLineSouthbound([]);
             setBLineNorthbound([]);
           }
