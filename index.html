@@ -125,6 +125,11 @@
         goldStrike3: '34527',      // 60th/Sheridan Platform 34527
         goldStrike4: '34528',      // 60th/Sheridan Platform 34528
         oldeTown: '33833'          // Westbound destination
+      },
+      bLineStops: {
+        unionStation: '34722',     // Southern terminus
+        pecosJunction: '34508',    // Middle stop - Primary boarding point
+        westminster: '34767'       // Northern terminus
       }
     };
 
@@ -138,6 +143,8 @@
       const [transitDataNB, setTransitDataNB] = useState(null);
       const [gLineEastbound, setGLineEastbound] = useState(null); // Trains going to Union Station
       const [gLineWestbound, setGLineWestbound] = useState(null); // Trains going to Olde Town
+      const [bLineSouthbound, setBLineSouthbound] = useState(null); // Trains going to Union Station
+      const [bLineNorthbound, setBLineNorthbound] = useState(null); // Trains going to Westminster
       const [searchFromAddress, setSearchFromAddress] = useState('');
       const [searchToAddress, setSearchToAddress] = useState('');
       const [searchResults, setSearchResults] = useState(null);
@@ -155,11 +162,13 @@
         drive: true,
         transit: true,
         gLine: true,
+        bLine: true,
         search: false
       });
       const [visibleLines, setVisibleLines] = useState({
         nLine: true,
-        gLine: true
+        gLine: true,
+        bLine: true
       });
       const [isInitialLoad, setIsInitialLoad] = useState(true);
       const [lastRefresh, setLastRefresh] = useState(new Date());
