@@ -118,10 +118,11 @@
         northbound: '34668'
       },
       gLineStops: {
-        unionStation: '34781',  // Track 7 - Eastbound terminus
-        pecosJunction: '34508', // Transfer point
-        goldStrike: '34506',    // 60th/Sheridan - Primary boarding point
-        oldeTown: '33833'       // Westbound destination
+        unionStation: '34781',     // Track 7 - Eastbound terminus
+        pecosJunction: '34508',    // Transfer point
+        goldStrikeGateA: '34527',  // 60th/Sheridan Gate A (likely eastbound)
+        goldStrikeGateB: '34528',  // 60th/Sheridan Gate B (likely westbound)
+        oldeTown: '33833'          // Westbound destination
       }
     };
 
@@ -445,32 +446,52 @@
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
-          // Fetch from Gold Strike (primary boarding point)
-          const response = await fetch(`${apiEndpoint}/${config.gLineStops.goldStrike}?t=${Date.now()}`, {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            signal: controller.signal
-          });
+          // Fetch from BOTH gates at Gold Strike
+          const [gateAResponse, gateBResponse] = await Promise.all([
+            fetch(`${apiEndpoint}/${config.gLineStops.goldStrikeGateA}?t=${Date.now()}`, {
+              method: 'GET',
+              mode: 'cors',
+              cache: 'no-cache',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              signal: controller.signal
+            }),
+            fetch(`${apiEndpoint}/${config.gLineStops.goldStrikeGateB}?t=${Date.now()}`, {
+              method: 'GET',
+              mode: 'cors',
+              cache: 'no-cache',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              signal: controller.signal
+            })
+          ]);
 
           clearTimeout(timeoutId);
 
-          const data = await response.json();
+          const gateAData = await gateAResponse.json();
+          const gateBData = await gateBResponse.json();
 
-          // DEBUG: Log the API response to see what we're getting
-          console.log('🔍 G Line API Response from Gold Strike (Stop 34506):', data);
-          if (data.arrivals && data.arrivals.length > 0) {
-            console.log('📊 First arrival sample:', data.arrivals[0]);
-            console.log('🚆 All routes found:', [...new Set(data.arrivals.map(a => a.route))]);
-            console.log('🔢 All routeIds found:', [...new Set(data.arrivals.map(a => a.routeId))]);
-            console.log('➡️ Direction IDs found:', [...new Set(data.arrivals.map(a => a.directionId))]);
+          // DEBUG: Log the API responses to see what we're getting
+          console.log('🔍 G Line Gate A (Stop 34527):', gateAData);
+          console.log('🔍 G Line Gate B (Stop 34528):', gateBData);
+
+          // Combine arrivals from both gates
+          const allArrivals = [
+            ...(gateAData.arrivals || []),
+            ...(gateBData.arrivals || [])
+          ];
+
+          if (allArrivals.length > 0) {
+            console.log('📊 First arrival sample:', allArrivals[0]);
+            console.log('🚆 All routes found:', [...new Set(allArrivals.map(a => a.route))]);
+            console.log('🔢 All routeIds found:', [...new Set(allArrivals.map(a => a.routeId))]);
+            console.log('➡️ Direction IDs found:', [...new Set(allArrivals.map(a => a.directionId))]);
+          } else {
+            console.log('⚠️ No arrivals found at either gate!');
           }
 
           // Process eastbound (to Union Station)
           let eastboundTrains = [];
-          if (data.arrivals && Array.isArray(data.arrivals) && data.arrivals.length > 0) {
-            const filteredEB = data.arrivals.filter(arrival => {
+          if (allArrivals && Array.isArray(allArrivals) && allArrivals.length > 0) {
+            const filteredEB = allArrivals.filter(arrival => {
               const isGLine = arrival.routeId === '117G' || arrival.route === 'G Line' || arrival.route === 'G';
               console.log(`🔎 Checking arrival: route="${arrival.route}", routeId="${arrival.routeId}", directionId=${arrival.directionId}, isGLine=${isGLine}`);
               return isGLine && arrival.directionId === 1; // Assuming 1 = eastbound
@@ -507,8 +528,8 @@
 
           // Process westbound (to Olde Town)
           let westboundTrains = [];
-          if (data.arrivals && Array.isArray(data.arrivals) && data.arrivals.length > 0) {
-            const filteredWB = data.arrivals.filter(arrival => {
+          if (allArrivals && Array.isArray(allArrivals) && allArrivals.length > 0) {
+            const filteredWB = allArrivals.filter(arrival => {
               const isGLine = arrival.routeId === '117G' || arrival.route === 'G Line' || arrival.route === 'G';
               return isGLine && arrival.directionId === 0; // Assuming 0 = westbound
             });
