@@ -615,14 +615,19 @@
               console.log('✅ Found B Line trains!', bLineArrivals);
 
               // Departures FROM Union Station going to Westminster (northbound)
+              // Use DEPARTURE times since we're querying Union Station
               const northbound = bLineArrivals.filter(a => a.directionId === 0).slice(0, 3).map(arrival => ({
-                time: arrival.arrivalTimeFormatted,
-                arrivalTimestamp: arrival.arrivalTime * 1000,
+                time: arrival.departureTimeFormatted || arrival.arrivalTimeFormatted,
+                arrivalTimestamp: (arrival.departureTime || arrival.arrivalTime) * 1000,
                 delay: 0,
-                status: arrival.status || 'On Time'
+                status: arrival.status || 'On Time',
+                isDeparture: true
               }));
 
               console.log(`🚆 B Line northbound departures from Union Station: ${northbound.length}`);
+              if (northbound.length > 0 && arrival.departureTimeFormatted) {
+                console.log('✅ Using departure times for B Line');
+              }
 
               setBLineNorthbound(northbound);
               setBLineSouthbound([]); // No southbound FROM Union Station
