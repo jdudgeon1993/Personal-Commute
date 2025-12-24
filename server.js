@@ -126,15 +126,14 @@ app.get('/api/rtd/arrivals/:stopId', async (req, res) => {
   }
 });
 
-// RTD G Line API - Use RTD's official API directly
+// RTD G Line API - Back to rtd-n-line-api but with better error handling
 app.get('/api/rtd/gline/:stopId', async (req, res) => {
   try {
     const { stopId } = req.params;
-    console.log(`🔍 Fetching G Line data for stop ${stopId} from RTD official API`);
+    console.log(`🔍 Fetching G Line data for stop ${stopId}`);
 
-    // Try RTD's official JSON API first
     const response = await fetch(
-      `https://www.rtd-denver.com/api/realtime/stop/${stopId}`,
+      `https://rtd-n-line-api.onrender.com/api/rtd/arrivals/${stopId}?t=${Date.now()}`,
       {
         method: 'GET',
         headers: {
@@ -145,23 +144,13 @@ app.get('/api/rtd/gline/:stopId', async (req, res) => {
     );
 
     const data = await response.json();
-    console.log(`📊 RTD Official API response for stop ${stopId}:`, JSON.stringify(data, null, 2));
+    console.log(`📊 G Line response for stop ${stopId}:`, JSON.stringify(data, null, 2));
 
     if (!response.ok) {
-      console.error(`❌ RTD API returned status ${response.status}`);
-      return res.status(response.status).json({ error: 'RTD Official API error', details: data });
+      return res.status(response.status).json({ error: 'RTD G Line API error' });
     }
 
-    // Transform RTD official format to match our expected format
-    const transformedData = {
-      stopId: stopId,
-      stopName: stopId,
-      timestamp: Date.now(),
-      arrivals: data.arrivals || data.predictions || []
-    };
-
-    console.log(`✅ Transformed data:`, JSON.stringify(transformedData, null, 2));
-    res.json(transformedData);
+    res.json(data);
   } catch (error) {
     console.error('❌ RTD G Line API error:', error);
     res.status(500).json({ error: 'Failed to fetch G Line data', details: error.message });
