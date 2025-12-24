@@ -126,14 +126,15 @@ app.get('/api/rtd/arrivals/:stopId', async (req, res) => {
   }
 });
 
-// RTD G Line API - Use the same N Line API (it should support all RTD routes)
+// RTD G Line API - Use RTD's official API directly
 app.get('/api/rtd/gline/:stopId', async (req, res) => {
   try {
     const { stopId } = req.params;
-    console.log(`🔍 Fetching G Line data for stop ${stopId}`);
+    console.log(`🔍 Fetching G Line data for stop ${stopId} from RTD official API`);
 
+    // Try RTD's official JSON API first
     const response = await fetch(
-      `https://rtd-n-line-api.onrender.com/api/rtd/arrivals/${stopId}?t=${Date.now()}`,
+      `https://www.rtd-denver.com/api/realtime/stop/${stopId}`,
       {
         method: 'GET',
         headers: {
@@ -144,16 +145,26 @@ app.get('/api/rtd/gline/:stopId', async (req, res) => {
     );
 
     const data = await response.json();
-    console.log(`📊 G Line response for stop ${stopId}:`, JSON.stringify(data, null, 2));
+    console.log(`📊 RTD Official API response for stop ${stopId}:`, JSON.stringify(data, null, 2));
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: 'RTD G Line API error' });
+      console.error(`❌ RTD API returned status ${response.status}`);
+      return res.status(response.status).json({ error: 'RTD Official API error', details: data });
     }
 
-    res.json(data);
+    // Transform RTD official format to match our expected format
+    const transformedData = {
+      stopId: stopId,
+      stopName: stopId,
+      timestamp: Date.now(),
+      arrivals: data.arrivals || data.predictions || []
+    };
+
+    console.log(`✅ Transformed data:`, JSON.stringify(transformedData, null, 2));
+    res.json(transformedData);
   } catch (error) {
-    console.error('RTD G Line API error:', error);
-    res.status(500).json({ error: 'Failed to fetch G Line data' });
+    console.error('❌ RTD G Line API error:', error);
+    res.status(500).json({ error: 'Failed to fetch G Line data', details: error.message });
   }
 });
 
