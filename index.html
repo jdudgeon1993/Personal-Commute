@@ -448,67 +448,41 @@
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
-          // Fetch from ALL 4 platforms at Gold Strike to find which has G Line data
-          const [p1Response, p2Response, p3Response, p4Response] = await Promise.all([
-            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike1}?t=${Date.now()}`, {
-              method: 'GET',
-              mode: 'cors',
-              cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              signal: controller.signal
-            }),
-            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike2}?t=${Date.now()}`, {
-              method: 'GET',
-              mode: 'cors',
-              cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              signal: controller.signal
-            }),
-            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike3}?t=${Date.now()}`, {
-              method: 'GET',
-              mode: 'cors',
-              cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              signal: controller.signal
-            }),
-            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike4}?t=${Date.now()}`, {
-              method: 'GET',
-              mode: 'cors',
-              cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              signal: controller.signal
-            })
-          ]);
+          // TEST: Try Union Station for G Line (major hub with all lines)
+          const response = await fetch(`${apiEndpoint}/${config.gLineStops.unionStation}?t=${Date.now()}`, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            signal: controller.signal
+          });
 
           clearTimeout(timeoutId);
 
-          const p1Data = await p1Response.json();
-          const p2Data = await p2Response.json();
-          const p3Data = await p3Response.json();
-          const p4Data = await p4Response.json();
+          const data = await response.json();
 
-          // DEBUG: Log ALL platform responses
-          console.log('🔍 Platform 34525:', p1Data);
-          console.log('🔍 Platform 34526:', p2Data);
-          console.log('🔍 Platform 34527:', p3Data);
-          console.log('🔍 Platform 34528:', p4Data);
+          // DEBUG: Log Union Station response
+          console.log('🔍 Union Station (34781) Response:', data);
 
-          // Combine arrivals from ALL platforms
-          const allArrivals = [
-            ...(p1Data.arrivals || []),
-            ...(p2Data.arrivals || []),
-            ...(p3Data.arrivals || []),
-            ...(p4Data.arrivals || [])
-          ];
+          const allArrivals = data.arrivals || [];
 
-          console.log(`📊 Total arrivals from all platforms: ${allArrivals.length}`);
+          console.log(`📊 Total arrivals at Union Station: ${allArrivals.length}`);
           if (allArrivals.length > 0) {
             console.log('📊 First arrival sample:', allArrivals[0]);
             console.log('🚆 All routes found:', [...new Set(allArrivals.map(a => a.route))]);
             console.log('🔢 All routeIds found:', [...new Set(allArrivals.map(a => a.routeId))]);
             console.log('➡️ Direction IDs found:', [...new Set(allArrivals.map(a => a.directionId))]);
+
+            // Filter for G Line only
+            const gLineArrivals = allArrivals.filter(a =>
+              a.routeId === '113G' || a.route === 'G Line' || a.route === 'G'
+            );
+            console.log(`🚆 G Line arrivals at Union Station: ${gLineArrivals.length}`);
+            if (gLineArrivals.length > 0) {
+              console.log('✅ Found G Line trains!', gLineArrivals);
+            }
           } else {
-            console.log('⚠️ No arrivals found at ANY of the 4 platforms!');
+            console.log('⚠️ No arrivals found at Union Station!');
           }
 
           // Process eastbound (to Union Station)
