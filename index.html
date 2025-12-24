@@ -580,7 +580,7 @@
         }
       }, []);
 
-      // Fetch B Line data from Pecos Junction
+      // Fetch B Line data from Union Station (major hub where B Line definitely stops)
       const fetchBLineData = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, bLine: true }));
@@ -589,8 +589,8 @@
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-          // Fetch from Pecos Junction (middle stop)
-          const response = await fetch(`${apiEndpoint}/${config.bLineStops.pecosJunction}?t=${Date.now()}`, {
+          // Fetch from Union Station - B Line platform
+          const response = await fetch(`${apiEndpoint}/${config.bLineStops.unionStation}?t=${Date.now()}`, {
             method: 'GET',
             mode: 'cors',
             cache: 'no-cache',
@@ -601,35 +601,34 @@
           clearTimeout(timeoutId);
           const data = await response.json();
 
-          console.log('🔍 B Line at Pecos Junction - Raw data:', data);
+          console.log('🔍 B Line at Union Station (34722) - Raw data:', data);
 
           const allArrivals = data.arrivals || [];
 
           // DEBUG: Log all unique routes at this stop
           if (allArrivals.length > 0) {
             const uniqueRoutes = [...new Set(allArrivals.map(a => a.routeId))];
-            console.log('📊 All routes at Pecos Junction:', uniqueRoutes);
+            console.log('📊 All routes at Union Station (B Line platform):', uniqueRoutes);
+            console.log('📊 All route names:', [...new Set(allArrivals.map(a => a.route || 'N/A'))]);
             console.log('📊 Sample arrival:', allArrivals[0]);
           } else {
-            console.log('⚠️ No arrivals found at Pecos Junction (stop 34508)');
+            console.log('⚠️ No arrivals found at Union Station B Line platform (stop 34722)');
           }
 
-          // Filter for B Line (route 113B or just B)
-          const bLineArrivals = allArrivals.filter(a =>
-            a.routeId === '113B' || a.routeId === 'B' || a.route === 'B Line' || a.route === 'B'
-          );
+          // Filter for B Line - try multiple route ID formats
+          const bLineArrivals = allArrivals.filter(a => {
+            const routeMatch = a.routeId === '113B' || a.routeId === 'B' ||
+                              a.routeId === 'B-Line' || a.routeId?.includes('B');
+            const nameMatch = a.route === 'B Line' || a.route === 'B' || a.route?.includes('B');
+            return routeMatch || nameMatch;
+          });
 
           console.log(`🚆 B Line filtered arrivals: ${bLineArrivals.length}`);
+          if (bLineArrivals.length > 0) {
+            console.log('✅ Found B Line trains!', bLineArrivals);
+          }
 
-          // Southbound to Union Station (directionId might be 1 or 0, we'll log to find out)
-          const southbound = bLineArrivals.filter(a => a.directionId === 1).slice(0, 3).map(arrival => ({
-            time: arrival.arrivalTimeFormatted,
-            arrivalTimestamp: arrival.arrivalTime * 1000,
-            delay: 0, // Calculate if we have scheduled time
-            status: arrival.status || 'On Time'
-          }));
-
-          // Northbound to Westminster (opposite direction)
+          // Departures FROM Union Station going northbound to Westminster
           const northbound = bLineArrivals.filter(a => a.directionId === 0).slice(0, 3).map(arrival => ({
             time: arrival.arrivalTimeFormatted,
             arrivalTimestamp: arrival.arrivalTime * 1000,
@@ -637,7 +636,11 @@
             status: arrival.status || 'On Time'
           }));
 
-          console.log(`🚆 B Line: ${southbound.length} southbound, ${northbound.length} northbound`);
+          // Note: Southbound to Union Station doesn't make sense when querying FROM Union Station
+          // So we'll leave southbound empty for now
+          const southbound = [];
+
+          console.log(`🚆 B Line: ${northbound.length} departures northbound from Union Station`);
 
           setBLineSouthbound(southbound);
           setBLineNorthbound(northbound);
