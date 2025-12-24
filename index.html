@@ -443,7 +443,7 @@
       const fetchGLineData = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, gLine: true }));
-          const apiEndpoint = 'https://rtd-n-line-api.onrender.com/api/rtd/arrivals';
+          const apiEndpoint = `${CONSTANTS.API_BASE_URL}/api/rtd/gline`;
 
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout

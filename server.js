@@ -126,6 +126,37 @@ app.get('/api/rtd/arrivals/:stopId', async (req, res) => {
   }
 });
 
+// RTD G Line API - Use the same N Line API (it should support all RTD routes)
+app.get('/api/rtd/gline/:stopId', async (req, res) => {
+  try {
+    const { stopId } = req.params;
+    console.log(`🔍 Fetching G Line data for stop ${stopId}`);
+
+    const response = await fetch(
+      `https://rtd-n-line-api.onrender.com/api/rtd/arrivals/${stopId}?t=${Date.now()}`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const data = await response.json();
+    console.log(`📊 G Line response for stop ${stopId}:`, JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'RTD G Line API error' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('RTD G Line API error:', error);
+    res.status(500).json({ error: 'Failed to fetch G Line data' });
+  }
+});
+
 // Serve index.html for the root route
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
