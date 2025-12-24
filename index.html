@@ -492,7 +492,7 @@
           let eastboundTrains = [];
           if (allArrivals && Array.isArray(allArrivals) && allArrivals.length > 0) {
             const filteredEB = allArrivals.filter(arrival => {
-              const isGLine = arrival.routeId === '117G' || arrival.route === 'G Line' || arrival.route === 'G';
+              const isGLine = arrival.routeId === '113G' || arrival.route === 'G Line' || arrival.route === 'G';
               console.log(`🔎 Checking arrival: route="${arrival.route}", routeId="${arrival.routeId}", directionId=${arrival.directionId}, isGLine=${isGLine}`);
               return isGLine && arrival.directionId === 1; // Assuming 1 = eastbound
             });
@@ -530,7 +530,7 @@
           let westboundTrains = [];
           if (allArrivals && Array.isArray(allArrivals) && allArrivals.length > 0) {
             const filteredWB = allArrivals.filter(arrival => {
-              const isGLine = arrival.routeId === '117G' || arrival.route === 'G Line' || arrival.route === 'G';
+              const isGLine = arrival.routeId === '113G' || arrival.route === 'G Line' || arrival.route === 'G';
               return isGLine && arrival.directionId === 0; // Assuming 0 = westbound
             });
 
