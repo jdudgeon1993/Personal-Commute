@@ -580,6 +580,65 @@
         }
       }, []);
 
+      // Fetch B Line data from Pecos Junction
+      const fetchBLineData = useCallback(async () => {
+        try {
+          setLoading(prev => ({ ...prev, bLine: true }));
+          const apiEndpoint = `${CONSTANTS.API_BASE_URL}/api/rtd/gline`; // Uses same GTFS-RT endpoint
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+          // Fetch from Pecos Junction (middle stop)
+          const response = await fetch(`${apiEndpoint}/${config.bLineStops.pecosJunction}?t=${Date.now()}`, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+          const data = await response.json();
+
+          console.log('🔍 B Line at Pecos Junction:', data);
+
+          const allArrivals = data.arrivals || [];
+
+          // Filter for B Line (route 113B)
+          const bLineArrivals = allArrivals.filter(a =>
+            a.routeId === '113B' || a.route === 'B Line' || a.route === 'B'
+          );
+
+          // Southbound to Union Station (directionId might be 1 or 0, we'll log to find out)
+          const southbound = bLineArrivals.filter(a => a.directionId === 1).slice(0, 3).map(arrival => ({
+            time: arrival.arrivalTimeFormatted,
+            arrivalTimestamp: arrival.arrivalTime * 1000,
+            delay: 0, // Calculate if we have scheduled time
+            status: arrival.status || 'On Time'
+          }));
+
+          // Northbound to Westminster (opposite direction)
+          const northbound = bLineArrivals.filter(a => a.directionId === 0).slice(0, 3).map(arrival => ({
+            time: arrival.arrivalTimeFormatted,
+            arrivalTimestamp: arrival.arrivalTime * 1000,
+            delay: 0,
+            status: arrival.status || 'On Time'
+          }));
+
+          console.log(`🚆 B Line: ${southbound.length} southbound, ${northbound.length} northbound`);
+
+          setBLineSouthbound(southbound);
+          setBLineNorthbound(northbound);
+        } catch (error) {
+          console.error('B Line error:', error);
+          setBLineSouthbound([]);
+          setBLineNorthbound([]);
+        } finally {
+          setLoading(prev => ({ ...prev, bLine: false }));
+        }
+      }, []);
+
       // Geocode address to coordinates
       const geocodeAddress = async (address) => {
         const response = await fetch(
@@ -668,7 +727,8 @@
         fetchDriveTimes();
         fetchTransitData();
         fetchGLineData();
-      }, [fetchWeather, fetchDriveTimes, fetchTransitData, fetchGLineData]);
+        fetchBLineData();
+      }, [fetchWeather, fetchDriveTimes, fetchTransitData, fetchGLineData, fetchBLineData]);
 
       // 15-minute refresh for weather and drive times
       useEffect(() => {
@@ -685,9 +745,10 @@
         const interval = setInterval(() => {
           fetchTransitData();
           fetchGLineData();
+          fetchBLineData();
         }, CONSTANTS.TRANSIT_INTERVAL);
         return () => clearInterval(interval);
-      }, [fetchTransitData, fetchGLineData]);
+      }, [fetchTransitData, fetchGLineData, fetchBLineData]);
 
       // Manual refresh all with success feedback
       const handleManualRefresh = () => {
@@ -695,6 +756,7 @@
         fetchDriveTimes();
         fetchTransitData();
         fetchGLineData();
+        fetchBLineData();
         setLastRefresh(new Date());
         setRefreshSuccess(true);
         setTimeout(() => setRefreshSuccess(false), 2000);
@@ -983,13 +1045,23 @@
                         >
                           G Line
                         </button>
+                        <button
+                          onClick={() => setVisibleLines(prev => ({ ...prev, bLine: !prev.bLine }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            visibleLines.bLine
+                              ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                              : isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
+                          }`}
+                        >
+                          B Line
+                        </button>
                       </div>
                       <button
-                        onClick={() => { fetchTransitData(); fetchGLineData(); }}
+                        onClick={() => { fetchTransitData(); fetchGLineData(); fetchBLineData(); }}
                         className={`px-3 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
-                        disabled={loading.transit || loading.gLine}
+                        disabled={loading.transit || loading.gLine || loading.bLine}
                       >
-                        {(loading.transit || loading.gLine) ? '⏳' : '🔄'}
+                        {(loading.transit || loading.gLine || loading.bLine) ? '⏳' : '🔄'}
                       </button>
                     </div>
                   </div>
