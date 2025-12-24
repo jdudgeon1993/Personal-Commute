@@ -120,8 +120,10 @@
       gLineStops: {
         unionStation: '34781',     // Track 7 - Eastbound terminus
         pecosJunction: '34508',    // Transfer point
-        goldStrikeGateA: '34527',  // 60th/Sheridan Gate A (likely eastbound)
-        goldStrikeGateB: '34528',  // 60th/Sheridan Gate B (likely westbound)
+        goldStrike1: '34525',      // 60th/Sheridan Platform 34525
+        goldStrike2: '34526',      // 60th/Sheridan Platform 34526
+        goldStrike3: '34527',      // 60th/Sheridan Platform 34527
+        goldStrike4: '34528',      // 60th/Sheridan Platform 34528
         oldeTown: '33833'          // Westbound destination
       }
     };
@@ -446,16 +448,30 @@
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
-          // Fetch from BOTH gates at Gold Strike
-          const [gateAResponse, gateBResponse] = await Promise.all([
-            fetch(`${apiEndpoint}/${config.gLineStops.goldStrikeGateA}?t=${Date.now()}`, {
+          // Fetch from ALL 4 platforms at Gold Strike to find which has G Line data
+          const [p1Response, p2Response, p3Response, p4Response] = await Promise.all([
+            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike1}?t=${Date.now()}`, {
               method: 'GET',
               mode: 'cors',
               cache: 'no-cache',
               headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
               signal: controller.signal
             }),
-            fetch(`${apiEndpoint}/${config.gLineStops.goldStrikeGateB}?t=${Date.now()}`, {
+            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike2}?t=${Date.now()}`, {
+              method: 'GET',
+              mode: 'cors',
+              cache: 'no-cache',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              signal: controller.signal
+            }),
+            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike3}?t=${Date.now()}`, {
+              method: 'GET',
+              mode: 'cors',
+              cache: 'no-cache',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              signal: controller.signal
+            }),
+            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike4}?t=${Date.now()}`, {
               method: 'GET',
               mode: 'cors',
               cache: 'no-cache',
@@ -466,26 +482,33 @@
 
           clearTimeout(timeoutId);
 
-          const gateAData = await gateAResponse.json();
-          const gateBData = await gateBResponse.json();
+          const p1Data = await p1Response.json();
+          const p2Data = await p2Response.json();
+          const p3Data = await p3Response.json();
+          const p4Data = await p4Response.json();
 
-          // DEBUG: Log the API responses to see what we're getting
-          console.log('🔍 G Line Gate A (Stop 34527):', gateAData);
-          console.log('🔍 G Line Gate B (Stop 34528):', gateBData);
+          // DEBUG: Log ALL platform responses
+          console.log('🔍 Platform 34525:', p1Data);
+          console.log('🔍 Platform 34526:', p2Data);
+          console.log('🔍 Platform 34527:', p3Data);
+          console.log('🔍 Platform 34528:', p4Data);
 
-          // Combine arrivals from both gates
+          // Combine arrivals from ALL platforms
           const allArrivals = [
-            ...(gateAData.arrivals || []),
-            ...(gateBData.arrivals || [])
+            ...(p1Data.arrivals || []),
+            ...(p2Data.arrivals || []),
+            ...(p3Data.arrivals || []),
+            ...(p4Data.arrivals || [])
           ];
 
+          console.log(`📊 Total arrivals from all platforms: ${allArrivals.length}`);
           if (allArrivals.length > 0) {
             console.log('📊 First arrival sample:', allArrivals[0]);
             console.log('🚆 All routes found:', [...new Set(allArrivals.map(a => a.route))]);
             console.log('🔢 All routeIds found:', [...new Set(allArrivals.map(a => a.routeId))]);
             console.log('➡️ Direction IDs found:', [...new Set(allArrivals.map(a => a.directionId))]);
           } else {
-            console.log('⚠️ No arrivals found at either gate!');
+            console.log('⚠️ No arrivals found at ANY of the 4 platforms!');
           }
 
           // Process eastbound (to Union Station)
