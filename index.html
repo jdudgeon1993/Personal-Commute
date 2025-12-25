@@ -113,23 +113,29 @@
         lat: 39.8858,
         lon: -104.9872
       },
+      // N Line: All stations from south to north
+      nLineStops: {
+        unionStation: '34667',     // Terminal - Track 1 (southbound endpoint)
+        station112th: '34668',     // Middle - 112th Ave (your boarding point)
+        terminal124th: '35367'     // Terminal - Eastlake/124th Ave (northbound endpoint)
+      },
+      // Legacy N Line stops (keep for backwards compatibility during migration)
       rtdStops: {
         southbound: '35254',
         northbound: '34668'
       },
+      // G Line: All stations from west to east
       gLineStops: {
-        unionStation: '34781',     // Track 7 - Eastbound terminus
-        pecosJunction: '34508',    // Transfer point
-        goldStrike1: '34525',      // 60th/Sheridan Platform 34525
-        goldStrike2: '34526',      // 60th/Sheridan Platform 34526
-        goldStrike3: '34527',      // 60th/Sheridan Platform 34527
-        goldStrike4: '34528',      // 60th/Sheridan Platform 34528
-        oldeTown: '33833'          // Westbound destination
+        oldeTown: '33833',         // Terminal - Olde Town Arvada (westbound endpoint)
+        goldStrike: '34525',       // Middle - 60th/Sheridan Gold Strike
+        pecosJunction: '34508',    // Middle - Transfer point (shared with B Line)
+        unionStation: '34781'      // Terminal - Track 7 (eastbound endpoint)
       },
+      // B Line: All stations from south to north
       bLineStops: {
-        unionStation: '34782',     // Track 8 - B Line eastbound platform
-        pecosJunction: '34508',    // Transfer point
-        westminster: '34767'       // Northern terminus
+        unionStation: '34782',     // Terminal - Track 8 (southbound endpoint)
+        pecosJunction: '34508',    // Middle - Transfer point (shared with G Line)
+        westminster: '34767'       // Terminal - Westminster (northbound endpoint)
       }
     };
 
