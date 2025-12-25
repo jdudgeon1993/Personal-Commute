@@ -1318,6 +1318,35 @@
                     </div>
                   </div>
 
+                  {/* Expand/Collapse All Controls */}
+                  <div className={`${cardBg} rounded-xl shadow-lg p-3 border ${borderColor}`}>
+                    <div className="flex items-center gap-3 justify-between">
+                      <span className={`text-sm font-semibold ${textColor}`}>Station Cards:</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setExpandedStations({
+                            nLine: { terminal124th: true, station112th: true, unionStation: true },
+                            gLine: { oldeTown: true, goldStrike: true, pecosJunction: true, unionStation: true },
+                            bLine: { westminster: true, pecosJunction: true, unionStation: true }
+                          })}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isDarkMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'} transition-all`}
+                        >
+                          ▼ Expand All
+                        </button>
+                        <button
+                          onClick={() => setExpandedStations({
+                            nLine: { terminal124th: false, station112th: false, unionStation: false },
+                            gLine: { oldeTown: false, goldStrike: false, pecosJunction: false, unionStation: false },
+                            bLine: { westminster: false, pecosJunction: false, unionStation: false }
+                          })}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isDarkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'} transition-all`}
+                        >
+                          ▶ Collapse All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* N Line Card with Station-based Layout */}
                   {visibleLines.nLine && (
                     <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
