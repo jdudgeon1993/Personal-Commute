@@ -406,13 +406,18 @@
 
       // Helper: Process train data from API response
       const processTrainData = (arrivals, routeId, directionId, useArrival = true) => {
-        if (!arrivals || !Array.isArray(arrivals) || arrivals.length === 0) return [];
+        if (!arrivals || !Array.isArray(arrivals) || arrivals.length === 0) {
+          console.log(`⚠️ processTrainData: No arrivals data for route ${routeId} dir ${directionId}`);
+          return [];
+        }
 
         const filtered = arrivals.filter(arrival => {
           const matchesRoute = arrival.routeId === routeId;
           const matchesDirection = directionId === null || arrival.directionId === directionId;
           return matchesRoute && matchesDirection;
         });
+
+        console.log(`🔍 processTrainData: Route ${routeId} dir ${directionId} - Found ${filtered.length}/${arrivals.length} matching trains`);
 
         return filtered.slice(0, 3).map(arrival => {
           let arrivalTimestamp = null;
@@ -453,20 +458,28 @@
 
       // Helper: Process terminal station (shows both arriving and departing trains)
       const processTerminalStation = (arrivals, routeId, inboundDir, outboundDir) => {
+        const arriving = processTrainData(arrivals, routeId, inboundDir, true);
+        const departing = processTrainData(arrivals, routeId, outboundDir, false);
+
+        console.log(`🚉 Terminal station - Route ${routeId}: ${arriving.length} arriving (dir ${inboundDir}), ${departing.length} departing (dir ${outboundDir})`);
+        console.log(`   Total arrivals in API response: ${arrivals?.length || 0}`);
+
         return {
-          arriving: processTrainData(arrivals, routeId, inboundDir, true),
-          departing: processTrainData(arrivals, routeId, outboundDir, false)
+          arriving: arriving,
+          departing: departing
         };
       };
 
       // Helper: Process middle station (shows trains passing through in both directions)
-      const processMiddleStation = (arrivals, routeId, dir1, dir2) => {
-        const dir1Key = dir1 === 0 ? 'westbound' : dir1 === 1 ? 'eastbound' : 'northbound';
-        const dir2Key = dir2 === 0 ? 'westbound' : dir2 === 1 ? 'eastbound' : 'southbound';
+      const processMiddleStation = (arrivals, routeId, dir1, dir2, dir1Name, dir2Name) => {
+        const dir1Trains = processTrainData(arrivals, routeId, dir1, true);
+        const dir2Trains = processTrainData(arrivals, routeId, dir2, true);
+
+        console.log(`📍 Middle station - ${dir1Name}: ${dir1Trains.length} trains, ${dir2Name}: ${dir2Trains.length} trains`);
 
         return {
-          [dir1Key]: processTrainData(arrivals, routeId, dir1, true),
-          [dir2Key]: processTrainData(arrivals, routeId, dir2, true)
+          [dir1Name]: dir1Trains,
+          [dir2Name]: dir2Trains
         };
       };
 
@@ -548,7 +561,9 @@
             station112thRes.arrivals,
             '117N',
             0,  // northbound (to 124th)
-            1   // southbound (to Union)
+            1,  // southbound (to Union)
+            'northbound',
+            'southbound'
           );
 
           // Process Union Station (Terminal - southbound endpoint)
@@ -624,7 +639,9 @@
             goldStrikeRes.arrivals,
             '113G',
             0,  // westbound (to Olde Town)
-            1   // eastbound (to Union Station)
+            1,  // eastbound (to Union Station)
+            'westbound',
+            'eastbound'
           );
 
           // Process Pecos Junction (Middle - transfer point)
@@ -633,7 +650,9 @@
             pecosRes.arrivals,
             '113G',
             0,  // westbound (to Olde Town)
-            1   // eastbound (to Union Station)
+            1,  // eastbound (to Union Station)
+            'westbound',
+            'eastbound'
           );
 
           // Process Union Station (Terminal - eastbound endpoint)
@@ -711,7 +730,9 @@
             pecosRes.arrivals,
             '113B',
             0,  // northbound (to Westminster)
-            1   // southbound (to Union Station)
+            1,  // southbound (to Union Station)
+            'northbound',
+            'southbound'
           );
 
           // Process Union Station (Terminal - southbound endpoint)
