@@ -616,7 +616,7 @@
               }));
 
               console.log(`🚆 B Line northbound departures from Union Station: ${northbound.length}`);
-              if (northbound.length > 0 && arrival.departureTimeFormatted) {
+              if (northbound.length > 0 && bLineArrivals[0]?.departureTimeFormatted) {
                 console.log('✅ Using departure times for B Line');
               }
 
