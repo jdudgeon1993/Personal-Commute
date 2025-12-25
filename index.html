@@ -818,7 +818,7 @@
       const borderColor = isDarkMode ? 'border-gray-700' : 'border-gray-200';
 
       // Render train card with real-time countdown
-      const renderTrainCard = (train, idx) => {
+      const renderTrainCard = (train, idx, type = 'arrival') => {
         if (!train.arrivalTimestamp) return null;
 
         // Use currentTime for real-time countdown (updates every second)
@@ -839,17 +839,25 @@
         // Format countdown display with minutes and seconds
         let countdownDisplay;
         if (totalSecondsUntil < 0) {
-          countdownDisplay = 'Departed';
+          countdownDisplay = type === 'departure' ? 'Departed' : 'Arrived';
         } else if (totalSecondsUntil < 60) {
           countdownDisplay = `${totalSecondsUntil} sec`;
         } else {
           countdownDisplay = `${minutesUntil} min ${secondsUntil} sec`;
         }
 
+        // Arrival vs Departure indicator
+        const typeIndicator = type === 'departure' ? '🚀' : '🚆';
+        const typeLabel = type === 'departure' ? 'Departs' : 'Arrives';
+
         return (
           <div key={idx} className={`p-4 rounded-xl ${urgencyColor} border ${borderColor}`}>
             <div className="flex justify-between items-center">
-              <div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span>{typeIndicator}</span>
+                  <span className={`text-xs font-semibold ${textMuted}`}>{typeLabel}</span>
+                </div>
                 <p className={`text-2xl font-bold ${textColor}`}>
                   {countdownDisplay}
                 </p>
@@ -861,6 +869,135 @@
                 </span>
               </div>
             </div>
+          </div>
+        );
+      };
+
+      // StationCard Component: Renders a station with expand/collapse and trains
+      const renderStationCard = (stationName, stationData, line, stationKey, isTerminal = false) => {
+        const isExpanded = expandedStations[line][stationKey];
+
+        const toggleExpand = () => {
+          setExpandedStations(prev => ({
+            ...prev,
+            [line]: {
+              ...prev[line],
+              [stationKey]: !prev[line][stationKey]
+            }
+          }));
+        };
+
+        // Terminal station: has "arriving" and "departing" arrays
+        // Middle station: has directional arrays (northbound/southbound or eastbound/westbound)
+        const hasTrains = isTerminal
+          ? (stationData.arriving?.length > 0 || stationData.departing?.length > 0)
+          : Object.values(stationData).some(arr => arr?.length > 0);
+
+        return (
+          <div className={`mb-4 ${cardBg} rounded-xl border ${borderColor} overflow-hidden`}>
+            {/* Station Header (Clickable) */}
+            <button
+              onClick={toggleExpand}
+              className={`w-full px-4 py-3 flex items-center justify-between hover:opacity-80 transition-opacity ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-lg">{isExpanded ? '▼' : '▶'}</span>
+                <h3 className={`text-lg font-bold ${textColor}`}>{stationName}</h3>
+                {isTerminal && (
+                  <span className={`text-xs px-2 py-1 rounded ${isDarkMode ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-800'}`}>
+                    Terminal
+                  </span>
+                )}
+              </div>
+              {hasTrains && (
+                <span className={`text-xs ${textMuted}`}>
+                  {isTerminal
+                    ? `${(stationData.arriving?.length || 0) + (stationData.departing?.length || 0)} trains`
+                    : `${Object.values(stationData).flat().length} trains`}
+                </span>
+              )}
+            </button>
+
+            {/* Station Content (Expandable) */}
+            {isExpanded && (
+              <div className="p-4 space-y-4">
+                {isTerminal ? (
+                  <>
+                    {/* Arriving Trains */}
+                    {stationData.arriving && stationData.arriving.length > 0 && (
+                      <div>
+                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-green-700' : 'border-green-300'}`}>
+                          <span className="text-xl">🚆</span>
+                          <h4 className={`text-md font-bold ${isDarkMode ? 'text-green-300' : 'text-green-900'}`}>Arriving</h4>
+                          <span className={`text-xs ${textMuted}`}>Train is arriving:</span>
+                        </div>
+                        <div className="space-y-3">
+                          {stationData.arriving.map((train, idx) => renderTrainCard(train, idx, 'arrival'))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Departing Trains */}
+                    {stationData.departing && stationData.departing.length > 0 && (
+                      <div>
+                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-purple-700' : 'border-purple-300'}`}>
+                          <span className="text-xl">🚀</span>
+                          <h4 className={`text-md font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Departing</h4>
+                          <span className={`text-xs ${textMuted}`}>Departs for:</span>
+                        </div>
+                        <div className="space-y-3">
+                          {stationData.departing.map((train, idx) => renderTrainCard(train, idx, 'departure'))}
+                        </div>
+                      </div>
+                    )}
+
+                    {!hasTrains && (
+                      <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        <p className={textMuted}>No upcoming trains</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Middle Station: Show directional trains */}
+                    {Object.entries(stationData).map(([direction, trains]) => {
+                      if (!trains || trains.length === 0) return null;
+
+                      const directionColors = {
+                        northbound: { border: 'border-purple-700', dark: 'border-purple-300', text: 'text-purple-300', textLight: 'text-purple-900' },
+                        southbound: { border: 'border-orange-700', dark: 'border-orange-300', text: 'text-orange-300', textLight: 'text-orange-900' },
+                        eastbound: { border: 'border-blue-700', dark: 'border-blue-300', text: 'text-blue-300', textLight: 'text-blue-900' },
+                        westbound: { border: 'border-orange-700', dark: 'border-orange-300', text: 'text-orange-300', textLight: 'text-orange-900' }
+                      };
+
+                      const colors = directionColors[direction] || directionColors.northbound;
+                      const borderColor = isDarkMode ? colors.border : colors.dark;
+                      const textColor = isDarkMode ? colors.text : colors.textLight;
+
+                      return (
+                        <div key={direction}>
+                          <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${borderColor}`}>
+                            <span className="text-xl">→</span>
+                            <h4 className={`text-md font-bold ${textColor}`}>
+                              {direction.charAt(0).toUpperCase() + direction.slice(1)}
+                            </h4>
+                          </div>
+                          <div className="space-y-3">
+                            {trains.map((train, idx) => renderTrainCard(train, idx, 'arrival'))}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {!hasTrains && (
+                      <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        <p className={textMuted}>No upcoming trains</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         );
       };
@@ -1096,7 +1233,7 @@
                     </div>
                   </div>
 
-                  {/* N Line Card with Linear Visualization */}
+                  {/* N Line Card with Station-based Layout */}
                   {visibleLines.nLine && (
                     <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
                       <div className="flex items-center justify-between mb-6">
@@ -1120,10 +1257,10 @@
                             </div>
                             <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-purple-500' : 'bg-purple-600'}`}></div>
 
-                            {/* Boarding Stop (Highlighted) */}
+                            {/* 112th Station (Highlighted) */}
                             <div className="flex flex-col items-center flex-1">
                               <div className={`w-4 h-4 rounded-full ${isDarkMode ? 'bg-purple-400' : 'bg-purple-500'} border-4 ${isDarkMode ? 'border-purple-600' : 'border-purple-700'} shadow-lg`}></div>
-                              <span className={`text-xs mt-1 font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'} text-center`}>Your<br/>Stop</span>
+                              <span className={`text-xs mt-1 font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'} text-center`}>112th<br/>Stn</span>
                             </div>
                             <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-purple-500' : 'bg-purple-600'}`}></div>
 
@@ -1136,46 +1273,17 @@
 
                           <div className={`mt-2 p-2 rounded-lg ${isDarkMode ? 'bg-purple-900 bg-opacity-20' : 'bg-purple-50'}`}>
                             <p className={`text-xs text-center ${isDarkMode ? 'text-purple-300' : 'text-purple-800'}`}>
-                              📍 Boarding at your station
+                              📍 Boarding at 112th Station
                             </p>
                           </div>
                         </div>
                       </div>
 
-                      {/* Southbound Trains (To Union Station) */}
-                      <div className="mb-6">
-                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-orange-700' : 'border-orange-300'}`}>
-                          <span className="text-xl">→</span>
-                          <h3 className={`text-lg font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Southbound</h3>
-                          <span className={`text-xs ${textMuted}`}>To Union Station</span>
-                        </div>
-                        <div className="space-y-3">
-                          {transitDataSB && transitDataSB.length > 0 ? (
-                            transitDataSB.map((train, idx) => renderTrainCard(train, idx))
-                          ) : (
-                            <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                              <p className={textMuted}>No upcoming trains</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Northbound Trains (To 124th Avenue) */}
-                      <div>
-                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-purple-700' : 'border-purple-300'}`}>
-                          <span className="text-xl">←</span>
-                          <h3 className={`text-lg font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Northbound</h3>
-                          <span className={`text-xs ${textMuted}`}>To 124th Avenue</span>
-                        </div>
-                        <div className="space-y-3">
-                          {transitDataNB && transitDataNB.length > 0 ? (
-                            transitDataNB.map((train, idx) => renderTrainCard(train, idx))
-                          ) : (
-                            <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                              <p className={textMuted}>No upcoming trains</p>
-                            </div>
-                          )}
-                        </div>
+                      {/* Station Cards */}
+                      <div className="space-y-0">
+                        {renderStationCard('124th Avenue Station', nLineData.terminal124th, 'nLine', 'terminal124th', true)}
+                        {renderStationCard('112th Avenue Station', nLineData.station112th, 'nLine', 'station112th', false)}
+                        {renderStationCard('Union Station', nLineData.unionStation, 'nLine', 'unionStation', true)}
                       </div>
 
                       <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
@@ -1186,7 +1294,7 @@
                     </div>
                   )}
 
-                  {/* G Line Card with Linear Visualization */}
+                  {/* G Line Card with Station-based Layout */}
                   {visibleLines.gLine && (
                     <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
                       <div className="flex items-center justify-between mb-6">
@@ -1239,40 +1347,12 @@
                         </div>
                       </div>
 
-                      {/* Eastbound Trains (To Union Station) */}
-                      <div className="mb-6">
-                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-blue-700' : 'border-blue-300'}`}>
-                          <span className="text-xl">→</span>
-                          <h3 className={`text-lg font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>Eastbound</h3>
-                          <span className={`text-xs ${textMuted}`}>To Union Station</span>
-                        </div>
-                        <div className="space-y-3">
-                          {gLineEastbound && gLineEastbound.length > 0 ? (
-                            gLineEastbound.map((train, idx) => renderTrainCard(train, idx))
-                          ) : (
-                            <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                              <p className={textMuted}>No upcoming trains</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Westbound Trains (To Olde Town) */}
-                      <div>
-                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-orange-700' : 'border-orange-300'}`}>
-                          <span className="text-xl">←</span>
-                          <h3 className={`text-lg font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Westbound</h3>
-                          <span className={`text-xs ${textMuted}`}>To Olde Town Arvada</span>
-                        </div>
-                        <div className="space-y-3">
-                          {gLineWestbound && gLineWestbound.length > 0 ? (
-                            gLineWestbound.map((train, idx) => renderTrainCard(train, idx))
-                          ) : (
-                            <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                              <p className={textMuted}>No upcoming trains</p>
-                            </div>
-                          )}
-                        </div>
+                      {/* Station Cards */}
+                      <div className="space-y-0">
+                        {renderStationCard('Olde Town Arvada', gLineData.oldeTown, 'gLine', 'oldeTown', true)}
+                        {renderStationCard('Gold Strike Station', gLineData.goldStrike, 'gLine', 'goldStrike', false)}
+                        {renderStationCard('Pecos Junction', gLineData.pecosJunction, 'gLine', 'pecosJunction', false)}
+                        {renderStationCard('Union Station', gLineData.unionStation, 'gLine', 'unionStation', true)}
                       </div>
 
                       <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
@@ -1283,7 +1363,7 @@
                     </div>
                   )}
 
-                  {/* B Line Card with Linear Visualization */}
+                  {/* B Line Card with Station-based Layout */}
                   {visibleLines.bLine && (
                     <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
                       <div className="flex items-center justify-between mb-6">
@@ -1329,40 +1409,11 @@
                         </div>
                       </div>
 
-                      {/* Southbound Trains (To Union Station) */}
-                      <div className="mb-6">
-                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-orange-700' : 'border-orange-300'}`}>
-                          <span className="text-xl">↓</span>
-                          <h3 className={`text-lg font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>Southbound</h3>
-                          <span className={`text-xs ${textMuted}`}>To Union Station</span>
-                        </div>
-                        <div className="space-y-3">
-                          {bLineSouthbound && bLineSouthbound.length > 0 ? (
-                            bLineSouthbound.map((train, idx) => renderTrainCard(train, idx))
-                          ) : (
-                            <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                              <p className={textMuted}>No upcoming trains</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Northbound Trains (To Westminster) */}
-                      <div>
-                        <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${isDarkMode ? 'border-purple-700' : 'border-purple-300'}`}>
-                          <span className="text-xl">↑</span>
-                          <h3 className={`text-lg font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>Northbound</h3>
-                          <span className={`text-xs ${textMuted}`}>To Westminster</span>
-                        </div>
-                        <div className="space-y-3">
-                          {bLineNorthbound && bLineNorthbound.length > 0 ? (
-                            bLineNorthbound.map((train, idx) => renderTrainCard(train, idx))
-                          ) : (
-                            <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                              <p className={textMuted}>No upcoming trains</p>
-                            </div>
-                          )}
-                        </div>
+                      {/* Station Cards */}
+                      <div className="space-y-0">
+                        {renderStationCard('Westminster Station', bLineData.westminster, 'bLine', 'westminster', true)}
+                        {renderStationCard('Pecos Junction', bLineData.pecosJunction, 'bLine', 'pecosJunction', false)}
+                        {renderStationCard('Union Station', bLineData.unionStation, 'bLine', 'unionStation', true)}
                       </div>
 
                       <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
