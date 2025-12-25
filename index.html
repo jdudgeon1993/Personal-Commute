@@ -176,6 +176,33 @@
         gLine: true,
         bLine: true
       });
+
+      // Station-based state for multi-station app
+      const [nLineData, setNLineData] = useState({
+        terminal124th: { arriving: [], departing: [] },
+        station112th: { northbound: [], southbound: [] },
+        unionStation: { arriving: [], departing: [] }
+      });
+
+      const [gLineData, setGLineData] = useState({
+        oldeTown: { arriving: [], departing: [] },
+        goldStrike: { eastbound: [], westbound: [] },
+        pecosJunction: { eastbound: [], westbound: [] },
+        unionStation: { arriving: [], departing: [] }
+      });
+
+      const [bLineData, setBLineData] = useState({
+        westminster: { arriving: [], departing: [] },
+        pecosJunction: { northbound: [], southbound: [] },
+        unionStation: { arriving: [], departing: [] }
+      });
+
+      const [expandedStations, setExpandedStations] = useState({
+        nLine: { terminal124th: false, station112th: true, unionStation: false },
+        gLine: { oldeTown: false, goldStrike: true, pecosJunction: false, unionStation: false },
+        bLine: { westminster: false, pecosJunction: true, unionStation: false }
+      });
+
       const [isInitialLoad, setIsInitialLoad] = useState(true);
       const [lastRefresh, setLastRefresh] = useState(new Date());
       const [refreshSuccess, setRefreshSuccess] = useState(false);
@@ -338,310 +365,305 @@
         }
       }, [avoidHighways]);
 
-      // Fetch transit data - call RTD API directly (public API, no auth needed)
+      // Helper: Process train data from API response
+      const processTrainData = (arrivals, routeId, directionId, useArrival = true) => {
+        if (!arrivals || !Array.isArray(arrivals) || arrivals.length === 0) return [];
+
+        const filtered = arrivals.filter(arrival => {
+          const matchesRoute = arrival.routeId === routeId;
+          const matchesDirection = directionId === null || arrival.directionId === directionId;
+          return matchesRoute && matchesDirection;
+        });
+
+        return filtered.slice(0, 3).map(arrival => {
+          let arrivalTimestamp = null;
+          let displayTime = null;
+          let delayMinutes = 0;
+
+          // Use arrival time or departure time based on station type
+          const timeValue = useArrival ?
+            (arrival.arrivalTime || arrival.departureTime) :
+            (arrival.departureTime || arrival.arrivalTime);
+
+          const timeFormatted = useArrival ?
+            (arrival.arrivalTimeFormatted || arrival.departureTimeFormatted) :
+            (arrival.departureTimeFormatted || arrival.arrivalTimeFormatted);
+
+          if (timeValue && typeof timeValue === 'number') {
+            arrivalTimestamp = timeValue * 1000;
+            displayTime = timeFormatted;
+
+            if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+              const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+              delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
+            }
+          } else {
+            displayTime = timeFormatted;
+          }
+
+          return {
+            time: displayTime,
+            arrivalTimestamp: arrivalTimestamp,
+            delay: delayMinutes,
+            status: arrival.status || 'On Time',
+            isDeparture: !useArrival,
+            tripId: arrival.tripId
+          };
+        });
+      };
+
+      // Helper: Process terminal station (shows both arriving and departing trains)
+      const processTerminalStation = (arrivals, routeId, inboundDir, outboundDir) => {
+        return {
+          arriving: processTrainData(arrivals, routeId, inboundDir, true),
+          departing: processTrainData(arrivals, routeId, outboundDir, false)
+        };
+      };
+
+      // Helper: Process middle station (shows trains passing through in both directions)
+      const processMiddleStation = (arrivals, routeId, dir1, dir2) => {
+        const dir1Key = dir1 === 0 ? 'westbound' : dir1 === 1 ? 'eastbound' : 'northbound';
+        const dir2Key = dir2 === 0 ? 'westbound' : dir2 === 1 ? 'eastbound' : 'southbound';
+
+        return {
+          [dir1Key]: processTrainData(arrivals, routeId, dir1, true),
+          [dir2Key]: processTrainData(arrivals, routeId, dir2, true)
+        };
+      };
+
+      // Fetch N Line data from all stations (multi-stop parallel fetch)
       const fetchTransitData = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, transit: true }));
           const apiEndpoint = 'https://rtd-n-line-api.onrender.com/api/rtd/arrivals';
 
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+          console.log('🚆 Fetching N Line data from all 3 stations...');
 
-          const [sbResponse, nbResponse] = await Promise.all([
-            fetch(`${apiEndpoint}/${config.rtdStops.southbound}?t=${Date.now()}`, {
-              method: 'GET',
-              mode: 'cors',
-              cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              signal: controller.signal
-            }),
-            fetch(`${apiEndpoint}/${config.rtdStops.northbound}?t=${Date.now()}`, {
-              method: 'GET',
-              mode: 'cors',
-              cache: 'no-cache',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              signal: controller.signal
-            })
+          // Fetch all 3 N Line stations in parallel
+          const [terminal124thRes, station112thRes, unionRes] = await Promise.all([
+            fetch(`${apiEndpoint}/${config.nLineStops.terminal124th}?t=${Date.now()}`).then(r => r.json()),
+            fetch(`${apiEndpoint}/${config.nLineStops.station112th}?t=${Date.now()}`).then(r => r.json()),
+            fetch(`${apiEndpoint}/${config.nLineStops.unionStation}?t=${Date.now()}`).then(r => r.json())
           ]);
 
-          clearTimeout(timeoutId);
+          console.log('✅ All N Line stations fetched');
 
-          const sbData = await sbResponse.json();
-          const nbData = await nbResponse.json();
+          // Process 124th Station (Terminal - northbound endpoint)
+          // Shows trains arriving from south (dir 1 southbound) and departing to south (dir 0 northbound)
+          const terminal124thData = processTerminalStation(
+            terminal124thRes.arrivals,
+            '117N',
+            0,  // arriving from south (northbound trains ending at 124th)
+            1   // departing to south (southbound trains starting from 124th to Union)
+          );
 
-          // Process southbound
-          let sbTrains = [];
-          if (sbData.arrivals && Array.isArray(sbData.arrivals) && sbData.arrivals.length > 0) {
-            const filteredSB = sbData.arrivals.filter(arrival => {
-              const isNLine = arrival.routeId === '117N' || arrival.route === 'N Line';
-              return isNLine && arrival.directionId === 1;
-            });
+          // Process 112th Station (Middle - user's boarding point)
+          // Shows trains in both directions
+          const station112thData = processMiddleStation(
+            station112thRes.arrivals,
+            '117N',
+            0,  // northbound (to 124th)
+            1   // southbound (to Union)
+          );
 
-            sbTrains = filteredSB.slice(0, 3).map(arrival => {
-              let arrivalTimestamp = null;
-              let displayTime = arrival.arrivalTimeFormatted;
-              let delayMinutes = 0;
+          // Process Union Station (Terminal - southbound endpoint)
+          // Shows trains arriving from north (dir 0 northbound) and departing to north (dir 1 southbound)
+          const unionData = processTerminalStation(
+            unionRes.arrivals,
+            '117N',
+            1,  // arriving from north (southbound trains ending at Union)
+            0   // departing to north (northbound trains starting from Union to 124th)
+          );
 
-              if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
-                arrivalTimestamp = arrival.arrivalTime * 1000;
-                const arrivalDate = new Date(arrivalTimestamp);
-                displayTime = arrivalDate.toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                });
+          // Update station-based state
+          setNLineData({
+            terminal124th: terminal124thData,
+            station112th: station112thData,
+            unionStation: unionData
+          });
 
-                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
-                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
-                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-                }
-              }
+          // Maintain backwards compatibility with old state (for now)
+          setTransitDataSB(terminal124thData.departing);  // Departures from 124th to Union (southbound)
+          setTransitDataNB(unionData.departing);  // Departures from Union to 124th (northbound)
 
-              return {
-                time: displayTime,
-                arrivalTimestamp: arrivalTimestamp,
-                delay: delayMinutes,
-                status: arrival.status || 'On Time'
-              };
-            });
-          }
+          console.log('🎯 N Line station data processed:', {
+            terminal124th: terminal124thData,
+            station112th: station112thData,
+            unionStation: unionData
+          });
 
-          // Process northbound
-          let nbTrains = [];
-          if (nbData.arrivals && Array.isArray(nbData.arrivals) && nbData.arrivals.length > 0) {
-            const filteredNB = nbData.arrivals.filter(arrival => {
-              const isNLine = arrival.routeId === '117N' || arrival.route === 'N Line';
-              return isNLine && arrival.directionId === 0;
-            });
-
-            nbTrains = filteredNB.slice(0, 3).map(arrival => {
-              let arrivalTimestamp = null;
-              let displayTime = arrival.arrivalTimeFormatted;
-              let delayMinutes = 0;
-
-              if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
-                arrivalTimestamp = arrival.arrivalTime * 1000;
-                const arrivalDate = new Date(arrivalTimestamp);
-                displayTime = arrivalDate.toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                });
-
-                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
-                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
-                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-                }
-              }
-
-              return {
-                time: displayTime,
-                arrivalTimestamp: arrivalTimestamp,
-                delay: delayMinutes,
-                status: arrival.status || 'On Time'
-              };
-            });
-          }
-
-          setTransitDataSB(sbTrains);
-          setTransitDataNB(nbTrains);
         } catch (error) {
-          console.error('Transit error:', error);
+          console.error('❌ N Line error:', error);
           setTransitDataSB([]);
           setTransitDataNB([]);
+          setNLineData({
+            terminal124th: { arriving: [], departing: [] },
+            station112th: { northbound: [], southbound: [] },
+            unionStation: { arriving: [], departing: [] }
+          });
         } finally {
           setLoading(prev => ({ ...prev, transit: false }));
         }
       }, []);
 
-      // Fetch G Line data from Gold Strike station
+      // Fetch G Line data from all stations (multi-stop parallel fetch)
       const fetchGLineData = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, gLine: true }));
           const apiEndpoint = `${CONSTANTS.API_BASE_URL}/api/rtd/gline`;
 
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+          console.log('🚆 Fetching G Line data from all 4 stations...');
 
-          // TEST: Try Union Station for G Line (major hub with all lines)
-          const response = await fetch(`${apiEndpoint}/${config.gLineStops.unionStation}?t=${Date.now()}`, {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            signal: controller.signal
+          // Fetch all 4 G Line stations in parallel
+          const [oldeTownRes, goldStrikeRes, pecosRes, unionRes] = await Promise.all([
+            fetch(`${apiEndpoint}/${config.gLineStops.oldeTown}?t=${Date.now()}`).then(r => r.json()),
+            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike}?t=${Date.now()}`).then(r => r.json()),
+            fetch(`${apiEndpoint}/${config.gLineStops.pecosJunction}?t=${Date.now()}`).then(r => r.json()),
+            fetch(`${apiEndpoint}/${config.gLineStops.unionStation}?t=${Date.now()}`).then(r => r.json())
+          ]);
+
+          console.log('✅ All G Line stations fetched');
+
+          // Process Olde Town Station (Terminal - westbound endpoint)
+          // Shows trains arriving from east (dir 0) and departing to east (dir 1)
+          const oldeTownData = processTerminalStation(
+            oldeTownRes.arrivals,
+            '113G',
+            1,  // arriving from east (eastbound trains ending here)
+            0   // departing to east (westbound trains starting here)
+          );
+
+          // Process Gold Strike Station (Middle - pass-through)
+          // Shows trains in both directions
+          const goldStrikeData = processMiddleStation(
+            goldStrikeRes.arrivals,
+            '113G',
+            0,  // westbound (to Olde Town)
+            1   // eastbound (to Union Station)
+          );
+
+          // Process Pecos Junction (Middle - transfer point)
+          // Shows trains in both directions
+          const pecosData = processMiddleStation(
+            pecosRes.arrivals,
+            '113G',
+            0,  // westbound (to Olde Town)
+            1   // eastbound (to Union Station)
+          );
+
+          // Process Union Station (Terminal - eastbound endpoint)
+          // Shows trains arriving from west (dir 1 eastbound) and departing to west (dir 0 westbound)
+          const unionData = processTerminalStation(
+            unionRes.arrivals,
+            '113G',
+            1,  // arriving from west (eastbound trains ending at Union)
+            0   // departing to west (westbound trains starting from Union to Olde Town)
+          );
+
+          // Update station-based state
+          setGLineData({
+            oldeTown: oldeTownData,
+            goldStrike: goldStrikeData,
+            pecosJunction: pecosData,
+            unionStation: unionData
           });
 
-          clearTimeout(timeoutId);
+          // Maintain backwards compatibility with old state (for now)
+          setGLineWestbound(unionData.departing);  // Departures from Union to Olde Town
+          setGLineEastbound(oldeTownData.departing);  // Departures from Olde Town to Union
 
-          const data = await response.json();
+          console.log('🎯 G Line station data processed:', {
+            oldeTown: oldeTownData,
+            goldStrike: goldStrikeData,
+            pecosJunction: pecosData,
+            unionStation: unionData
+          });
 
-          // DEBUG: Log Union Station response
-          console.log('🔍 Union Station (34781) Response:', data);
-
-          const allArrivals = data.arrivals || [];
-
-          console.log(`📊 Total arrivals at Union Station: ${allArrivals.length}`);
-          if (allArrivals.length > 0) {
-            console.log('📊 First arrival sample:', allArrivals[0]);
-            console.log('🚆 All routes found:', [...new Set(allArrivals.map(a => a.route))]);
-            console.log('🔢 All routeIds found:', [...new Set(allArrivals.map(a => a.routeId))]);
-            console.log('➡️ Direction IDs found:', [...new Set(allArrivals.map(a => a.directionId))]);
-
-            // Filter for G Line only
-            const gLineArrivals = allArrivals.filter(a =>
-              a.routeId === '113G' || a.route === 'G Line' || a.route === 'G'
-            );
-            console.log(`🚆 G Line arrivals at Union Station: ${gLineArrivals.length}`);
-            if (gLineArrivals.length > 0) {
-              console.log('✅ Found G Line trains!', gLineArrivals);
-            }
-          } else {
-            console.log('⚠️ No arrivals found at Union Station!');
-          }
-
-          // Process westbound DEPARTURES from Union Station (to Olde Town)
-          let westboundTrains = [];
-          if (allArrivals && Array.isArray(allArrivals) && allArrivals.length > 0) {
-            const filteredWB = allArrivals.filter(arrival => {
-              const isGLine = arrival.routeId === '113G' || arrival.route === 'G Line' || arrival.route === 'G';
-              return isGLine && arrival.directionId === 0; // 0 = westbound FROM Union Station
-            });
-
-            westboundTrains = filteredWB.slice(0, 3).map(arrival => {
-              let arrivalTimestamp = null;
-              // Use DEPARTURE time since we're querying FROM Union Station
-              let displayTime = arrival.departureTimeFormatted || arrival.arrivalTimeFormatted;
-              let delayMinutes = 0;
-
-              const timeValue = arrival.departureTime || arrival.arrivalTime;
-              if (timeValue && typeof timeValue === 'number') {
-                arrivalTimestamp = timeValue * 1000;
-
-                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
-                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
-                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-                }
-              }
-
-              return {
-                time: displayTime,
-                arrivalTimestamp: arrivalTimestamp,
-                delay: delayMinutes,
-                status: arrival.status || 'On Time'
-              };
-            });
-          }
-
-          // Process eastbound DEPARTURES from Union Station (going east - uncommon for G Line)
-          let eastboundTrains = [];
-          if (allArrivals && Array.isArray(allArrivals) && allArrivals.length > 0) {
-            const filteredEB = allArrivals.filter(arrival => {
-              const isGLine = arrival.routeId === '113G' || arrival.route === 'G Line' || arrival.route === 'G';
-              return isGLine && arrival.directionId === 1; // 1 = eastbound
-            });
-
-            eastboundTrains = filteredEB.slice(0, 3).map(arrival => {
-              let arrivalTimestamp = null;
-              // Use DEPARTURE time since we're querying FROM Union Station
-              let displayTime = arrival.departureTimeFormatted || arrival.arrivalTimeFormatted;
-              let delayMinutes = 0;
-
-              const timeValue = arrival.departureTime || arrival.arrivalTime;
-              if (timeValue && typeof timeValue === 'number') {
-                arrivalTimestamp = timeValue * 1000;
-
-                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
-                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
-                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-                }
-              }
-
-              return {
-                time: displayTime,
-                arrivalTimestamp: arrivalTimestamp,
-                delay: delayMinutes,
-                status: arrival.status || 'On Time'
-              };
-            });
-          }
-
-          setGLineWestbound(westboundTrains);
-          setGLineEastbound(eastboundTrains);
         } catch (error) {
-          console.error('G Line error:', error);
+          console.error('❌ G Line error:', error);
           setGLineEastbound([]);
           setGLineWestbound([]);
+          setGLineData({
+            oldeTown: { arriving: [], departing: [] },
+            goldStrike: { eastbound: [], westbound: [] },
+            pecosJunction: { eastbound: [], westbound: [] },
+            unionStation: { arriving: [], departing: [] }
+          });
         } finally {
           setLoading(prev => ({ ...prev, gLine: false }));
         }
       }, []);
 
-      // Fetch B Line data from Union Station Track 8 (route ID: 113B)
+      // Fetch B Line data from all stations (multi-stop parallel fetch)
       const fetchBLineData = useCallback(async () => {
         try {
           setLoading(prev => ({ ...prev, bLine: true }));
           const apiEndpoint = `${CONSTANTS.API_BASE_URL}/api/rtd/gline`;
 
-          console.log('🔍 Fetching B Line from Union Station Track 8 (stop 34782)...');
+          console.log('🚆 Fetching B Line data from all 3 stations...');
 
-          const response = await fetch(`${apiEndpoint}/${config.bLineStops.unionStation}?t=${Date.now()}`, {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+          // Fetch all 3 B Line stations in parallel
+          const [westminsterRes, pecosRes, unionRes] = await Promise.all([
+            fetch(`${apiEndpoint}/${config.bLineStops.westminster}?t=${Date.now()}`).then(r => r.json()),
+            fetch(`${apiEndpoint}/${config.bLineStops.pecosJunction}?t=${Date.now()}`).then(r => r.json()),
+            fetch(`${apiEndpoint}/${config.bLineStops.unionStation}?t=${Date.now()}`).then(r => r.json())
+          ]);
+
+          console.log('✅ All B Line stations fetched');
+
+          // Process Westminster Station (Terminal - northbound endpoint)
+          // Shows trains arriving from south (dir 1 southbound) and departing to south (dir 0 northbound)
+          const westminsterData = processTerminalStation(
+            westminsterRes.arrivals,
+            '113B',
+            0,  // arriving from south (northbound trains ending at Westminster)
+            1   // departing to south (southbound trains starting from Westminster to Union)
+          );
+
+          // Process Pecos Junction (Middle - transfer point)
+          // Shows trains in both directions
+          const pecosData = processMiddleStation(
+            pecosRes.arrivals,
+            '113B',
+            0,  // northbound (to Westminster)
+            1   // southbound (to Union Station)
+          );
+
+          // Process Union Station (Terminal - southbound endpoint)
+          // Shows trains arriving from north (dir 0 northbound) and departing to north (dir 1 southbound)
+          const unionData = processTerminalStation(
+            unionRes.arrivals,
+            '113B',
+            1,  // arriving from north (southbound trains ending at Union)
+            0   // departing to north (northbound trains starting from Union to Westminster)
+          );
+
+          // Update station-based state
+          setBLineData({
+            westminster: westminsterData,
+            pecosJunction: pecosData,
+            unionStation: unionData
           });
 
-          const data = await response.json();
-          const allArrivals = data.arrivals || [];
+          // Maintain backwards compatibility with old state (for now)
+          setBLineNorthbound(unionData.departing);  // Departures from Union to Westminster
+          setBLineSouthbound(westminsterData.departing);  // Departures from Westminster to Union
 
-          console.log(`📊 Union Station Track 8 has ${allArrivals.length} total arrivals`);
+          console.log('🎯 B Line station data processed:', {
+            westminster: westminsterData,
+            pecosJunction: pecosData,
+            unionStation: unionData
+          });
 
-          if (allArrivals.length > 0) {
-            console.log('🔢 All routes at Track 8:', [...new Set(allArrivals.map(a => a.routeId))]);
-            console.log('📊 Sample arrival:', allArrivals[0]);
-
-            // Filter for B Line (route ID: 113B from GTFS data)
-            const bLineArrivals = allArrivals.filter(a =>
-              a.routeId === '113B' || a.route === 'B Line' || a.route === 'B'
-            );
-
-            console.log(`🚆 B Line arrivals at Union Station: ${bLineArrivals.length}`);
-
-            if (bLineArrivals.length > 0) {
-              console.log('✅ Found B Line trains!', bLineArrivals);
-
-              // Departures FROM Union Station going to Westminster (northbound)
-              // Use DEPARTURE times since we're querying Union Station
-              const northbound = bLineArrivals.filter(a => a.directionId === 0).slice(0, 3).map(arrival => ({
-                time: arrival.departureTimeFormatted || arrival.arrivalTimeFormatted,
-                arrivalTimestamp: (arrival.departureTime || arrival.arrivalTime) * 1000,
-                delay: 0,
-                status: arrival.status || 'On Time',
-                isDeparture: true
-              }));
-
-              console.log(`🚆 B Line northbound departures from Union Station: ${northbound.length}`);
-              if (northbound.length > 0 && bLineArrivals[0]?.departureTimeFormatted) {
-                console.log('✅ Using departure times for B Line');
-              }
-
-              setBLineNorthbound(northbound);
-              setBLineSouthbound([]); // No southbound FROM Union Station
-            } else {
-              console.log('⚠️ No B Line trains found (route 113B not in arrivals)');
-              setBLineSouthbound([]);
-              setBLineNorthbound([]);
-            }
-          } else {
-            console.log('⚠️ No arrivals at Union Station Track 8');
-            setBLineSouthbound([]);
-            setBLineNorthbound([]);
-          }
         } catch (error) {
           console.error('❌ B Line error:', error);
           setBLineSouthbound([]);
           setBLineNorthbound([]);
+          setBLineData({
+            westminster: { arriving: [], departing: [] },
+            pecosJunction: { northbound: [], southbound: [] },
+            unionStation: { arriving: [], departing: [] }
+          });
         } finally {
           setLoading(prev => ({ ...prev, bLine: false }));
         }
