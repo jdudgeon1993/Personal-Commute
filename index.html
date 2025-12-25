@@ -494,65 +494,23 @@
             console.log('⚠️ No arrivals found at Union Station!');
           }
 
-          // Process eastbound (to Union Station)
-          let eastboundTrains = [];
-          if (allArrivals && Array.isArray(allArrivals) && allArrivals.length > 0) {
-            const filteredEB = allArrivals.filter(arrival => {
-              const isGLine = arrival.routeId === '113G' || arrival.route === 'G Line' || arrival.route === 'G';
-              console.log(`🔎 Checking arrival: route="${arrival.route}", routeId="${arrival.routeId}", directionId=${arrival.directionId}, isGLine=${isGLine}`);
-              return isGLine && arrival.directionId === 1; // Assuming 1 = eastbound
-            });
-
-            eastboundTrains = filteredEB.slice(0, 3).map(arrival => {
-              let arrivalTimestamp = null;
-              let displayTime = arrival.arrivalTimeFormatted;
-              let delayMinutes = 0;
-
-              if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
-                arrivalTimestamp = arrival.arrivalTime * 1000;
-                const arrivalDate = new Date(arrivalTimestamp);
-                displayTime = arrivalDate.toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                });
-
-                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
-                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
-                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-                }
-              }
-
-              return {
-                time: displayTime,
-                arrivalTimestamp: arrivalTimestamp,
-                delay: delayMinutes,
-                status: arrival.status || 'On Time'
-              };
-            });
-          }
-
-          // Process westbound (to Olde Town)
+          // Process westbound DEPARTURES from Union Station (to Olde Town)
           let westboundTrains = [];
           if (allArrivals && Array.isArray(allArrivals) && allArrivals.length > 0) {
             const filteredWB = allArrivals.filter(arrival => {
               const isGLine = arrival.routeId === '113G' || arrival.route === 'G Line' || arrival.route === 'G';
-              return isGLine && arrival.directionId === 0; // Assuming 0 = westbound
+              return isGLine && arrival.directionId === 0; // 0 = westbound FROM Union Station
             });
 
             westboundTrains = filteredWB.slice(0, 3).map(arrival => {
               let arrivalTimestamp = null;
-              let displayTime = arrival.arrivalTimeFormatted;
+              // Use DEPARTURE time since we're querying FROM Union Station
+              let displayTime = arrival.departureTimeFormatted || arrival.arrivalTimeFormatted;
               let delayMinutes = 0;
 
-              if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
-                arrivalTimestamp = arrival.arrivalTime * 1000;
-                const arrivalDate = new Date(arrivalTimestamp);
-                displayTime = arrivalDate.toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                });
+              const timeValue = arrival.departureTime || arrival.arrivalTime;
+              if (timeValue && typeof timeValue === 'number') {
+                arrivalTimestamp = timeValue * 1000;
 
                 if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
                   const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
@@ -569,8 +527,41 @@
             });
           }
 
-          setGLineEastbound(eastboundTrains);
+          // Process eastbound DEPARTURES from Union Station (going east - uncommon for G Line)
+          let eastboundTrains = [];
+          if (allArrivals && Array.isArray(allArrivals) && allArrivals.length > 0) {
+            const filteredEB = allArrivals.filter(arrival => {
+              const isGLine = arrival.routeId === '113G' || arrival.route === 'G Line' || arrival.route === 'G';
+              return isGLine && arrival.directionId === 1; // 1 = eastbound
+            });
+
+            eastboundTrains = filteredEB.slice(0, 3).map(arrival => {
+              let arrivalTimestamp = null;
+              // Use DEPARTURE time since we're querying FROM Union Station
+              let displayTime = arrival.departureTimeFormatted || arrival.arrivalTimeFormatted;
+              let delayMinutes = 0;
+
+              const timeValue = arrival.departureTime || arrival.arrivalTime;
+              if (timeValue && typeof timeValue === 'number') {
+                arrivalTimestamp = timeValue * 1000;
+
+                if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+                  const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+                  delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
+                }
+              }
+
+              return {
+                time: displayTime,
+                arrivalTimestamp: arrivalTimestamp,
+                delay: delayMinutes,
+                status: arrival.status || 'On Time'
+              };
+            });
+          }
+
           setGLineWestbound(westboundTrains);
+          setGLineEastbound(eastboundTrains);
         } catch (error) {
           console.error('G Line error:', error);
           setGLineEastbound([]);
