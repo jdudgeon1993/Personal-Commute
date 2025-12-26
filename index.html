@@ -427,11 +427,9 @@
           let departureTimeDisplay = null;
           let delayMinutes = 0;
 
-          // Get arrival time (Unix timestamp)
-          const arrivalTimeValue = arrival.arrivalTime || arrival.departureTime;
-          if (arrivalTimeValue && typeof arrivalTimeValue === 'number') {
-            arrivalTimestamp = arrivalTimeValue * 1000;
-            // Calculate display time from timestamp (fixes PM/AM issue)
+          // Get ACTUAL arrival time from GTFS feed (NO fallbacks - show actual data only!)
+          if (arrival.arrivalTime && typeof arrival.arrivalTime === 'number') {
+            arrivalTimestamp = arrival.arrivalTime * 1000;
             const arrivalDate = new Date(arrivalTimestamp);
             arrivalTimeDisplay = arrivalDate.toLocaleTimeString('en-US', {
               hour: 'numeric',
@@ -440,11 +438,9 @@
             });
           }
 
-          // Get departure time (Unix timestamp)
-          const departureTimeValue = arrival.departureTime || arrival.arrivalTime;
-          if (departureTimeValue && typeof departureTimeValue === 'number') {
-            departureTimestamp = departureTimeValue * 1000;
-            // Calculate display time from timestamp
+          // Get ACTUAL departure time from GTFS feed (NO fallbacks - show actual data only!)
+          if (arrival.departureTime && typeof arrival.departureTime === 'number') {
+            departureTimestamp = arrival.departureTime * 1000;
             const departureDate = new Date(departureTimestamp);
             departureTimeDisplay = departureDate.toLocaleTimeString('en-US', {
               hour: 'numeric',
@@ -453,22 +449,23 @@
             });
           }
 
-          // Calculate delay
-          if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+          // Calculate delay based on scheduled vs actual arrival
+          if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number' && arrivalTimestamp) {
             const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
-            if (arrivalTimestamp) {
-              delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
-            }
+            delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
           }
+
+          // Use arrival timestamp for status calculations (or departure if no arrival exists)
+          const primaryTimestamp = arrivalTimestamp || departureTimestamp;
 
           return {
             arrivalTime: arrivalTimeDisplay,
             departureTime: departureTimeDisplay,
             arrivalTimestamp: arrivalTimestamp,
             departureTimestamp: departureTimestamp,
+            primaryTimestamp: primaryTimestamp, // For Arriving/Departing status
             delay: delayMinutes,
             status: arrival.status || 'On Time',
-            isDeparture: !useArrival,
             tripId: arrival.tripId
           };
         });
@@ -562,14 +559,16 @@
           const now = currentTime.getTime();
           if (train.delay > 2) return { text: 'Delayed', color: isDarkMode ? 'text-red-400' : 'text-red-600' };
 
-          if (train.arrivalTimestamp) {
-            const timeUntilArrival = train.arrivalTimestamp - now;
+          // Use primaryTimestamp (arrival or departure, whichever exists)
+          const timestamp = train.primaryTimestamp || train.arrivalTimestamp || train.departureTimestamp;
+          if (timestamp) {
+            const timeUntil = timestamp - now;
             // If arriving in next 2 minutes
-            if (timeUntilArrival > 0 && timeUntilArrival <= 120000) {
+            if (timeUntil > 0 && timeUntil <= 120000) {
               return { text: 'Arriving', color: isDarkMode ? 'text-yellow-400' : 'text-yellow-600' };
             }
             // If departed in last minute
-            if (timeUntilArrival < 0 && timeUntilArrival >= -60000) {
+            if (timeUntil < 0 && timeUntil >= -60000) {
               return { text: 'Departing', color: isDarkMode ? 'text-blue-400' : 'text-blue-600' };
             }
           }
