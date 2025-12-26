@@ -1170,6 +1170,19 @@
             1   // departing: eastbound trains (dir 1) leaving Ward toward Union
           );
 
+          // DEBUG: Log Ward Station data
+          console.log('🔍 WARD STATION DEBUG:', {
+            totalArrivals: wardRes.arrivals?.length || 0,
+            arriving: wardData.arriving?.length || 0,
+            departing: wardData.departing?.length || 0,
+            sampleArrival: wardRes.arrivals?.[0] ? {
+              routeId: wardRes.arrivals[0].routeId,
+              directionId: wardRes.arrivals[0].directionId,
+              arrivalTime: wardRes.arrivals[0].arrivalTime,
+              departureTime: wardRes.arrivals[0].departureTime
+            } : 'NO DATA'
+          });
+
           // Process Olde Town Arvada (Middle - pass-through)
           // Shows trains in both directions
           const oldeTownData = processMiddleStation(
