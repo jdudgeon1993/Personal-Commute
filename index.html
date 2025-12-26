@@ -166,7 +166,7 @@
       },
       // G Line: All stations from west to east
       gLineStops: {
-        wardStation: '34504',              // Terminal - Wheat Ridge/Ward Road Station (single platform)
+        wardStation: ['34504', '34505'],   // Terminal - Wheat Ridge/Ward Road Station (trying dual-platform)
         oldeTown: ['34541', '34542'],      // Middle - Olde Town Arvada (dual-platform: EB, WB)
         goldStrike: ['34525', '34526'],    // Middle - 60th/Sheridan Gold Strike (dual-platform: Track 1 & 2)
         pecosJunction: ['34544', '34543'], // Middle - Transfer point (dual-platform: Track 1 NB, Track 2 SB)
@@ -1162,19 +1162,27 @@
           console.log('✅ All G Line stations fetched');
 
           // Process Ward Station (Terminal - western endpoint)
-          // Trains arrive traveling westbound (from Union), depart traveling eastbound (to Union)
-          const wardData = processTerminalStation(
+          // Try as middle station: westbound (arriving from Union) and eastbound (departing to Union)
+          const wardData = processMiddleStation(
             wardRes.arrivals,
             '113G',
-            0,  // arriving: westbound trains (dir 0) ending at Ward from Union
-            1   // departing: eastbound trains (dir 1) leaving Ward toward Union
+            0,  // westbound: trains arriving at Ward from Union (ending)
+            1,  // eastbound: trains departing Ward to Union (starting)
+            'westbound',  // Treat westbound as "arriving"
+            'eastbound'   // Treat eastbound as "departing"
           );
+
+          // Convert to terminal format for compatibility
+          const wardDataTerminal = {
+            arriving: wardData.westbound || [],
+            departing: wardData.eastbound || []
+          };
 
           // DEBUG: Log Ward Station data
           console.log('🔍 WARD STATION DEBUG:', {
             totalArrivals: wardRes.arrivals?.length || 0,
-            arriving: wardData.arriving?.length || 0,
-            departing: wardData.departing?.length || 0,
+            westbound: wardData.westbound?.length || 0,
+            eastbound: wardData.eastbound?.length || 0,
             sampleArrival: wardRes.arrivals?.[0] ? {
               routeId: wardRes.arrivals[0].routeId,
               directionId: wardRes.arrivals[0].directionId,
@@ -1227,7 +1235,7 @@
 
           // Update station-based state
           setGLineData({
-            wardStation: wardData,
+            wardStation: wardDataTerminal,
             oldeTown: oldeTownData,
             goldStrike: goldStrikeData,
             pecosJunction: pecosData,
@@ -1236,10 +1244,10 @@
 
           // Maintain backwards compatibility with old state (for now)
           setGLineWestbound(unionData.departing);  // Departures from Union to Ward
-          setGLineEastbound(wardData.departing);  // Departures from Ward to Union
+          setGLineEastbound(wardDataTerminal.departing);  // Departures from Ward to Union
 
           console.log('🎯 G Line station data processed:', {
-            wardStation: wardData,
+            wardStation: wardDataTerminal,
             oldeTown: oldeTownData,
             goldStrike: goldStrikeData,
             pecosJunction: pecosData,
