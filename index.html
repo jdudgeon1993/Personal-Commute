@@ -166,7 +166,7 @@
       },
       // G Line: All stations from west to east
       gLineStops: {
-        wardStation: '34504',              // Terminal - Wheat Ridge/Ward Road Station (single platform)
+        wardStation: ['34504', '34505'],   // Terminal - Wheat Ridge/Ward Road Station (trying dual-platform)
         oldeTown: ['34541', '34542'],      // Middle - Olde Town Arvada (dual-platform: EB, WB)
         goldStrike: ['34525', '34526'],    // Middle - 60th/Sheridan Gold Strike (dual-platform: Track 1 & 2)
         pecosJunction: ['34544', '34543'], // Middle - Transfer point (dual-platform: Track 1 NB, Track 2 SB)
@@ -567,6 +567,21 @@
         const getNextTwoTrains = (trainsArray) => {
           if (!trainsArray || !Array.isArray(trainsArray)) return [];
           return trainsArray.slice(0, 2); // Only next 2 trains
+        };
+
+        // Helper to get countdown in minutes
+        const getCountdown = (train) => {
+          const now = currentTime.getTime();
+          const timestamp = train.primaryTimestamp || train.departureTimestamp || train.arrivalTimestamp;
+          if (!timestamp) return null;
+
+          const timeUntil = timestamp - now;
+          const minutesUntil = Math.round(timeUntil / 60000);
+
+          if (minutesUntil < 0) return 'Departed';
+          if (minutesUntil === 0) return 'Now';
+          if (minutesUntil === 1) return '1 min';
+          return `${minutesUntil} min`;
         };
 
         // Helper to determine status with Arriving/Departing indicators
@@ -1162,13 +1177,34 @@
           console.log('✅ All G Line stations fetched');
 
           // Process Ward Station (Terminal - western endpoint)
-          // Trains arrive traveling westbound (from Union), depart traveling eastbound (to Union)
-          const wardData = processTerminalStation(
+          // Try as middle station: westbound (arriving from Union) and eastbound (departing to Union)
+          const wardData = processMiddleStation(
             wardRes.arrivals,
             '113G',
-            0,  // arriving: westbound trains (dir 0) ending at Ward from Union
-            1   // departing: eastbound trains (dir 1) leaving Ward toward Union
+            0,  // westbound: trains arriving at Ward from Union (ending)
+            1,  // eastbound: trains departing Ward to Union (starting)
+            'westbound',  // Treat westbound as "arriving"
+            'eastbound'   // Treat eastbound as "departing"
           );
+
+          // Convert to terminal format for compatibility
+          const wardDataTerminal = {
+            arriving: wardData.westbound || [],
+            departing: wardData.eastbound || []
+          };
+
+          // DEBUG: Log Ward Station data
+          console.log('🔍 WARD STATION DEBUG:', {
+            totalArrivals: wardRes.arrivals?.length || 0,
+            westbound: wardData.westbound?.length || 0,
+            eastbound: wardData.eastbound?.length || 0,
+            sampleArrival: wardRes.arrivals?.[0] ? {
+              routeId: wardRes.arrivals[0].routeId,
+              directionId: wardRes.arrivals[0].directionId,
+              arrivalTime: wardRes.arrivals[0].arrivalTime,
+              departureTime: wardRes.arrivals[0].departureTime
+            } : 'NO DATA'
+          });
 
           // Process Olde Town Arvada (Middle - pass-through)
           // Shows trains in both directions
@@ -1214,7 +1250,7 @@
 
           // Update station-based state
           setGLineData({
-            wardStation: wardData,
+            wardStation: wardDataTerminal,
             oldeTown: oldeTownData,
             goldStrike: goldStrikeData,
             pecosJunction: pecosData,
@@ -1223,10 +1259,10 @@
 
           // Maintain backwards compatibility with old state (for now)
           setGLineWestbound(unionData.departing);  // Departures from Union to Ward
-          setGLineEastbound(wardData.departing);  // Departures from Ward to Union
+          setGLineEastbound(wardDataTerminal.departing);  // Departures from Ward to Union
 
           console.log('🎯 G Line station data processed:', {
-            wardStation: wardData,
+            wardStation: wardDataTerminal,
             oldeTown: oldeTownData,
             goldStrike: goldStrikeData,
             pecosJunction: pecosData,
@@ -1294,6 +1330,18 @@
             1,  // arriving from north (southbound trains ending at Union)
             0   // departing to north (northbound trains starting from Union to Westminster)
           );
+
+          // DEBUG: Log B Line Union and Pecos data
+          console.log('🔍 B LINE DEBUG:', {
+            unionTotal: unionRes.arrivals?.length || 0,
+            unionArriving: unionData.arriving?.length || 0,
+            unionDeparting: unionData.departing?.length || 0,
+            pecosTotal: pecosRes.arrivals?.length || 0,
+            pecosNorthbound: pecosData.northbound?.length || 0,
+            pecosSouthbound: pecosData.southbound?.length || 0,
+            sampleUnion: unionRes.arrivals?.[0],
+            samplePecos: pecosRes.arrivals?.[0]
+          });
 
           // Update station-based state
           setBLineData({
@@ -1900,13 +1948,28 @@
                               </p>
                             </div>
                           ) : (
-                            lineData.map((line, lineIdx) => (
+                            lineData.map((line, lineIdx) => {
+                              // Count total active trains for this line
+                              const totalTrains = line.sections?.reduce((sum, section) => {
+                                return sum + section.rows.reduce((rowSum, row) => {
+                                  return rowSum + (row.trains?.filter(t => t).length || 0);
+                                }, 0);
+                              }, 0) || 0;
+
+                              return (
                               <div key={lineIdx} className={`space-y-4 p-4 rounded-xl ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} transition-all hover:shadow-lg`}>
-                                {/* Line Header - Enhanced */}
+                                {/* Line Header - Enhanced with Train Counter */}
                                 <div className="flex items-center gap-3 mb-4">
                                   <div className={`${line.color} text-white px-6 py-2.5 rounded-xl font-extrabold text-base shadow-lg transform transition-transform hover:scale-105`}>
                                     {line.name}
                                   </div>
+                                  {totalTrains > 0 && (
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-300 dark:border-gray-600 shadow-sm">
+                                      <span className="text-xl">🚆</span>
+                                      <span className={`font-bold text-sm ${textColor}`}>{totalTrains}</span>
+                                      <span className={`text-xs ${textMuted}`}>active</span>
+                                    </div>
+                                  )}
                                   <div className={`flex-1 h-1 ${line.color} rounded-full opacity-30`}></div>
                                 </div>
 
@@ -1977,23 +2040,41 @@
                                                   )}
                                                 </td>
 
-                                                {/* Departure Time - Enhanced */}
+                                                {/* Departure Time with Countdown - Enhanced */}
                                                 <td className="px-4 py-4 text-center">
                                                   {nextTrain ? (
-                                                    <span className={`font-mono font-bold text-lg ${textColor} px-3 py-1.5 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-white'} border-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
-                                                      {nextTrain.departureTime || nextTrain.arrivalTime || '—'}
-                                                    </span>
+                                                    <div className="flex flex-col items-center gap-1">
+                                                      <span className={`font-mono font-bold text-lg ${textColor} px-3 py-1.5 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-white'} border-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+                                                        {nextTrain.departureTime || nextTrain.arrivalTime || '—'}
+                                                      </span>
+                                                      {getCountdown(nextTrain) && (
+                                                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                                                          getCountdown(nextTrain) === 'Now' ? 'bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100' :
+                                                          getCountdown(nextTrain) === 'Departed' ? 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400' :
+                                                          'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                                                        }`}>
+                                                          {getCountdown(nextTrain)}
+                                                        </span>
+                                                      )}
+                                                    </div>
                                                   ) : (
                                                     <span className={textMuted}>—</span>
                                                   )}
                                                 </td>
 
-                                                {/* Upcoming Departure - Enhanced */}
+                                                {/* Upcoming Departure with Countdown - Enhanced */}
                                                 <td className="px-4 py-4 text-right">
                                                   {upcomingTrain ? (
-                                                    <span className={`font-mono font-semibold text-base ${textColor} px-3 py-1 rounded-lg ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-100'}`}>
-                                                      {upcomingTrain.departureTime || upcomingTrain.arrivalTime || '—'}
-                                                    </span>
+                                                    <div className="flex flex-col items-end gap-1">
+                                                      <span className={`font-mono font-semibold text-base ${textColor} px-3 py-1 rounded-lg ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-100'}`}>
+                                                        {upcomingTrain.departureTime || upcomingTrain.arrivalTime || '—'}
+                                                      </span>
+                                                      {getCountdown(upcomingTrain) && (
+                                                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${textMuted}`}>
+                                                          {getCountdown(upcomingTrain)}
+                                                        </span>
+                                                      )}
+                                                    </div>
                                                   ) : (
                                                     <span className={textMuted}>—</span>
                                                   )}
@@ -2007,7 +2088,8 @@
                                   </div>
                                 ))}
                               </div>
-                            ))
+                              );
+                            })
                           )}
                         </div>
 
