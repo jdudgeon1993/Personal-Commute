@@ -564,15 +564,15 @@
         if (visibleLines.nLine && nLineData) {
           const nLineRows = [];
 
-          // NB → 124th Station
+          // NB → 124th Station (trains ARRIVING at 124th from the south)
           nLineRows.push({
             station: 'NB → 124th Station',
             direction: '',
-            trains: getNextTwoTrains(nLineData.station112th?.northbound || []),
+            trains: getNextTwoTrains(nLineData.terminal124th?.arriving || []),
             getStatus: getTrainStatus
           });
 
-          // -112th Station NB
+          // -112th Station NB (trains passing through going north to 124th)
           nLineRows.push({
             station: '-112th Station',
             direction: 'NB',
@@ -580,7 +580,7 @@
             getStatus: getTrainStatus
           });
 
-          // -112th Station SB
+          // -112th Station SB (trains passing through going south to Union)
           nLineRows.push({
             station: '-112th Station',
             direction: 'SB',
@@ -588,11 +588,11 @@
             getStatus: getTrainStatus
           });
 
-          // SB → Union Station
+          // SB → Union Station (trains ARRIVING at Union from the north)
           nLineRows.push({
             station: 'SB → Union Station',
             direction: '',
-            trains: getNextTwoTrains(nLineData.station112th?.southbound || []),
+            trains: getNextTwoTrains(nLineData.unionStation?.arriving || []),
             getStatus: getTrainStatus
           });
 
@@ -603,15 +603,15 @@
         if (visibleLines.bLine && bLineData) {
           const bLineRows = [];
 
-          // NB → Westminster Station
+          // NB → Westminster Station (trains ARRIVING at Westminster from the south)
           bLineRows.push({
             station: 'NB → Westminster Station',
             direction: '',
-            trains: getNextTwoTrains(bLineData.pecosJunction?.northbound || []),
+            trains: getNextTwoTrains(bLineData.westminster?.arriving || []),
             getStatus: getTrainStatus
           });
 
-          // -Pecos Junction NB
+          // -Pecos Junction NB (trains passing through going north to Westminster)
           bLineRows.push({
             station: '-Pecos Junction',
             direction: 'NB',
@@ -619,7 +619,7 @@
             getStatus: getTrainStatus
           });
 
-          // -Pecos Junction SB
+          // -Pecos Junction SB (trains passing through going south to Union)
           bLineRows.push({
             station: '-Pecos Junction',
             direction: 'SB',
@@ -627,11 +627,11 @@
             getStatus: getTrainStatus
           });
 
-          // SB → Union Station
+          // SB → Union Station (trains ARRIVING at Union from the north)
           bLineRows.push({
             station: 'SB → Union Station',
             direction: '',
-            trains: getNextTwoTrains(bLineData.pecosJunction?.southbound || []),
+            trains: getNextTwoTrains(bLineData.unionStation?.arriving || []),
             getStatus: getTrainStatus
           });
 
@@ -642,15 +642,15 @@
         if (visibleLines.gLine && gLineData) {
           const gLineRows = [];
 
-          // WB → Olde Town Arvada
+          // WB → Olde Town Arvada (trains ARRIVING at Olde Town from the east)
           gLineRows.push({
             station: 'WB → Olde Town Arvada',
             direction: '',
-            trains: getNextTwoTrains(gLineData.goldStrike?.westbound || []),
+            trains: getNextTwoTrains(gLineData.oldeTown?.arriving || []),
             getStatus: getTrainStatus
           });
 
-          // -Gold Strike WB
+          // -Gold Strike WB (trains passing through going west to Olde Town)
           gLineRows.push({
             station: '-Gold Strike Station',
             direction: 'WB',
@@ -658,7 +658,7 @@
             getStatus: getTrainStatus
           });
 
-          // -Gold Strike EB
+          // -Gold Strike EB (trains passing through going east to Union)
           gLineRows.push({
             station: '-Gold Strike Station',
             direction: 'EB',
@@ -666,7 +666,7 @@
             getStatus: getTrainStatus
           });
 
-          // -Pecos Junction WB
+          // -Pecos Junction WB (trains passing through going west to Olde Town)
           gLineRows.push({
             station: '-Pecos Junction',
             direction: 'WB',
@@ -674,7 +674,7 @@
             getStatus: getTrainStatus
           });
 
-          // -Pecos Junction EB
+          // -Pecos Junction EB (trains passing through going east to Union)
           gLineRows.push({
             station: '-Pecos Junction',
             direction: 'EB',
@@ -682,11 +682,11 @@
             getStatus: getTrainStatus
           });
 
-          // EB → Union Station
+          // EB → Union Station (trains ARRIVING at Union from the west)
           gLineRows.push({
             station: 'EB → Union Station',
             direction: '',
-            trains: getNextTwoTrains(gLineData.goldStrike?.eastbound || []),
+            trains: getNextTwoTrains(gLineData.unionStation?.arriving || []),
             getStatus: getTrainStatus
           });
 
