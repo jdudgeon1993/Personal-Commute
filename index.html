@@ -1888,11 +1888,11 @@
                                         <th className={`px-3 py-2 text-left font-semibold ${textColor}`}>Status</th>
                                         <th className={`px-3 py-2 text-center font-semibold ${textColor}`}>
                                           <div>Next Train</div>
-                                          <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Arrive / Depart</div>
+                                          <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Departure</div>
                                         </th>
                                         <th className={`px-3 py-2 text-right font-semibold ${textColor}`}>
                                           <div>Upcoming</div>
-                                          <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Arrive / Depart</div>
+                                          <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Departure</div>
                                         </th>
                                       </tr>
                                     </thead>
@@ -1930,34 +1930,23 @@
                                               )}
                                             </td>
 
-                                            {/* Arrival / Departure */}
+                                            {/* Departure Time */}
                                             <td className="px-3 py-3 text-center">
                                               {nextTrain ? (
-                                                <div className="flex flex-col sm:flex-row items-center justify-center gap-1">
-                                                  <span className={`font-mono font-bold text-sm ${textColor}`}>
-                                                    {nextTrain.arrivalTime || '--:--'}
-                                                  </span>
-                                                  <span className={`text-xs ${textMuted} hidden sm:inline`}>/</span>
-                                                  <span className={`font-mono text-sm ${textMuted}`}>
-                                                    {nextTrain.departureTime || '--:--'}
-                                                  </span>
-                                                </div>
+                                                <span className={`font-mono font-bold text-sm ${textColor}`}>
+                                                  {nextTrain.departureTime || '—'}
+                                                </span>
                                               ) : (
                                                 <span className={textMuted}>—</span>
                                               )}
                                             </td>
 
-                                            {/* Upcoming */}
+                                            {/* Upcoming Departure */}
                                             <td className="px-3 py-3 text-right">
                                               {upcomingTrain ? (
-                                                <div className="flex flex-col items-end">
-                                                  <span className={`font-mono text-sm ${textColor}`}>
-                                                    {upcomingTrain.arrivalTime || '--:--'}
-                                                  </span>
-                                                  <span className={`font-mono text-xs ${textMuted}`}>
-                                                    {upcomingTrain.departureTime || '--:--'}
-                                                  </span>
-                                                </div>
+                                                <span className={`font-mono text-sm ${textColor}`}>
+                                                  {upcomingTrain.departureTime || '—'}
+                                                </span>
                                               ) : (
                                                 <span className={textMuted}>—</span>
                                               )}
