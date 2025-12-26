@@ -422,33 +422,50 @@
 
         return filtered.slice(0, 3).map(arrival => {
           let arrivalTimestamp = null;
-          let displayTime = null;
+          let departureTimestamp = null;
+          let arrivalTimeDisplay = null;
+          let departureTimeDisplay = null;
           let delayMinutes = 0;
 
-          // Use arrival time or departure time based on station type
-          const timeValue = useArrival ?
-            (arrival.arrivalTime || arrival.departureTime) :
-            (arrival.departureTime || arrival.arrivalTime);
+          // Get arrival time (Unix timestamp)
+          const arrivalTimeValue = arrival.arrivalTime || arrival.departureTime;
+          if (arrivalTimeValue && typeof arrivalTimeValue === 'number') {
+            arrivalTimestamp = arrivalTimeValue * 1000;
+            // Calculate display time from timestamp (fixes PM/AM issue)
+            const arrivalDate = new Date(arrivalTimestamp);
+            arrivalTimeDisplay = arrivalDate.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            });
+          }
 
-          const timeFormatted = useArrival ?
-            (arrival.arrivalTimeFormatted || arrival.departureTimeFormatted) :
-            (arrival.departureTimeFormatted || arrival.arrivalTimeFormatted);
+          // Get departure time (Unix timestamp)
+          const departureTimeValue = arrival.departureTime || arrival.arrivalTime;
+          if (departureTimeValue && typeof departureTimeValue === 'number') {
+            departureTimestamp = departureTimeValue * 1000;
+            // Calculate display time from timestamp
+            const departureDate = new Date(departureTimestamp);
+            departureTimeDisplay = departureDate.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            });
+          }
 
-          if (timeValue && typeof timeValue === 'number') {
-            arrivalTimestamp = timeValue * 1000;
-            displayTime = timeFormatted;
-
-            if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
-              const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+          // Calculate delay
+          if (arrival.scheduledArrivalTime && typeof arrival.scheduledArrivalTime === 'number') {
+            const scheduledTimestamp = arrival.scheduledArrivalTime * 1000;
+            if (arrivalTimestamp) {
               delayMinutes = Math.round((arrivalTimestamp - scheduledTimestamp) / 60000);
             }
-          } else {
-            displayTime = timeFormatted;
           }
 
           return {
-            time: displayTime,
+            arrivalTime: arrivalTimeDisplay,
+            departureTime: departureTimeDisplay,
             arrivalTimestamp: arrivalTimestamp,
+            departureTimestamp: departureTimestamp,
             delay: delayMinutes,
             status: arrival.status || 'On Time',
             isDeparture: !useArrival,
@@ -1868,10 +1885,16 @@
                                   <table className="w-full text-sm">
                                     <thead>
                                       <tr className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'} text-xs`}>
-                                        <th className="px-3 py-2 text-left font-semibold ${textColor}">Station</th>
-                                        <th className="px-3 py-2 text-left font-semibold ${textColor}">Status</th>
-                                        <th className="px-3 py-2 text-center font-semibold ${textColor}">Arrival / Departure</th>
-                                        <th className="px-3 py-2 text-right font-semibold ${textColor}">Upcoming</th>
+                                        <th className={`px-3 py-2 text-left font-semibold ${textColor}`}>Station</th>
+                                        <th className={`px-3 py-2 text-left font-semibold ${textColor}`}>Status</th>
+                                        <th className={`px-3 py-2 text-center font-semibold ${textColor}`}>
+                                          <div>Next Train</div>
+                                          <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Arrive / Depart</div>
+                                        </th>
+                                        <th className={`px-3 py-2 text-right font-semibold ${textColor}`}>
+                                          <div>Upcoming</div>
+                                          <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Arrive / Depart</div>
+                                        </th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -1911,9 +1934,15 @@
                                             {/* Arrival / Departure */}
                                             <td className="px-3 py-3 text-center">
                                               {nextTrain ? (
-                                                <span className={`font-mono font-bold ${textColor}`}>
-                                                  {nextTrain.time || '--:--'}
-                                                </span>
+                                                <div className="flex flex-col sm:flex-row items-center justify-center gap-1">
+                                                  <span className={`font-mono font-bold text-sm ${textColor}`}>
+                                                    {nextTrain.arrivalTime || '--:--'}
+                                                  </span>
+                                                  <span className={`text-xs ${textMuted} hidden sm:inline`}>/</span>
+                                                  <span className={`font-mono text-sm ${textMuted}`}>
+                                                    {nextTrain.departureTime || '--:--'}
+                                                  </span>
+                                                </div>
                                               ) : (
                                                 <span className={textMuted}>—</span>
                                               )}
@@ -1922,9 +1951,14 @@
                                             {/* Upcoming */}
                                             <td className="px-3 py-3 text-right">
                                               {upcomingTrain ? (
-                                                <span className={`font-mono ${textMuted}`}>
-                                                  {upcomingTrain.time || '--:--'}
-                                                </span>
+                                                <div className="flex flex-col items-end">
+                                                  <span className={`font-mono text-sm ${textColor}`}>
+                                                    {upcomingTrain.arrivalTime || '--:--'}
+                                                  </span>
+                                                  <span className={`font-mono text-xs ${textMuted}`}>
+                                                    {upcomingTrain.departureTime || '--:--'}
+                                                  </span>
+                                                </div>
                                               ) : (
                                                 <span className={textMuted}>—</span>
                                               )}
