@@ -1316,6 +1316,18 @@
             0   // departing to north (northbound trains starting from Union to Westminster)
           );
 
+          // DEBUG: Log B Line Union and Pecos data
+          console.log('🔍 B LINE DEBUG:', {
+            unionTotal: unionRes.arrivals?.length || 0,
+            unionArriving: unionData.arriving?.length || 0,
+            unionDeparting: unionData.departing?.length || 0,
+            pecosTotal: pecosRes.arrivals?.length || 0,
+            pecosNorthbound: pecosData.northbound?.length || 0,
+            pecosSouthbound: pecosData.southbound?.length || 0,
+            sampleUnion: unionRes.arrivals?.[0],
+            samplePecos: pecosRes.arrivals?.[0]
+          });
+
           // Update station-based state
           setBLineData({
             westminster: westminsterData,
