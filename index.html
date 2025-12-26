@@ -154,9 +154,9 @@
       },
       // N Line: All stations from south to north
       nLineStops: {
-        unionStation: '34667',     // Terminal - Track 1 (southbound endpoint)
+        unionStation: ['34667', '34668'],  // Terminal - Tracks 1 & 2 (dual-platform for all trains)
         station112th: ['35254', '35255'],  // Middle - 112th Ave (dual-platform: Track 1 SB, Track 2 NB)
-        terminal124th: '35367'     // Terminal - Eastlake/124th Ave (northbound endpoint)
+        terminal124th: ['35367', '35368']  // Terminal - Eastlake/124th Ave (dual-platform for all trains)
       },
       // Legacy N Line stops (keep for backwards compatibility during migration)
       rtdStops: {
@@ -166,7 +166,7 @@
       // G Line: All stations from west to east
       gLineStops: {
         oldeTown: ['34541', '34542'],      // Terminal - Olde Town Arvada (dual-platform: EB, WB)
-        goldStrike: '34506',       // Middle - 60th/Sheridan Gold Strike (parent station)
+        goldStrike: ['34525', '34526'],    // Middle - 60th/Sheridan Gold Strike (dual-platform: Track 1 & 2)
         pecosJunction: ['34544', '34543'], // Middle - Transfer point (dual-platform: Track 1 NB, Track 2 SB)
         unionStation: '34781'      // Terminal - Track 7 (eastbound endpoint)
       },
@@ -242,6 +242,7 @@
         bLine: { westminster: false, pecosJunction: true, unionStation: false }
       });
 
+      const [transitViewMode, setTransitViewMode] = useState('board'); // 'board' or 'station'
       const [isInitialLoad, setIsInitialLoad] = useState(true);
       const [lastRefresh, setLastRefresh] = useState(new Date());
       const [refreshSuccess, setRefreshSuccess] = useState(false);
@@ -527,6 +528,258 @@
         }
 
         return { glow: false, type: null };
+      };
+
+      // Helper: Collect all trains from all lines for departures board view
+      const getAllTrainsForBoard = () => {
+        const trains = [];
+
+        // N Line trains
+        if (visibleLines.nLine && nLineData) {
+          // 124th Station
+          if (nLineData.terminal124th?.departing) {
+            nLineData.terminal124th.departing.forEach(train => {
+              trains.push({
+                line: 'N',
+                lineColor: isDarkMode ? 'bg-purple-600' : 'bg-purple-500',
+                textColor: 'text-white',
+                destination: 'Union Station',
+                track: '124th Ave',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+
+          // 112th Station
+          if (nLineData.station112th?.northbound) {
+            nLineData.station112th.northbound.forEach(train => {
+              trains.push({
+                line: 'N',
+                lineColor: isDarkMode ? 'bg-purple-600' : 'bg-purple-500',
+                textColor: 'text-white',
+                destination: '124th Ave',
+                track: '112th Stn',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+          if (nLineData.station112th?.southbound) {
+            nLineData.station112th.southbound.forEach(train => {
+              trains.push({
+                line: 'N',
+                lineColor: isDarkMode ? 'bg-purple-600' : 'bg-purple-500',
+                textColor: 'text-white',
+                destination: 'Union Station',
+                track: '112th Stn',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+
+          // Union Station
+          if (nLineData.unionStation?.departing) {
+            nLineData.unionStation.departing.forEach(train => {
+              trains.push({
+                line: 'N',
+                lineColor: isDarkMode ? 'bg-purple-600' : 'bg-purple-500',
+                textColor: 'text-white',
+                destination: '124th Ave',
+                track: 'Union Stn',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+        }
+
+        // G Line trains
+        if (visibleLines.gLine && gLineData) {
+          // Olde Town
+          if (gLineData.oldeTown?.departing) {
+            gLineData.oldeTown.departing.forEach(train => {
+              trains.push({
+                line: 'G',
+                lineColor: isDarkMode ? 'bg-orange-600' : 'bg-orange-500',
+                textColor: 'text-white',
+                destination: 'Union Station',
+                track: 'Olde Town',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+
+          // Gold Strike
+          if (gLineData.goldStrike?.eastbound) {
+            gLineData.goldStrike.eastbound.forEach(train => {
+              trains.push({
+                line: 'G',
+                lineColor: isDarkMode ? 'bg-orange-600' : 'bg-orange-500',
+                textColor: 'text-white',
+                destination: 'Union Station',
+                track: 'Gold Strike',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+          if (gLineData.goldStrike?.westbound) {
+            gLineData.goldStrike.westbound.forEach(train => {
+              trains.push({
+                line: 'G',
+                lineColor: isDarkMode ? 'bg-orange-600' : 'bg-orange-500',
+                textColor: 'text-white',
+                destination: 'Olde Town',
+                track: 'Gold Strike',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+
+          // Pecos Junction (G Line)
+          if (gLineData.pecosJunction?.eastbound) {
+            gLineData.pecosJunction.eastbound.forEach(train => {
+              trains.push({
+                line: 'G',
+                lineColor: isDarkMode ? 'bg-orange-600' : 'bg-orange-500',
+                textColor: 'text-white',
+                destination: 'Union Station',
+                track: 'Pecos Jct',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+          if (gLineData.pecosJunction?.westbound) {
+            gLineData.pecosJunction.westbound.forEach(train => {
+              trains.push({
+                line: 'G',
+                lineColor: isDarkMode ? 'bg-orange-600' : 'bg-orange-500',
+                textColor: 'text-white',
+                destination: 'Olde Town',
+                track: 'Pecos Jct',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+
+          // Union Station (G Line)
+          if (gLineData.unionStation?.departing) {
+            gLineData.unionStation.departing.forEach(train => {
+              trains.push({
+                line: 'G',
+                lineColor: isDarkMode ? 'bg-orange-600' : 'bg-orange-500',
+                textColor: 'text-white',
+                destination: 'Olde Town',
+                track: 'Union Stn',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+        }
+
+        // B Line trains
+        if (visibleLines.bLine && bLineData) {
+          // Westminster
+          if (bLineData.westminster?.departing) {
+            bLineData.westminster.departing.forEach(train => {
+              trains.push({
+                line: 'B',
+                lineColor: isDarkMode ? 'bg-blue-600' : 'bg-blue-500',
+                textColor: 'text-white',
+                destination: 'Union Station',
+                track: 'Westminster',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+
+          // Pecos Junction (B Line)
+          if (bLineData.pecosJunction?.northbound) {
+            bLineData.pecosJunction.northbound.forEach(train => {
+              trains.push({
+                line: 'B',
+                lineColor: isDarkMode ? 'bg-blue-600' : 'bg-blue-500',
+                textColor: 'text-white',
+                destination: 'Westminster',
+                track: 'Pecos Jct',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+          if (bLineData.pecosJunction?.southbound) {
+            bLineData.pecosJunction.southbound.forEach(train => {
+              trains.push({
+                line: 'B',
+                lineColor: isDarkMode ? 'bg-blue-600' : 'bg-blue-500',
+                textColor: 'text-white',
+                destination: 'Union Station',
+                track: 'Pecos Jct',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+
+          // Union Station (B Line)
+          if (bLineData.unionStation?.departing) {
+            bLineData.unionStation.departing.forEach(train => {
+              trains.push({
+                line: 'B',
+                lineColor: isDarkMode ? 'bg-blue-600' : 'bg-blue-500',
+                textColor: 'text-white',
+                destination: 'Westminster',
+                track: 'Union Stn',
+                time: train.time,
+                timestamp: train.arrivalTimestamp,
+                status: train.delay > 2 ? `${train.delay} min delay` : 'On Time',
+                statusColor: train.delay > 2 ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-green-400' : 'text-green-600')
+              });
+            });
+          }
+        }
+
+        // Sort by timestamp (soonest first)
+        return trains.sort((a, b) => {
+          if (!a.timestamp && !b.timestamp) return 0;
+          if (!a.timestamp) return 1;
+          if (!b.timestamp) return -1;
+          return a.timestamp - b.timestamp;
+        });
       };
 
       // Helper: Fetch from single or multiple platforms and merge results
@@ -1338,80 +1591,186 @@
               {/* Transit Lines Section (N Line & G Line) */}
               {activeSection === 'nline' && (
                 <div className="space-y-4">
-                  {/* Line Visibility Toggles */}
+                  {/* View Mode Toggle & Controls */}
                   <div className={`${cardBg} rounded-xl shadow-lg p-3 border ${borderColor}`}>
-                    <div className="flex items-center gap-3 justify-between">
-                      <span className={`text-sm font-semibold ${textColor}`}>Show Lines:</span>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
+                      {/* View Mode Toggle */}
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setVisibleLines(prev => ({ ...prev, nLine: !prev.nLine }))}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            visibleLines.nLine
-                              ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
-                              : isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
+                          onClick={() => setTransitViewMode('board')}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            transitViewMode === 'board'
+                              ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                              : isDarkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                           }`}
                         >
-                          N Line
+                          📋 Departures Board
+                        </button>
+                        <button
+                          onClick={() => setTransitViewMode('station')}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            transitViewMode === 'station'
+                              ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                              : isDarkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                          }`}
+                        >
+                          🗺️ Station View
+                        </button>
+                      </div>
+
+                      {/* Line Filters & Refresh */}
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold ${textMuted}`}>Lines:</span>
+                        <button
+                          onClick={() => setVisibleLines(prev => ({ ...prev, nLine: !prev.nLine }))}
+                          className={`px-2 py-1 rounded text-xs font-bold transition-all ${
+                            visibleLines.nLine
+                              ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
+                              : isDarkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-300 text-gray-600'
+                          }`}
+                        >
+                          N
                         </button>
                         <button
                           onClick={() => setVisibleLines(prev => ({ ...prev, gLine: !prev.gLine }))}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          className={`px-2 py-1 rounded text-xs font-bold transition-all ${
                             visibleLines.gLine
                               ? isDarkMode ? 'bg-orange-600 text-white' : 'bg-orange-500 text-white'
-                              : isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
+                              : isDarkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-300 text-gray-600'
                           }`}
                         >
-                          G Line
+                          G
                         </button>
                         <button
                           onClick={() => setVisibleLines(prev => ({ ...prev, bLine: !prev.bLine }))}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          className={`px-2 py-1 rounded text-xs font-bold transition-all ${
                             visibleLines.bLine
                               ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                              : isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
+                              : isDarkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-300 text-gray-600'
                           }`}
                         >
-                          B Line
+                          B
+                        </button>
+                        <button
+                          onClick={() => { fetchTransitData(); fetchGLineData(); fetchBLineData(); }}
+                          className={`px-3 py-1.5 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                          disabled={loading.transit || loading.gLine || loading.bLine}
+                        >
+                          {(loading.transit || loading.gLine || loading.bLine) ? '⏳' : '🔄'}
                         </button>
                       </div>
-                      <button
-                        onClick={() => { fetchTransitData(); fetchGLineData(); fetchBLineData(); }}
-                        className={`px-3 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
-                        disabled={loading.transit || loading.gLine || loading.bLine}
-                      >
-                        {(loading.transit || loading.gLine || loading.bLine) ? '⏳' : '🔄'}
-                      </button>
                     </div>
                   </div>
 
-                  {/* Expand/Collapse All Controls */}
-                  <div className={`${cardBg} rounded-xl shadow-lg p-3 border ${borderColor}`}>
-                    <div className="flex items-center gap-3 justify-between">
-                      <span className={`text-sm font-semibold ${textColor}`}>Station Cards:</span>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setExpandedStations({
-                            nLine: { terminal124th: true, station112th: true, unionStation: true },
-                            gLine: { oldeTown: true, goldStrike: true, pecosJunction: true, unionStation: true },
-                            bLine: { westminster: true, pecosJunction: true, unionStation: true }
-                          })}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isDarkMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'} transition-all`}
-                        >
-                          ▼ Expand All
-                        </button>
-                        <button
-                          onClick={() => setExpandedStations({
-                            nLine: { terminal124th: false, station112th: false, unionStation: false },
-                            gLine: { oldeTown: false, goldStrike: false, pecosJunction: false, unionStation: false },
-                            bLine: { westminster: false, pecosJunction: false, unionStation: false }
-                          })}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isDarkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'} transition-all`}
-                        >
-                          ▶ Collapse All
-                        </button>
+                  {/* Departures Board View */}
+                  {transitViewMode === 'board' && (() => {
+                    const allTrains = getAllTrainsForBoard();
+                    return (
+                      <div className={`${cardBg} rounded-xl shadow-xl border ${borderColor} overflow-hidden`}>
+                        {/* Board Header */}
+                        <div className={`px-6 py-4 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-800'} border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-600'}`}>
+                          <h2 className="text-2xl font-bold text-white text-center tracking-wide">
+                            🚆 RTD DEPARTURES
+                          </h2>
+                          <p className={`text-center text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-300'}`}>
+                            Live Train Departures • All Lines
+                          </p>
+                        </div>
+
+                        {/* Board Table */}
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-700'} text-white text-xs uppercase tracking-wider`}>
+                                <th className="px-4 py-3 text-left font-bold">Line</th>
+                                <th className="px-4 py-3 text-left font-bold">Destination</th>
+                                <th className="px-4 py-3 text-left font-bold">Track</th>
+                                <th className="px-4 py-3 text-left font-bold">Status</th>
+                                <th className="px-4 py-3 text-right font-bold">Time</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {allTrains.length === 0 ? (
+                                <tr>
+                                  <td colSpan="5" className={`px-6 py-12 text-center ${textColor}`}>
+                                    <div className="text-4xl mb-2">🚉</div>
+                                    <p className="font-semibold mb-1">No departures scheduled</p>
+                                    <p className={`text-xs ${textMuted}`}>
+                                      Service may be limited. Check back during peak hours.
+                                    </p>
+                                  </td>
+                                </tr>
+                              ) : (
+                                allTrains.map((train, idx) => (
+                                  <tr
+                                    key={idx}
+                                    className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-800' : 'border-gray-200 hover:bg-gray-50'} transition-colors`}
+                                  >
+                                    <td className="px-4 py-4">
+                                      <span className={`${train.lineColor} ${train.textColor} px-3 py-1 rounded-full text-sm font-bold`}>
+                                        {train.line}
+                                      </span>
+                                    </td>
+                                    <td className={`px-4 py-4 ${textColor} font-medium`}>
+                                      {train.destination}
+                                    </td>
+                                    <td className={`px-4 py-4 ${textMuted} text-sm`}>
+                                      {train.track}
+                                    </td>
+                                    <td className={`px-4 py-4 text-sm font-medium ${train.statusColor}`}>
+                                      {train.status}
+                                    </td>
+                                    <td className={`px-4 py-4 text-right ${textColor} font-mono font-bold text-lg`}>
+                                      {train.time || '--:--'}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Board Footer */}
+                        <div className={`px-6 py-3 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-800'} border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-600'}`}>
+                          <p className="text-center text-xs text-gray-400">
+                            🔴 Live RTD Data • Updates every minute • Showing {allTrains.length} departure{allTrains.length !== 1 ? 's' : ''}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
+
+                  {/* Station View (existing) */}
+                  {transitViewMode === 'station' && (
+                    <>
+                      {/* Expand/Collapse All Controls */}
+                      <div className={`${cardBg} rounded-xl shadow-lg p-3 border ${borderColor}`}>
+                        <div className="flex items-center gap-3 justify-between">
+                          <span className={`text-sm font-semibold ${textColor}`}>Station Cards:</span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setExpandedStations({
+                                nLine: { terminal124th: true, station112th: true, unionStation: true },
+                                gLine: { oldeTown: true, goldStrike: true, pecosJunction: true, unionStation: true },
+                                bLine: { westminster: true, pecosJunction: true, unionStation: true }
+                              })}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isDarkMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'} transition-all`}
+                            >
+                              ▼ Expand All
+                            </button>
+                            <button
+                              onClick={() => setExpandedStations({
+                                nLine: { terminal124th: false, station112th: false, unionStation: false },
+                                gLine: { oldeTown: false, goldStrike: false, pecosJunction: false, unionStation: false },
+                                bLine: { westminster: false, pecosJunction: false, unionStation: false }
+                              })}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isDarkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'} transition-all`}
+                            >
+                              ▶ Collapse All
+                            </button>
+                          </div>
+                        </div>
+                      </div>
 
                   {/* N Line Card with Station-based Layout */}
                   {visibleLines.nLine && (
@@ -1632,6 +1991,8 @@
                         </p>
                       </div>
                     </div>
+                  )}
+                    </>
                   )}
                 </div>
               )}
