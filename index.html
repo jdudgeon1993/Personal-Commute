@@ -1161,13 +1161,13 @@
 
           console.log('✅ All G Line stations fetched');
 
-          // Process Ward Station (Terminal - westbound endpoint)
-          // Shows trains arriving from east and departing to east
+          // Process Ward Station (Terminal - western endpoint)
+          // Trains arrive traveling westbound (from Union), depart traveling eastbound (to Union)
           const wardData = processTerminalStation(
             wardRes.arrivals,
             '113G',
-            1,  // arriving from east (eastbound trains ending here)
-            0   // departing to east (westbound trains starting here)
+            0,  // arriving: westbound trains (dir 0) ending at Ward from Union
+            1   // departing: eastbound trains (dir 1) leaving Ward toward Union
           );
 
           // Process Olde Town Arvada (Middle - pass-through)
