@@ -155,26 +155,26 @@
       // N Line: All stations from south to north
       nLineStops: {
         unionStation: '34667',     // Terminal - Track 1 (southbound endpoint)
-        station112th: '34668',     // Middle - 112th Ave (your boarding point)
+        station112th: ['35254', '35255'],  // Middle - 112th Ave (dual-platform: Track 1 SB, Track 2 NB)
         terminal124th: '35367'     // Terminal - Eastlake/124th Ave (northbound endpoint)
       },
       // Legacy N Line stops (keep for backwards compatibility during migration)
       rtdStops: {
         southbound: '35254',
-        northbound: '34668'
+        northbound: '35255'
       },
       // G Line: All stations from west to east
       gLineStops: {
-        oldeTown: '33833',         // Terminal - Olde Town Arvada (westbound endpoint)
-        goldStrike: '34525',       // Middle - 60th/Sheridan Gold Strike
-        pecosJunction: '34508',    // Middle - Transfer point (shared with B Line)
+        oldeTown: ['34541', '34542'],      // Terminal - Olde Town Arvada (dual-platform: EB, WB)
+        goldStrike: '34506',       // Middle - 60th/Sheridan Gold Strike (parent station)
+        pecosJunction: ['34544', '34543'], // Middle - Transfer point (dual-platform: Track 1 NB, Track 2 SB)
         unionStation: '34781'      // Terminal - Track 7 (eastbound endpoint)
       },
       // B Line: All stations from south to north
       bLineStops: {
         unionStation: '34782',     // Terminal - Track 8 (southbound endpoint)
-        pecosJunction: '34508',    // Middle - Transfer point (shared with G Line)
-        westminster: '34767'       // Terminal - Westminster (northbound endpoint)
+        pecosJunction: ['34544', '34543'], // Middle - Transfer point (dual-platform: Track 1 NB, Track 2 SB)
+        westminster: ['34560', '34561']    // Terminal - Westminster (dual-platform: SB, NB)
       }
     };
 
@@ -529,6 +529,43 @@
         return { glow: false, type: null };
       };
 
+      // Helper: Fetch from single or multiple platforms and merge results
+      // Supports both string (single stop ID) and array (multiple platform stop IDs)
+      const fetchStopData = async (apiEndpoint, stopIdOrArray) => {
+        // If single stop ID (string), fetch normally
+        if (typeof stopIdOrArray === 'string') {
+          console.log(`📡 Fetching single platform: ${stopIdOrArray}`);
+          return await fetch(`${apiEndpoint}/${stopIdOrArray}?t=${Date.now()}`).then(r => r.json());
+        }
+
+        // If array of stop IDs (multi-platform), fetch all and merge
+        if (Array.isArray(stopIdOrArray)) {
+          console.log(`📡 Fetching multi-platform: ${stopIdOrArray.join(', ')}`);
+          const responses = await Promise.all(
+            stopIdOrArray.map(stopId =>
+              fetch(`${apiEndpoint}/${stopId}?t=${Date.now()}`).then(r => r.json())
+            )
+          );
+
+          // Merge all arrivals from all platforms
+          const mergedArrivals = responses.reduce((acc, response) => {
+            if (response.arrivals && Array.isArray(response.arrivals)) {
+              return [...acc, ...response.arrivals];
+            }
+            return acc;
+          }, []);
+
+          console.log(`✅ Merged ${mergedArrivals.length} arrivals from ${stopIdOrArray.length} platforms`);
+
+          return {
+            arrivals: mergedArrivals,
+            stopId: stopIdOrArray.join('+') // Combined stop ID for logging
+          };
+        }
+
+        throw new Error(`Invalid stop ID format: ${stopIdOrArray}`);
+      };
+
       // Fetch N Line data from all stations (multi-stop parallel fetch)
       const fetchTransitData = useCallback(async () => {
         try {
@@ -537,11 +574,11 @@
 
           console.log('🚆 Fetching N Line data from all 3 stations...');
 
-          // Fetch all 3 N Line stations in parallel
+          // Fetch all 3 N Line stations in parallel (using new multi-platform helper)
           const [terminal124thRes, station112thRes, unionRes] = await Promise.all([
-            fetch(`${apiEndpoint}/${config.nLineStops.terminal124th}?t=${Date.now()}`).then(r => r.json()),
-            fetch(`${apiEndpoint}/${config.nLineStops.station112th}?t=${Date.now()}`).then(r => r.json()),
-            fetch(`${apiEndpoint}/${config.nLineStops.unionStation}?t=${Date.now()}`).then(r => r.json())
+            fetchStopData(apiEndpoint, config.nLineStops.terminal124th),
+            fetchStopData(apiEndpoint, config.nLineStops.station112th),
+            fetchStopData(apiEndpoint, config.nLineStops.unionStation)
           ]);
 
           console.log('✅ All N Line stations fetched');
@@ -614,12 +651,12 @@
 
           console.log('🚆 Fetching G Line data from all 4 stations...');
 
-          // Fetch all 4 G Line stations in parallel
+          // Fetch all 4 G Line stations in parallel (using new multi-platform helper)
           const [oldeTownRes, goldStrikeRes, pecosRes, unionRes] = await Promise.all([
-            fetch(`${apiEndpoint}/${config.gLineStops.oldeTown}?t=${Date.now()}`).then(r => r.json()),
-            fetch(`${apiEndpoint}/${config.gLineStops.goldStrike}?t=${Date.now()}`).then(r => r.json()),
-            fetch(`${apiEndpoint}/${config.gLineStops.pecosJunction}?t=${Date.now()}`).then(r => r.json()),
-            fetch(`${apiEndpoint}/${config.gLineStops.unionStation}?t=${Date.now()}`).then(r => r.json())
+            fetchStopData(apiEndpoint, config.gLineStops.oldeTown),
+            fetchStopData(apiEndpoint, config.gLineStops.goldStrike),
+            fetchStopData(apiEndpoint, config.gLineStops.pecosJunction),
+            fetchStopData(apiEndpoint, config.gLineStops.unionStation)
           ]);
 
           console.log('✅ All G Line stations fetched');
@@ -706,11 +743,11 @@
 
           console.log('🚆 Fetching B Line data from all 3 stations...');
 
-          // Fetch all 3 B Line stations in parallel
+          // Fetch all 3 B Line stations in parallel (using new multi-platform helper)
           const [westminsterRes, pecosRes, unionRes] = await Promise.all([
-            fetch(`${apiEndpoint}/${config.bLineStops.westminster}?t=${Date.now()}`).then(r => r.json()),
-            fetch(`${apiEndpoint}/${config.bLineStops.pecosJunction}?t=${Date.now()}`).then(r => r.json()),
-            fetch(`${apiEndpoint}/${config.bLineStops.unionStation}?t=${Date.now()}`).then(r => r.json())
+            fetchStopData(apiEndpoint, config.bLineStops.westminster),
+            fetchStopData(apiEndpoint, config.bLineStops.pecosJunction),
+            fetchStopData(apiEndpoint, config.bLineStops.unionStation)
           ]);
 
           console.log('✅ All B Line stations fetched');
@@ -1059,7 +1096,11 @@
 
                     {!hasTrains && (
                       <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                        <p className={textMuted}>No upcoming trains</p>
+                        <div className="text-4xl mb-2">🚉</div>
+                        <p className={`font-semibold mb-1 ${textColor}`}>No upcoming trains</p>
+                        <p className={`text-xs ${textMuted}`}>
+                          Service may be limited at this time. Check back during peak hours.
+                        </p>
                       </div>
                     )}
                   </>
@@ -1097,7 +1138,11 @@
 
                     {!hasTrains && (
                       <div className={`p-6 text-center rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                        <p className={textMuted}>No upcoming trains</p>
+                        <div className="text-4xl mb-2">🚉</div>
+                        <p className={`font-semibold mb-1 ${textColor}`}>No upcoming trains</p>
+                        <p className={`text-xs ${textMuted}`}>
+                          Service may be limited at this time. Check back during peak hours.
+                        </p>
                       </div>
                     )}
                   </>
