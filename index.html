@@ -155,7 +155,8 @@
       // N Line: All stations from south to north
       nLineStops: {
         unionStation: ['34667', '34668'],  // Terminal - Tracks 1 & 2 (dual-platform for all trains)
-        station112th: ['35254', '35255'],  // Middle - 112th Ave (dual-platform: Track 1 SB, Track 2 NB)
+        station48thBrighton: ['35362', '35363'],  // Middle - 48th & Brighton/National Western Center (dual-platform)
+        station112th: ['35254', '35255'],  // Middle - 112th Ave & Northgenn (dual-platform: Track 1 SB, Track 2 NB)
         terminal124th: ['35367', '35368']  // Terminal - Eastlake/124th Ave (dual-platform for all trains)
       },
       // Legacy N Line stops (keep for backwards compatibility during migration)
@@ -165,7 +166,8 @@
       },
       // G Line: All stations from west to east
       gLineStops: {
-        oldeTown: ['34541', '34542'],      // Terminal - Olde Town Arvada (dual-platform: EB, WB)
+        wardStation: ['34504', '34505'],   // Terminal - Wheat Ridge/Ward Road (dual-platform: EB, WB)
+        oldeTown: ['34541', '34542'],      // Middle - Olde Town Arvada (dual-platform: EB, WB)
         goldStrike: ['34525', '34526'],    // Middle - 60th/Sheridan Gold Strike (dual-platform: Track 1 & 2)
         pecosJunction: ['34544', '34543'], // Middle - Transfer point (dual-platform: Track 1 NB, Track 2 SB)
         unionStation: '34781'      // Terminal - Track 7 (eastbound endpoint)
@@ -220,11 +222,13 @@
       const [nLineData, setNLineData] = useState({
         terminal124th: { arriving: [], departing: [] },
         station112th: { northbound: [], southbound: [] },
+        station48thBrighton: { northbound: [], southbound: [] },
         unionStation: { arriving: [], departing: [] }
       });
 
       const [gLineData, setGLineData] = useState({
-        oldeTown: { arriving: [], departing: [] },
+        wardStation: { arriving: [], departing: [] },
+        oldeTown: { eastbound: [], westbound: [] },
         goldStrike: { eastbound: [], westbound: [] },
         pecosJunction: { eastbound: [], westbound: [] },
         unionStation: { arriving: [], departing: [] }
@@ -412,13 +416,23 @@
           return [];
         }
 
+        const now = Date.now();
         const filtered = arrivals.filter(arrival => {
           const matchesRoute = arrival.routeId === routeId;
           const matchesDirection = directionId === null || arrival.directionId === directionId;
+
+          // Filter out trains that have already departed (with 30 second grace period)
+          const departureTime = arrival.departureTime || arrival.arrivalTime;
+          if (departureTime && typeof departureTime === 'number') {
+            const departureTimestamp = departureTime * 1000;
+            const hasNotDeparted = departureTimestamp > (now - 30000); // 30 second grace period
+            return matchesRoute && matchesDirection && hasNotDeparted;
+          }
+
           return matchesRoute && matchesDirection;
         });
 
-        console.log(`🔍 processTrainData: Route ${routeId} dir ${directionId} - Found ${filtered.length}/${arrivals.length} matching trains`);
+        console.log(`🔍 processTrainData: Route ${routeId} dir ${directionId} - Found ${filtered.length}/${arrivals.length} upcoming trains`);
 
         return filtered.slice(0, 3).map(arrival => {
           let arrivalTimestamp = null;
@@ -576,137 +590,171 @@
           return { text: 'On Time', color: isDarkMode ? 'text-green-400' : 'text-green-600' };
         };
 
-        // N LINE
+        // N LINE - Organized by direction with all stops in geographic order
         if (visibleLines.nLine && nLineData) {
-          const nLineRows = [];
+          const nLineSections = [];
 
-          // NB → 124th Station (trains ARRIVING at 124th from the south)
-          nLineRows.push({
-            station: 'NB → 124th Station',
-            direction: '',
-            trains: getNextTwoTrains(nLineData.terminal124th?.arriving || []),
+          // Northbound section (going north from Union to 112th)
+          const northboundRows = [];
+          northboundRows.push({
+            station: 'Union Station',
+            trains: getNextTwoTrains(nLineData.unionStation?.departing || []),
             getStatus: getTrainStatus
           });
-
-          // -112th Station NB (trains passing through going north to 124th)
-          nLineRows.push({
-            station: '-112th Station',
-            direction: 'NB',
+          northboundRows.push({
+            station: '48th & Brighton at NWC',
+            trains: getNextTwoTrains(nLineData.station48thBrighton?.northbound || []),
+            getStatus: getTrainStatus
+          });
+          northboundRows.push({
+            station: 'Northgenn & 112th',
             trains: getNextTwoTrains(nLineData.station112th?.northbound || []),
             getStatus: getTrainStatus
           });
+          nLineSections.push({ title: 'Northbound', rows: northboundRows });
 
-          // -112th Station SB (trains passing through going south to Union)
-          nLineRows.push({
-            station: '-112th Station',
-            direction: 'SB',
+          // Southbound section (going south from 112th to Union)
+          const southboundRows = [];
+          southboundRows.push({
+            station: 'Northgenn & 112th',
             trains: getNextTwoTrains(nLineData.station112th?.southbound || []),
             getStatus: getTrainStatus
           });
-
-          // SB → Union Station (trains ARRIVING at Union from the north)
-          nLineRows.push({
-            station: 'SB → Union Station',
-            direction: '',
+          southboundRows.push({
+            station: '48th & Brighton at NWC',
+            trains: getNextTwoTrains(nLineData.station48thBrighton?.southbound || []),
+            getStatus: getTrainStatus
+          });
+          southboundRows.push({
+            station: 'Union Station',
             trains: getNextTwoTrains(nLineData.unionStation?.arriving || []),
             getStatus: getTrainStatus
           });
+          nLineSections.push({ title: 'Southbound', rows: southboundRows });
 
-          lines.push({ name: 'N Line', color: isDarkMode ? 'bg-purple-600' : 'bg-purple-500', rows: nLineRows });
+          lines.push({
+            name: 'N Line (Schedule, leaves every 30 minutes)',
+            color: isDarkMode ? 'bg-purple-600' : 'bg-purple-500',
+            sections: nLineSections
+          });
         }
 
-        // B LINE
+        // B LINE - Organized by direction with all stops in geographic order
         if (visibleLines.bLine && bLineData) {
-          const bLineRows = [];
+          const bLineSections = [];
 
-          // NB → Westminster Station (trains ARRIVING at Westminster from the south)
-          bLineRows.push({
-            station: 'NB → Westminster Station',
-            direction: '',
-            trains: getNextTwoTrains(bLineData.westminster?.arriving || []),
+          // Westbound section (going west/north from Union to Westminster)
+          const westboundRows = [];
+          westboundRows.push({
+            station: 'Union Station',
+            trains: getNextTwoTrains(bLineData.unionStation?.departing || []),
             getStatus: getTrainStatus
           });
-
-          // -Pecos Junction NB (trains passing through going north to Westminster)
-          bLineRows.push({
-            station: '-Pecos Junction',
-            direction: 'NB',
+          westboundRows.push({
+            station: 'Pecos Junction',
             trains: getNextTwoTrains(bLineData.pecosJunction?.northbound || []),
             getStatus: getTrainStatus
           });
+          westboundRows.push({
+            station: 'Westminster Station',
+            trains: getNextTwoTrains(bLineData.westminster?.arriving || []),
+            getStatus: getTrainStatus
+          });
+          bLineSections.push({ title: 'Westbound', rows: westboundRows });
 
-          // -Pecos Junction SB (trains passing through going south to Union)
-          bLineRows.push({
-            station: '-Pecos Junction',
-            direction: 'SB',
+          // Eastbound section (going east/south from Westminster to Union)
+          const eastboundRows = [];
+          eastboundRows.push({
+            station: 'Westminster Station',
+            trains: getNextTwoTrains(bLineData.westminster?.departing || []),
+            getStatus: getTrainStatus
+          });
+          eastboundRows.push({
+            station: 'Pecos Junction',
             trains: getNextTwoTrains(bLineData.pecosJunction?.southbound || []),
             getStatus: getTrainStatus
           });
-
-          // SB → Union Station (trains ARRIVING at Union from the north)
-          bLineRows.push({
-            station: 'SB → Union Station',
-            direction: '',
+          eastboundRows.push({
+            station: 'Union Station',
             trains: getNextTwoTrains(bLineData.unionStation?.arriving || []),
             getStatus: getTrainStatus
           });
+          bLineSections.push({ title: 'Eastbound', rows: eastboundRows });
 
-          lines.push({ name: 'B Line', color: isDarkMode ? 'bg-blue-600' : 'bg-blue-500', rows: bLineRows });
+          lines.push({
+            name: 'B Line (Schedule, leaves every hour)',
+            color: isDarkMode ? 'bg-blue-600' : 'bg-blue-500',
+            sections: bLineSections
+          });
         }
 
-        // G LINE
+        // G LINE - Organized by direction with all stops in geographic order
         if (visibleLines.gLine && gLineData) {
-          const gLineRows = [];
+          const gLineSections = [];
 
-          // WB → Olde Town Arvada (trains ARRIVING at Olde Town from the east)
-          gLineRows.push({
-            station: 'WB → Olde Town Arvada',
-            direction: '',
-            trains: getNextTwoTrains(gLineData.oldeTown?.arriving || []),
+          // Northbound section (going from Union to Ward)
+          const northboundRows = [];
+          northboundRows.push({
+            station: 'Union Station',
+            trains: getNextTwoTrains(gLineData.unionStation?.departing || []),
             getStatus: getTrainStatus
           });
-
-          // -Gold Strike WB (trains passing through going west to Olde Town)
-          gLineRows.push({
-            station: '-Gold Strike Station',
-            direction: 'WB',
-            trains: getNextTwoTrains(gLineData.goldStrike?.westbound || []),
-            getStatus: getTrainStatus
-          });
-
-          // -Gold Strike EB (trains passing through going east to Union)
-          gLineRows.push({
-            station: '-Gold Strike Station',
-            direction: 'EB',
-            trains: getNextTwoTrains(gLineData.goldStrike?.eastbound || []),
-            getStatus: getTrainStatus
-          });
-
-          // -Pecos Junction WB (trains passing through going west to Olde Town)
-          gLineRows.push({
-            station: '-Pecos Junction',
-            direction: 'WB',
-            trains: getNextTwoTrains(gLineData.pecosJunction?.westbound || []),
-            getStatus: getTrainStatus
-          });
-
-          // -Pecos Junction EB (trains passing through going east to Union)
-          gLineRows.push({
-            station: '-Pecos Junction',
-            direction: 'EB',
+          northboundRows.push({
+            station: 'Pecos Junction',
             trains: getNextTwoTrains(gLineData.pecosJunction?.eastbound || []),
             getStatus: getTrainStatus
           });
+          northboundRows.push({
+            station: 'Gold Strike',
+            trains: getNextTwoTrains(gLineData.goldStrike?.eastbound || []),
+            getStatus: getTrainStatus
+          });
+          northboundRows.push({
+            station: 'Old Town Arvada',
+            trains: getNextTwoTrains(gLineData.oldeTown?.eastbound || []),
+            getStatus: getTrainStatus
+          });
+          northboundRows.push({
+            station: 'Ward Station',
+            trains: getNextTwoTrains(gLineData.wardStation?.arriving || []),
+            getStatus: getTrainStatus
+          });
+          gLineSections.push({ title: 'Northbound', rows: northboundRows });
 
-          // EB → Union Station (trains ARRIVING at Union from the west)
-          gLineRows.push({
-            station: 'EB → Union Station',
-            direction: '',
+          // Southbound section (going from Ward to Union)
+          const southboundRows = [];
+          southboundRows.push({
+            station: 'Ward Station',
+            trains: getNextTwoTrains(gLineData.wardStation?.departing || []),
+            getStatus: getTrainStatus
+          });
+          southboundRows.push({
+            station: 'Old Town Arvada',
+            trains: getNextTwoTrains(gLineData.oldeTown?.westbound || []),
+            getStatus: getTrainStatus
+          });
+          southboundRows.push({
+            station: 'Gold Strike',
+            trains: getNextTwoTrains(gLineData.goldStrike?.westbound || []),
+            getStatus: getTrainStatus
+          });
+          southboundRows.push({
+            station: 'Pecos Junction',
+            trains: getNextTwoTrains(gLineData.pecosJunction?.westbound || []),
+            getStatus: getTrainStatus
+          });
+          southboundRows.push({
+            station: 'Union Station',
             trains: getNextTwoTrains(gLineData.unionStation?.arriving || []),
             getStatus: getTrainStatus
           });
+          gLineSections.push({ title: 'Southbound', rows: southboundRows });
 
-          lines.push({ name: 'G Line', color: isDarkMode ? 'bg-orange-600' : 'bg-orange-500', rows: gLineRows });
+          lines.push({
+            name: 'G Line (Schedule, leaves every 30 minutes)',
+            color: isDarkMode ? 'bg-orange-600' : 'bg-orange-500',
+            sections: gLineSections
+          });
         }
 
         return lines;
@@ -1007,12 +1055,13 @@
           setLoading(prev => ({ ...prev, transit: true }));
           const apiEndpoint = 'https://rtd-n-line-api.onrender.com/api/rtd/arrivals';
 
-          console.log('🚆 Fetching N Line data from all 3 stations...');
+          console.log('🚆 Fetching N Line data from all 4 stations...');
 
-          // Fetch all 3 N Line stations in parallel (using new multi-platform helper)
-          const [terminal124thRes, station112thRes, unionRes] = await Promise.all([
+          // Fetch all 4 N Line stations in parallel (using new multi-platform helper)
+          const [terminal124thRes, station112thRes, station48thBrightonRes, unionRes] = await Promise.all([
             fetchStopData(apiEndpoint, config.nLineStops.terminal124th),
             fetchStopData(apiEndpoint, config.nLineStops.station112th),
+            fetchStopData(apiEndpoint, config.nLineStops.station48thBrighton),
             fetchStopData(apiEndpoint, config.nLineStops.unionStation)
           ]);
 
@@ -1027,10 +1076,21 @@
             1   // departing to south (southbound trains starting from 124th to Union)
           );
 
-          // Process 112th Station (Middle - user's boarding point)
+          // Process 112th Station (Middle - Northgenn & 112th)
           // Shows trains in both directions
           const station112thData = processMiddleStation(
             station112thRes.arrivals,
+            '117N',
+            0,  // northbound (to 124th)
+            1,  // southbound (to Union)
+            'northbound',
+            'southbound'
+          );
+
+          // Process 48th & Brighton Station (Middle - National Western Center)
+          // Shows trains in both directions
+          const station48thBrightonData = processMiddleStation(
+            station48thBrightonRes.arrivals,
             '117N',
             0,  // northbound (to 124th)
             1,  // southbound (to Union)
@@ -1051,6 +1111,7 @@
           setNLineData({
             terminal124th: terminal124thData,
             station112th: station112thData,
+            station48thBrighton: station48thBrightonData,
             unionStation: unionData
           });
 
@@ -1061,6 +1122,7 @@
           console.log('🎯 N Line station data processed:', {
             terminal124th: terminal124thData,
             station112th: station112thData,
+            station48thBrighton: station48thBrightonData,
             unionStation: unionData
           });
 
@@ -1071,6 +1133,7 @@
           setNLineData({
             terminal124th: { arriving: [], departing: [] },
             station112th: { northbound: [], southbound: [] },
+            station48thBrighton: { northbound: [], southbound: [] },
             unionStation: { arriving: [], departing: [] }
           });
         } finally {
@@ -1084,10 +1147,11 @@
           setLoading(prev => ({ ...prev, gLine: true }));
           const apiEndpoint = `${CONSTANTS.API_BASE_URL}/api/rtd/gline`;
 
-          console.log('🚆 Fetching G Line data from all 4 stations...');
+          console.log('🚆 Fetching G Line data from all 5 stations...');
 
-          // Fetch all 4 G Line stations in parallel (using new multi-platform helper)
-          const [oldeTownRes, goldStrikeRes, pecosRes, unionRes] = await Promise.all([
+          // Fetch all 5 G Line stations in parallel (using new multi-platform helper)
+          const [wardRes, oldeTownRes, goldStrikeRes, pecosRes, unionRes] = await Promise.all([
+            fetchStopData(apiEndpoint, config.gLineStops.wardStation),
             fetchStopData(apiEndpoint, config.gLineStops.oldeTown),
             fetchStopData(apiEndpoint, config.gLineStops.goldStrike),
             fetchStopData(apiEndpoint, config.gLineStops.pecosJunction),
@@ -1096,13 +1160,24 @@
 
           console.log('✅ All G Line stations fetched');
 
-          // Process Olde Town Station (Terminal - westbound endpoint)
-          // Shows trains arriving from east (dir 0) and departing to east (dir 1)
-          const oldeTownData = processTerminalStation(
-            oldeTownRes.arrivals,
+          // Process Ward Station (Terminal - westbound endpoint)
+          // Shows trains arriving from east and departing to east
+          const wardData = processTerminalStation(
+            wardRes.arrivals,
             '113G',
             1,  // arriving from east (eastbound trains ending here)
             0   // departing to east (westbound trains starting here)
+          );
+
+          // Process Olde Town Arvada (Middle - pass-through)
+          // Shows trains in both directions
+          const oldeTownData = processMiddleStation(
+            oldeTownRes.arrivals,
+            '113G',
+            0,  // westbound (to Ward)
+            1,  // eastbound (to Union)
+            'westbound',
+            'eastbound'
           );
 
           // Process Gold Strike Station (Middle - pass-through)
@@ -1110,7 +1185,7 @@
           const goldStrikeData = processMiddleStation(
             goldStrikeRes.arrivals,
             '113G',
-            0,  // westbound (to Olde Town)
+            0,  // westbound (to Ward/Olde Town)
             1,  // eastbound (to Union Station)
             'westbound',
             'eastbound'
@@ -1121,7 +1196,7 @@
           const pecosData = processMiddleStation(
             pecosRes.arrivals,
             '113G',
-            0,  // westbound (to Olde Town)
+            0,  // westbound (to Ward/Olde Town)
             1,  // eastbound (to Union Station)
             'westbound',
             'eastbound'
@@ -1133,11 +1208,12 @@
             unionRes.arrivals,
             '113G',
             1,  // arriving from west (eastbound trains ending at Union)
-            0   // departing to west (westbound trains starting from Union to Olde Town)
+            0   // departing to west (westbound trains starting from Union to Ward)
           );
 
           // Update station-based state
           setGLineData({
+            wardStation: wardData,
             oldeTown: oldeTownData,
             goldStrike: goldStrikeData,
             pecosJunction: pecosData,
@@ -1145,10 +1221,11 @@
           });
 
           // Maintain backwards compatibility with old state (for now)
-          setGLineWestbound(unionData.departing);  // Departures from Union to Olde Town
-          setGLineEastbound(oldeTownData.departing);  // Departures from Olde Town to Union
+          setGLineWestbound(unionData.departing);  // Departures from Union to Ward
+          setGLineEastbound(wardData.departing);  // Departures from Ward to Union
 
           console.log('🎯 G Line station data processed:', {
+            wardStation: wardData,
             oldeTown: oldeTownData,
             goldStrike: goldStrikeData,
             pecosJunction: pecosData,
@@ -1160,7 +1237,8 @@
           setGLineEastbound([]);
           setGLineWestbound([]);
           setGLineData({
-            oldeTown: { arriving: [], departing: [] },
+            wardStation: { arriving: [], departing: [] },
+            oldeTown: { eastbound: [], westbound: [] },
             goldStrike: { eastbound: [], westbound: [] },
             pecosJunction: { eastbound: [], westbound: [] },
             unionStation: { arriving: [], departing: [] }
@@ -1773,90 +1851,41 @@
               {/* Transit Lines Section (N Line & G Line) */}
               {activeSection === 'nline' && (
                 <div className="space-y-4">
-                  {/* View Mode Toggle & Controls */}
+                  {/* Board Controls */}
                   <div className={`${cardBg} rounded-xl shadow-lg p-3 border ${borderColor}`}>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
-                      {/* View Mode Toggle */}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setTransitViewMode('board')}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            transitViewMode === 'board'
-                              ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                              : isDarkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                          }`}
-                        >
-                          📋 Departures Board
-                        </button>
-                        <button
-                          onClick={() => setTransitViewMode('station')}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            transitViewMode === 'station'
-                              ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                              : isDarkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                          }`}
-                        >
-                          🗺️ Station View
-                        </button>
-                      </div>
-
-                      {/* Line Filters & Refresh */}
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-semibold ${textMuted}`}>Lines:</span>
-                        <button
-                          onClick={() => setVisibleLines(prev => ({ ...prev, nLine: !prev.nLine }))}
-                          className={`px-2 py-1 rounded text-xs font-bold transition-all ${
-                            visibleLines.nLine
-                              ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
-                              : isDarkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-300 text-gray-600'
-                          }`}
-                        >
-                          N
-                        </button>
-                        <button
-                          onClick={() => setVisibleLines(prev => ({ ...prev, gLine: !prev.gLine }))}
-                          className={`px-2 py-1 rounded text-xs font-bold transition-all ${
-                            visibleLines.gLine
-                              ? isDarkMode ? 'bg-orange-600 text-white' : 'bg-orange-500 text-white'
-                              : isDarkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-300 text-gray-600'
-                          }`}
-                        >
-                          G
-                        </button>
-                        <button
-                          onClick={() => setVisibleLines(prev => ({ ...prev, bLine: !prev.bLine }))}
-                          className={`px-2 py-1 rounded text-xs font-bold transition-all ${
-                            visibleLines.bLine
-                              ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                              : isDarkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-300 text-gray-600'
-                          }`}
-                        >
-                          B
-                        </button>
-                        <button
-                          onClick={() => { fetchTransitData(); fetchGLineData(); fetchBLineData(); }}
-                          className={`px-3 py-1.5 rounded-lg text-sm ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
-                          disabled={loading.transit || loading.gLine || loading.bLine}
-                        >
-                          {(loading.transit || loading.gLine || loading.bLine) ? '⏳' : '🔄'}
-                        </button>
-                      </div>
+                    <div className="flex items-center justify-end">
+                      <button
+                        onClick={() => { fetchTransitData(); fetchGLineData(); fetchBLineData(); }}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} transition-all`}
+                        disabled={loading.transit || loading.gLine || loading.bLine}
+                      >
+                        {(loading.transit || loading.gLine || loading.bLine) ? '⏳ Refreshing...' : '🔄 Refresh Data'}
+                      </button>
                     </div>
                   </div>
 
-                  {/* Simplified Departures Board View */}
-                  {transitViewMode === 'board' && (() => {
+                  {/* Departures Board */}
+                  {(() => {
                     const lineData = getTrainsForSimplifiedBoard();
                     return (
                       <div className={`${cardBg} rounded-xl shadow-xl border ${borderColor} overflow-hidden`}>
-                        {/* Board Header */}
-                        <div className={`px-6 py-4 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-800'} border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-600'}`}>
-                          <h2 className="text-2xl font-bold text-white text-center tracking-wide">
-                            🚆 RTD TRAIN BOARD
+                        {/* Board Header - Enhanced */}
+                        <div className={`px-6 py-6 ${isDarkMode ? 'bg-gradient-to-r from-gray-900 to-gray-800' : 'bg-gradient-to-r from-gray-900 to-gray-700'} border-b-4 ${isDarkMode ? 'border-blue-500' : 'border-blue-400'}`}>
+                          <h2 className="text-3xl font-extrabold text-white text-center tracking-tight mb-2">
+                            🚆 RTD LIVE DEPARTURES
                           </h2>
-                          <p className={`text-center text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-300'}`}>
-                            Live Departures • Next 2 Trains Per Station
+                          <p className={`text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-200'} font-medium`}>
+                            Real-Time Updates • Next 2 Trains Per Station
                           </p>
+                          <div className="flex justify-center gap-2 mt-3">
+                            <span className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
+                              <span className="inline-block w-2 h-2 bg-white rounded-full mr-1 animate-pulse"></span>
+                              LIVE
+                            </span>
+                            <span className="px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full">
+                              Auto-Refresh 60s
+                            </span>
+                          </div>
                         </div>
 
                         {/* Board Content - Line by Line */}
@@ -1871,92 +1900,111 @@
                             </div>
                           ) : (
                             lineData.map((line, lineIdx) => (
-                              <div key={lineIdx} className="space-y-2">
-                                {/* Line Header */}
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className={`${line.color} text-white px-3 py-1 rounded-lg font-bold text-sm`}>
+                              <div key={lineIdx} className={`space-y-4 p-4 rounded-xl ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} transition-all hover:shadow-lg`}>
+                                {/* Line Header - Enhanced */}
+                                <div className="flex items-center gap-3 mb-4">
+                                  <div className={`${line.color} text-white px-6 py-2.5 rounded-xl font-extrabold text-base shadow-lg transform transition-transform hover:scale-105`}>
                                     {line.name}
                                   </div>
+                                  <div className={`flex-1 h-1 ${line.color} rounded-full opacity-30`}></div>
                                 </div>
 
-                                {/* Line Table */}
-                                <div className="overflow-x-auto">
-                                  <table className="w-full text-sm">
-                                    <thead>
-                                      <tr className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'} text-xs`}>
-                                        <th className={`px-3 py-2 text-left font-semibold ${textColor}`}>Station</th>
-                                        <th className={`px-3 py-2 text-left font-semibold ${textColor}`}>Status</th>
-                                        <th className={`px-3 py-2 text-center font-semibold ${textColor}`}>
-                                          <div>Next Train</div>
-                                          <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Departure</div>
-                                        </th>
-                                        <th className={`px-3 py-2 text-right font-semibold ${textColor}`}>
-                                          <div>Upcoming</div>
-                                          <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Departure</div>
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {line.rows.map((row, rowIdx) => {
-                                        const nextTrain = row.trains[0];
-                                        const upcomingTrain = row.trains[1];
-                                        const status = nextTrain ? row.getStatus(nextTrain) : null;
+                                {/* Line Sections */}
+                                {line.sections && line.sections.map((section, sectionIdx) => (
+                                  <div key={sectionIdx} className="mb-6 last:mb-0">
+                                    {/* Section Header (Direction) - Enhanced */}
+                                    <div className={`px-4 py-2.5 ${isDarkMode ? 'bg-gradient-to-r from-gray-700 to-gray-800' : 'bg-gradient-to-r from-gray-200 to-gray-300'} rounded-t-xl border-l-4 ${line.color}`}>
+                                      <h3 className={`font-black text-sm uppercase tracking-wide ${textColor}`}>
+                                        {section.title === 'Northbound' && '⬆️ '}
+                                        {section.title === 'Southbound' && '⬇️ '}
+                                        {section.title === 'Westbound' && '⬅️ '}
+                                        {section.title === 'Eastbound' && '➡️ '}
+                                        {section.title}
+                                      </h3>
+                                    </div>
 
-                                        return (
-                                          <tr
-                                            key={rowIdx}
-                                            className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                                          >
-                                            {/* Station & Direction */}
-                                            <td className={`px-3 py-3 ${textColor}`}>
-                                              <div className="flex items-center gap-1">
-                                                <span className="font-medium">{row.station}</span>
-                                                {row.direction && (
-                                                  <span className={`text-xs ${textMuted} font-semibold ml-1`}>
-                                                    {row.direction}
-                                                  </span>
-                                                )}
-                                              </div>
-                                            </td>
-
-                                            {/* Status */}
-                                            <td className="px-3 py-3">
-                                              {status ? (
-                                                <span className={`font-semibold ${status.color}`}>
-                                                  {status.text}
-                                                </span>
-                                              ) : (
-                                                <span className={textMuted}>—</span>
-                                              )}
-                                            </td>
-
-                                            {/* Departure Time */}
-                                            <td className="px-3 py-3 text-center">
-                                              {nextTrain ? (
-                                                <span className={`font-mono font-bold text-sm ${textColor}`}>
-                                                  {nextTrain.departureTime || '—'}
-                                                </span>
-                                              ) : (
-                                                <span className={textMuted}>—</span>
-                                              )}
-                                            </td>
-
-                                            {/* Upcoming Departure */}
-                                            <td className="px-3 py-3 text-right">
-                                              {upcomingTrain ? (
-                                                <span className={`font-mono text-sm ${textColor}`}>
-                                                  {upcomingTrain.departureTime || '—'}
-                                                </span>
-                                              ) : (
-                                                <span className={textMuted}>—</span>
-                                              )}
-                                            </td>
+                                    {/* Section Table */}
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-sm">
+                                        <thead>
+                                          <tr className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} text-xs`}>
+                                            <th className={`px-3 py-2 text-left font-semibold ${textColor}`}>Destination/Direction</th>
+                                            <th className={`px-3 py-2 text-left font-semibold ${textColor}`}>Status</th>
+                                            <th className={`px-3 py-2 text-center font-semibold ${textColor}`}>
+                                              <div>Next Train</div>
+                                              <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Departure</div>
+                                            </th>
+                                            <th className={`px-3 py-2 text-right font-semibold ${textColor}`}>
+                                              <div>Upcoming</div>
+                                              <div className={`text-xs font-normal ${textMuted} mt-0.5`}>Departure</div>
+                                            </th>
                                           </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
+                                        </thead>
+                                        <tbody>
+                                          {section.rows.map((row, rowIdx) => {
+                                            const nextTrain = row.trains[0];
+                                            const upcomingTrain = row.trains[1];
+                                            const status = nextTrain ? row.getStatus(nextTrain) : null;
+
+                                            return (
+                                              <tr
+                                                key={rowIdx}
+                                                className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-300'} transition-all duration-200 hover:${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-100'} hover:scale-[1.01] hover:shadow-md cursor-pointer`}
+                                              >
+                                                {/* Station */}
+                                                <td className={`px-4 py-4 ${textColor}`}>
+                                                  <span className="font-semibold text-base">• {row.station}</span>
+                                                </td>
+
+                                                {/* Status - Enhanced */}
+                                                <td className="px-4 py-4">
+                                                  {status ? (
+                                                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold ${status.color} ${
+                                                      status.text === 'Arriving' ? 'bg-yellow-100 dark:bg-yellow-900' :
+                                                      status.text === 'Departing' ? 'bg-blue-100 dark:bg-blue-900' :
+                                                      status.text === 'Delayed' ? 'bg-red-100 dark:bg-red-900' :
+                                                      'bg-green-100 dark:bg-green-900'
+                                                    }`}>
+                                                      {status.text === 'Arriving' && '🔔 '}
+                                                      {status.text === 'Departing' && '🚀 '}
+                                                      {status.text === 'Delayed' && '⚠️ '}
+                                                      {status.text === 'On Time' && '✓ '}
+                                                      {status.text}
+                                                    </span>
+                                                  ) : (
+                                                    <span className={textMuted}>—</span>
+                                                  )}
+                                                </td>
+
+                                                {/* Departure Time - Enhanced */}
+                                                <td className="px-4 py-4 text-center">
+                                                  {nextTrain ? (
+                                                    <span className={`font-mono font-bold text-lg ${textColor} px-3 py-1.5 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-white'} border-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+                                                      {nextTrain.departureTime || '—'}
+                                                    </span>
+                                                  ) : (
+                                                    <span className={textMuted}>—</span>
+                                                  )}
+                                                </td>
+
+                                                {/* Upcoming Departure - Enhanced */}
+                                                <td className="px-4 py-4 text-right">
+                                                  {upcomingTrain ? (
+                                                    <span className={`font-mono font-semibold text-base ${textColor} px-3 py-1 rounded-lg ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-100'}`}>
+                                                      {upcomingTrain.departureTime || '—'}
+                                                    </span>
+                                                  ) : (
+                                                    <span className={textMuted}>—</span>
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             ))
                           )}
@@ -1972,260 +2020,6 @@
                     );
                   })()}
 
-                  {/* Station View (existing) */}
-                  {transitViewMode === 'station' && (
-                    <>
-                      {/* Expand/Collapse All Controls */}
-                      <div className={`${cardBg} rounded-xl shadow-lg p-3 border ${borderColor}`}>
-                        <div className="flex items-center gap-3 justify-between">
-                          <span className={`text-sm font-semibold ${textColor}`}>Station Cards:</span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setExpandedStations({
-                                nLine: { terminal124th: true, station112th: true, unionStation: true },
-                                gLine: { oldeTown: true, goldStrike: true, pecosJunction: true, unionStation: true },
-                                bLine: { westminster: true, pecosJunction: true, unionStation: true }
-                              })}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isDarkMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'} transition-all`}
-                            >
-                              ▼ Expand All
-                            </button>
-                            <button
-                              onClick={() => setExpandedStations({
-                                nLine: { terminal124th: false, station112th: false, unionStation: false },
-                                gLine: { oldeTown: false, goldStrike: false, pecosJunction: false, unionStation: false },
-                                bLine: { westminster: false, pecosJunction: false, unionStation: false }
-                              })}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isDarkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'} transition-all`}
-                            >
-                              ▶ Collapse All
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                  {/* N Line Card with Station-based Layout */}
-                  {visibleLines.nLine && (
-                    <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
-                      <div className="flex items-center justify-between mb-6">
-                        <h2 className={`text-xl sm:text-2xl font-bold ${textColor}`}>🚆 N Line</h2>
-                      </div>
-
-                      {/* Linear Route Visualization */}
-                      <div className="mb-6">
-                        <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className={`text-xs font-semibold ${textMuted}`}>NORTH</span>
-                            <span className={`text-xs font-semibold ${textMuted}`}>SOUTH</span>
-                          </div>
-
-                          {/* Route Line */}
-                          <div className="relative flex items-center justify-between py-3">
-                            {/* 124th Avenue */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-purple-500' : 'bg-purple-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'} ${(() => {
-                                const glow = getStationGlow(nLineData.terminal124th, true);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 ${textMuted} text-center`}>124th<br/>Ave</span>
-                            </div>
-                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-purple-500' : 'bg-purple-600'}`}></div>
-
-                            {/* 112th Station (Highlighted) */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-4 h-4 rounded-full ${isDarkMode ? 'bg-purple-400' : 'bg-purple-500'} border-4 ${isDarkMode ? 'border-purple-600' : 'border-purple-700'} shadow-lg ${(() => {
-                                const glow = getStationGlow(nLineData.station112th, false);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-900'} text-center`}>112th<br/>Stn</span>
-                            </div>
-                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-purple-500' : 'bg-purple-600'}`}></div>
-
-                            {/* Union Station */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-purple-500' : 'bg-purple-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'} ${(() => {
-                                const glow = getStationGlow(nLineData.unionStation, true);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 ${textMuted} text-center`}>Union<br/>Stn</span>
-                            </div>
-                          </div>
-
-                          <div className={`mt-2 p-2 rounded-lg ${isDarkMode ? 'bg-purple-900 bg-opacity-20' : 'bg-purple-50'}`}>
-                            <p className={`text-xs text-center ${isDarkMode ? 'text-purple-300' : 'text-purple-800'}`}>
-                              📍 Boarding at 112th Station
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Station Cards */}
-                      <div className="space-y-0">
-                        {renderStationCard('124th Avenue Station', nLineData.terminal124th, 'nLine', 'terminal124th', true)}
-                        {renderStationCard('112th Avenue Station', nLineData.station112th, 'nLine', 'station112th', false)}
-                        {renderStationCard('Union Station', nLineData.unionStation, 'nLine', 'unionStation', true)}
-                      </div>
-
-                      <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                        <p className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                          🔴 Live RTD data • Updates every minute
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* G Line Card with Station-based Layout */}
-                  {visibleLines.gLine && (
-                    <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
-                      <div className="flex items-center justify-between mb-6">
-                        <h2 className={`text-xl sm:text-2xl font-bold ${textColor}`}>🚆 G Line</h2>
-                      </div>
-
-                      {/* Linear Route Visualization */}
-                      <div className="mb-6">
-                        <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className={`text-xs font-semibold ${textMuted}`}>WEST</span>
-                            <span className={`text-xs font-semibold ${textMuted}`}>EAST</span>
-                          </div>
-
-                          {/* Route Line */}
-                          <div className="relative flex items-center justify-between py-3">
-                            {/* Olde Town */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'} ${(() => {
-                                const glow = getStationGlow(gLineData.oldeTown, true);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 ${textMuted} text-center`}>Olde<br/>Town</span>
-                            </div>
-                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'}`}></div>
-
-                            {/* Gold Strike (Highlighted) */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-4 h-4 rounded-full ${isDarkMode ? 'bg-orange-400' : 'bg-orange-500'} border-4 ${isDarkMode ? 'border-orange-600' : 'border-orange-700'} shadow-lg ${(() => {
-                                const glow = getStationGlow(gLineData.goldStrike, false);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-900'} text-center`}>Gold<br/>Strike</span>
-                            </div>
-                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'}`}></div>
-
-                            {/* Pecos Junction */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'} ${(() => {
-                                const glow = getStationGlow(gLineData.pecosJunction, false);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 ${textMuted} text-center`}>Pecos<br/>Jct</span>
-                            </div>
-                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'}`}></div>
-
-                            {/* Union Station */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-orange-500' : 'bg-orange-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'} ${(() => {
-                                const glow = getStationGlow(gLineData.unionStation, true);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 ${textMuted} text-center`}>Union<br/>Stn</span>
-                            </div>
-                          </div>
-
-                          <div className={`mt-2 p-2 rounded-lg ${isDarkMode ? 'bg-orange-900 bg-opacity-20' : 'bg-orange-50'}`}>
-                            <p className={`text-xs text-center ${isDarkMode ? 'text-orange-300' : 'text-orange-800'}`}>
-                              📍 Boarding at Gold Strike
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Station Cards */}
-                      <div className="space-y-0">
-                        {renderStationCard('Olde Town Arvada', gLineData.oldeTown, 'gLine', 'oldeTown', true)}
-                        {renderStationCard('Gold Strike Station', gLineData.goldStrike, 'gLine', 'goldStrike', false)}
-                        {renderStationCard('Pecos Junction', gLineData.pecosJunction, 'gLine', 'pecosJunction', false)}
-                        {renderStationCard('Union Station', gLineData.unionStation, 'gLine', 'unionStation', true)}
-                      </div>
-
-                      <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                        <p className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                          🔴 Live RTD data • Updates every minute
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* B Line Card with Station-based Layout */}
-                  {visibleLines.bLine && (
-                    <div className={`${cardBg} rounded-2xl shadow-xl p-4 sm:p-6 border ${borderColor}`}>
-                      <div className="flex items-center justify-between mb-6">
-                        <h2 className={`text-xl sm:text-2xl font-bold ${textColor}`}>🚆 B Line</h2>
-                      </div>
-
-                      {/* Linear Route Visualization */}
-                      <div className="mb-6">
-                        <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className={`text-xs font-semibold ${textMuted}`}>SOUTH</span>
-                            <span className={`text-xs font-semibold ${textMuted}`}>NORTH</span>
-                          </div>
-
-                          {/* Route Line - Only 3 stops */}
-                          <div className="relative flex items-center justify-between py-3">
-                            {/* Union Station */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-blue-500' : 'bg-blue-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'} ${(() => {
-                                const glow = getStationGlow(bLineData.unionStation, true);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 ${textMuted} text-center`}>Union<br/>Stn</span>
-                            </div>
-                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-blue-500' : 'bg-blue-600'}`}></div>
-
-                            {/* Pecos Junction (Highlighted - Boarding Point) */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-4 h-4 rounded-full ${isDarkMode ? 'bg-blue-400' : 'bg-blue-500'} border-4 ${isDarkMode ? 'border-blue-600' : 'border-blue-700'} shadow-lg ${(() => {
-                                const glow = getStationGlow(bLineData.pecosJunction, false);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-900'} text-center`}>Pecos<br/>Jct</span>
-                            </div>
-                            <div className={`flex-1 h-0.5 ${isDarkMode ? 'bg-blue-500' : 'bg-blue-600'}`}></div>
-
-                            {/* Westminster */}
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-blue-500' : 'bg-blue-600'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-white'} ${(() => {
-                                const glow = getStationGlow(bLineData.westminster, true);
-                                return glow.glow ? (glow.type === 'arriving' ? 'station-glow-arriving' : 'station-glow-departing') : '';
-                              })()}`}></div>
-                              <span className={`text-xs mt-1 ${textMuted} text-center`}>West-<br/>minster</span>
-                            </div>
-                          </div>
-
-                          <div className={`mt-2 p-2 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-20' : 'bg-blue-50'}`}>
-                            <p className={`text-xs text-center ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                              📍 Boarding at Pecos Junction
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Station Cards */}
-                      <div className="space-y-0">
-                        {renderStationCard('Westminster Station', bLineData.westminster, 'bLine', 'westminster', true)}
-                        {renderStationCard('Pecos Junction', bLineData.pecosJunction, 'bLine', 'pecosJunction', false)}
-                        {renderStationCard('Union Station', bLineData.unionStation, 'bLine', 'unionStation', true)}
-                      </div>
-
-                      <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-50'}`}>
-                        <p className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                          🔴 Live RTD data • Updates every minute
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                    </>
-                  )}
                 </div>
               )}
 
