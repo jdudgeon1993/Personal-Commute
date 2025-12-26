@@ -416,30 +416,26 @@
           return [];
         }
 
-        // const now = Date.now();
+        const now = Date.now();
         const filtered = arrivals.filter(arrival => {
           const matchesRoute = arrival.routeId === routeId;
           const matchesDirection = directionId === null || arrival.directionId === directionId;
 
-          // TEMPORARILY DISABLED: Filter out trains that have already departed
-          // const departureTime = arrival.departureTime || arrival.arrivalTime;
-          // if (departureTime && typeof departureTime === 'number') {
-          //   const departureTimestamp = departureTime * 1000;
-          //   const hasNotDeparted = departureTimestamp > (now - 30000);
-          //   return matchesRoute && matchesDirection && hasNotDeparted;
-          // }
+          // Filter out trains that departed more than 2 minutes ago
+          const departureTime = arrival.departureTime || arrival.arrivalTime;
+          if (departureTime && typeof departureTime === 'number') {
+            const departureTimestamp = departureTime * 1000;
+            const hasNotDeparted = departureTimestamp > (now - 120000); // 2 minute grace period
+            return matchesRoute && matchesDirection && hasNotDeparted;
+          }
 
           return matchesRoute && matchesDirection;
         });
 
-        console.log(`🔍 processTrainData: Route ${routeId} dir ${directionId} - Found ${filtered.length}/${arrivals.length} trains (filtering DISABLED for debug)`);
+        console.log(`🔍 processTrainData: Route ${routeId} dir ${directionId} - Found ${filtered.length}/${arrivals.length} upcoming trains`);
 
-        // Log first arrival to see data structure
-        if (filtered.length > 0 && routeId === '117N') {
-          console.log('🔍 N Line sample arrival:', JSON.stringify(filtered[0], null, 2));
-        }
-
-        return filtered.slice(0, 3).map(arrival => {
+        // Return up to 5 trains to ensure we get at least 2 upcoming
+        return filtered.slice(0, 5).map(arrival => {
           let arrivalTimestamp = null;
           let departureTimestamp = null;
           let arrivalTimeDisplay = null;
