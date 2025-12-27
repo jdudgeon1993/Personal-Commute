@@ -1761,17 +1761,15 @@
                     );
                   })}
 
-                  {/* Trains - Only show actively moving trains */}
-                  {northbound
-                    .filter(v => v.currentStatus !== 'STOPPED_AT' || v.currentStopSequence > 0)
-                    .map((vehicle) => {
+                  {/* Trains */}
+                  {northbound.map((vehicle) => {
                     const position = getTrainPosition(vehicle);
                     return (
                       <div
                         key={vehicle.tripId || vehicle.id}
                         className="absolute top-0 transform -translate-x-1/2 transition-all duration-[2000ms] ease-in-out"
                         style={{ left: `${position}%` }}
-                        title={`Train ${vehicle.label} - Trip ${vehicle.tripId}`}
+                        title={`Train ${vehicle.label} - Trip ${vehicle.tripId?.substring(0, 8)}`}
                       >
                         <div className="text-lg sm:text-2xl animate-pulse" style={{
                           filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))',
@@ -1822,17 +1820,15 @@
                     );
                   })}
 
-                  {/* Trains - Only show actively moving trains */}
-                  {southbound
-                    .filter(v => v.currentStatus !== 'STOPPED_AT' || v.currentStopSequence > 0)
-                    .map((vehicle) => {
+                  {/* Trains */}
+                  {southbound.map((vehicle) => {
                     const position = getTrainPosition(vehicle);
                     return (
                       <div
                         key={vehicle.tripId || vehicle.id}
                         className="absolute top-0 transform -translate-x-1/2 transition-all duration-[2000ms] ease-in-out"
                         style={{ left: `${position}%` }}
-                        title={`Train ${vehicle.label} - Trip ${vehicle.tripId}`}
+                        title={`Train ${vehicle.label} - Trip ${vehicle.tripId?.substring(0, 8)}`}
                       >
                         <div className="text-lg sm:text-2xl animate-pulse" style={{
                           filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))',
