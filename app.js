@@ -10,9 +10,9 @@ const App = {
     activeTab: 'drive',
     selectedLine: '117N',
     selectedStation: {
-      '117N': 'northglenn',
-      '113G': 'denver_g',
-      '113B': 'denver_b',
+      '117N': '35254',  // 112th / Northglenn
+      '113G': '34781',  // Union Station
+      '113B': '34782',  // Union Station
     },
     weather: null,
     driveTime: {
@@ -38,25 +38,22 @@ const App = {
     },
     stations: {
       '117N': [
-        { id: 'wagon_road', name: 'Wagon Road' },
-        { id: 'northglenn', name: 'Northglenn' },
-        { id: 'thornton_town_center', name: 'Thornton Town Center' },
-        { id: '124th', name: 'Eastlake & 124th' },
-        { id: 'national_western_center', name: 'National Western Center' },
-        { id: '40th_colorado', name: '40th & Colorado' },
-        { id: '38th_blake', name: '38th & Blake' },
-        { id: 'denver_union_station', name: 'Union Station' },
+        { id: '35367', name: 'Eastlake & 124th' },
+        { id: '35254', name: '112th / Northglenn' },
+        { id: '35246', name: '48th & Brighton / National Western Center' },
+        { id: '34667', name: 'Union Station' },
       ],
       '113G': [
-        { id: 'denver_g', name: 'Union Station' },
-        { id: 'pecos_junction', name: 'Pecos Junction' },
-        { id: 'federal', name: 'Federal Center' },
-        { id: 'lakewood', name: 'Lakewood / Wadsworth' },
-        { id: 'wheat_ridge', name: 'Wheat Ridge / Ward' },
+        { id: '34510', name: 'Ward Station / Wheat Ridge' },
+        { id: '34541', name: 'Olde Town Arvada' },
+        { id: '34525', name: 'Gold Strike' },
+        { id: '34544', name: 'Pecos Junction' },
+        { id: '34781', name: 'Union Station' },
       ],
       '113B': [
-        { id: 'denver_b', name: 'Union Station' },
-        { id: 'westminster', name: 'Westminster' },
+        { id: '34560', name: 'Westminster' },
+        { id: '34544', name: 'Pecos Junction' },
+        { id: '34782', name: 'Union Station' },
       ],
     },
     refreshIntervals: {
@@ -179,10 +176,14 @@ const App = {
   async fetchTransitData() {
     const lines = ['117N', '113G', '113B'];
 
+    console.log('🚆 Fetching transit data for all lines...');
     for (const line of lines) {
       const stationId = this.state.selectedStation[line];
+      console.log(`  → Line ${line}: Station ${stationId}`);
       this.state.transitData[line] = await API.getLineArrivals(stationId, line);
+      console.log(`  ✓ Line ${line}: ${this.state.transitData[line].arrivals.length} arrivals`);
     }
+    console.log('✅ Transit data fetch complete');
   },
 
   /**
