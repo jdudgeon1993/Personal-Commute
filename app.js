@@ -38,10 +38,12 @@ const App = {
     },
     stations: {
       '117N': [
-        { id: '35367', name: 'Eastlake & 124th' },
-        { id: '35254', name: '112th / Northglenn' },
-        { id: '35246', name: '48th & Brighton / National Western Center' },
-        { id: '34667', name: 'Union Station' },
+        { id: '35365', name: 'Eastlake & 124th (SB)' },
+        { id: '35254', name: '112th / Northglenn (SB)' },
+        { id: '35246', name: '48th & Brighton (SB)' },
+        { id: '35255', name: '112th / Northglenn (NB)' },
+        { id: '35247', name: '48th & Brighton (NB)' },
+        { id: '34668', name: 'Union Station' },
       ],
       '113G': [
         { id: '34510', name: 'Ward Station / Wheat Ridge' },
