@@ -171,11 +171,19 @@ const API = {
         endpoint = `/api/rtd/gline/${stopId}`;
       }
 
+      console.log(`🚆 Fetching arrivals: ${endpoint} for route ${routeId}`);
       const data = await this.fetch(endpoint);
+      console.log(`📊 API Response for ${stopId}:`, data);
 
       // Normalize the response
       const arrivals = (data.arrivals || [])
-        .filter(arrival => arrival.routeId === routeId)
+        .filter(arrival => {
+          const matches = arrival.routeId === routeId;
+          if (!matches) {
+            console.log(`⏭️ Skipping arrival with routeId ${arrival.routeId} (looking for ${routeId})`);
+          }
+          return matches;
+        })
         .map(arrival => ({
           time: arrival.arrivalTime || arrival.departureTime,
           timeFormatted: arrival.arrivalTimeFormatted || arrival.departureTimeFormatted,
@@ -186,6 +194,8 @@ const API = {
         }))
         .sort((a, b) => a.time - b.time);
 
+      console.log(`✅ Processed ${arrivals.length} arrivals for ${routeId} at ${stopId}`);
+
       return {
         stopId,
         stopName: data.stopName || stopId,
@@ -194,7 +204,7 @@ const API = {
         _isFallback: false,
       };
     } catch (error) {
-      console.error(`Station arrivals API failed for ${stopId}:`, error);
+      console.error(`❌ Station arrivals API failed for ${stopId}:`, error);
       return {
         stopId,
         stopName: stopId,

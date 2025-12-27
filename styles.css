@@ -102,7 +102,7 @@ body {
 .header {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
-  padding: var(--space-lg) 0;
+  padding: var(--space-md) 0;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -114,26 +114,26 @@ body {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
 .header-title h1 {
-  font-size: 1.875rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: var(--space-xs);
+  margin-bottom: 0;
 }
 
 .header-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
 .header-greeting {
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--primary);
   font-weight: 600;
-  margin-top: var(--space-xs);
+  margin-top: 0;
 }
 
 .header-controls {
@@ -149,35 +149,35 @@ body {
 .weather-widget {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-sm);
   background: var(--bg-secondary);
-  padding: var(--space-md);
-  border-radius: var(--radius-xl);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
 }
 
 .weather-icon {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
 }
 
 .weather-temp {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .weather-description {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
   text-transform: capitalize;
 }
 
 .weather-details {
   display: flex;
-  gap: var(--space-md);
-  font-size: 0.875rem;
+  gap: var(--space-sm);
+  font-size: 0.75rem;
   color: var(--text-secondary);
-  margin-top: var(--space-xs);
+  margin-top: 0;
 }
 
 /* ============================================
