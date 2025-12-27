@@ -1449,6 +1449,27 @@
             routeSummary: data.routeSummary || { '117N': 0, '113G': 0, '113B': 0 }
           });
 
+          // Track GPS changes for N Line trains to debug stationary issue
+          const nLineVehicles = (data.vehicles || []).filter(v => v.routeId === '117N');
+          if (nLineVehicles.length > 0) {
+            if (!window._prevNLinePositions) {
+              window._prevNLinePositions = {};
+            }
+
+            nLineVehicles.forEach(v => {
+              const prev = window._prevNLinePositions[v.label];
+              const current = `${v.latitude?.toFixed(5)},${v.longitude?.toFixed(5)}`;
+
+              if (prev && prev !== current) {
+                console.log(`🚂 Train ${v.label} MOVED: ${prev} → ${current}`);
+              } else if (prev) {
+                console.log(`⏸️ Train ${v.label} stationary at ${current}`);
+              }
+
+              window._prevNLinePositions[v.label] = current;
+            });
+          }
+
           // Minimal logging: only show when count changes or every 60 seconds
           if (!window._lastVehicleLog || Date.now() - window._lastVehicleLog > 60000 ||
               JSON.stringify(data.routeSummary) !== JSON.stringify(window._lastRouteSummary)) {
@@ -1684,13 +1705,13 @@
         };
 
         return (
-          <div className={`mb-3 sm:mb-4 p-2 sm:p-4 rounded-lg ${isDarkMode ? 'bg-gradient-to-br from-gray-900/60 to-gray-800/40' : 'bg-gradient-to-br from-purple-50/50 to-white/30'} border ${isDarkMode ? 'border-purple-600/40' : 'border-purple-300/60'} shadow-lg backdrop-blur-sm`}>
+          <div className={`mb-2 sm:mb-4 p-1.5 sm:p-4 rounded-lg ${isDarkMode ? 'bg-gradient-to-br from-gray-900/60 to-gray-800/40' : 'bg-gradient-to-br from-purple-50/50 to-white/30'} border ${isDarkMode ? 'border-purple-600/40' : 'border-purple-300/60'} shadow-lg backdrop-blur-sm`}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-2 sm:mb-4">
+            <div className="flex items-center justify-between mb-1.5 sm:mb-4">
               <div className="flex items-center gap-1 sm:gap-2">
                 <div className={`text-xs font-bold uppercase tracking-wide ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
                   <span className="hidden sm:inline">🚆 Live Train Positions</span>
-                  <span className="sm:hidden">🚆 Live</span>
+                  <span className="sm:hidden text-xs">🚆 Live</span>
                 </div>
                 <div className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold ${isDarkMode ? 'bg-purple-600/30 text-purple-300' : 'bg-purple-200 text-purple-700'}`}>
                   {routeVehicles.length}
@@ -1706,13 +1727,13 @@
 
             {/* Northbound Track */}
             {northbound.length > 0 && (
-              <div className="mb-2 sm:mb-4">
+              <div className="mb-1.5 sm:mb-4">
                 <div className={`text-xs font-semibold mb-1 sm:mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} flex items-center gap-1`}>
                   <span className="text-sm">⬆️</span>
                   <span className="hidden sm:inline">Northbound to 124th/Eastlake</span>
-                  <span className="sm:hidden">NB</span>
+                  <span className="sm:hidden text-xs">NB</span>
                 </div>
-                <div className="relative h-10 sm:h-14 mb-1">
+                <div className="relative h-8 sm:h-14 mb-1">
                   {/* Track line */}
                   <div className={`absolute top-1/2 left-0 right-0 h-1 sm:h-1.5 ${isDarkMode ? 'bg-gradient-to-r from-purple-600 via-purple-500 to-purple-600' : 'bg-gradient-to-r from-purple-400 via-purple-500 to-purple-400'} rounded-full transform -translate-y-1/2 shadow-md`}></div>
 
@@ -1770,9 +1791,9 @@
                 <div className={`text-xs font-semibold mb-1 sm:mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} flex items-center gap-1`}>
                   <span className="text-sm">⬇️</span>
                   <span className="hidden sm:inline">Southbound to Union Station</span>
-                  <span className="sm:hidden">SB</span>
+                  <span className="sm:hidden text-xs">SB</span>
                 </div>
-                <div className="relative h-10 sm:h-14 mb-1">
+                <div className="relative h-8 sm:h-14 mb-1">
                   {/* Track line */}
                   <div className={`absolute top-1/2 left-0 right-0 h-1 sm:h-1.5 ${isDarkMode ? 'bg-gradient-to-r from-purple-600 via-purple-500 to-purple-600' : 'bg-gradient-to-r from-purple-400 via-purple-500 to-purple-400'} rounded-full transform -translate-y-1/2 shadow-md`}></div>
 
