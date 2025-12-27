@@ -217,6 +217,97 @@ app.get('/api/rtd/gline/:stopId', async (req, res) => {
   }
 });
 
+// RTD Vehicle Positions API - Real-time GPS tracking
+app.get('/api/rtd/vehicle-positions', async (req, res) => {
+  try {
+    console.log('🚆 Fetching RTD Vehicle Positions from GTFS-RT');
+
+    // Fetch RTD's GTFS-RT VehiclePosition feed
+    const response = await fetch('https://www.rtd-denver.com/files/gtfs-rt/VehiclePosition.pb');
+
+    if (!response.ok) {
+      throw new Error(`GTFS-RT Vehicle Positions feed returned ${response.status}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
+
+    console.log(`📊 GTFS-RT feed has ${feed.entity.length} vehicle entities`);
+
+    // Parse vehicle positions
+    const vehicles = [];
+    const now = Math.floor(Date.now() / 1000);
+
+    for (const entity of feed.entity) {
+      if (entity.vehicle) {
+        const vehicle = entity.vehicle;
+        const trip = vehicle.trip;
+        const position = vehicle.position;
+
+        // Filter for N Line, G Line, and B Line only
+        const routeId = trip?.routeId;
+        if (routeId === '117N' || routeId === '113G' || routeId === '113B') {
+          const timestamp = Number(vehicle.timestamp);
+
+          vehicles.push({
+            id: vehicle.vehicle?.id || entity.id,
+            label: vehicle.vehicle?.label || 'Unknown',
+            routeId: routeId,
+            tripId: trip?.tripId,
+            directionId: trip?.directionId ?? 0,
+            latitude: position?.latitude,
+            longitude: position?.longitude,
+            bearing: position?.bearing,
+            speed: position?.speed,
+            currentStopSequence: vehicle.currentStopSequence,
+            currentStopId: vehicle.stopId,
+            currentStatus: vehicle.currentStatus, // INCOMING_AT, STOPPED_AT, IN_TRANSIT_TO
+            timestamp: timestamp,
+            timestampFormatted: timestamp ? new Date(timestamp * 1000).toLocaleTimeString('en-US', {
+              timeZone: 'America/Denver',
+              hour: 'numeric',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: true
+            }) : null,
+            congestionLevel: vehicle.congestionLevel,
+            occupancyStatus: vehicle.occupancyStatus,
+            age: timestamp ? now - timestamp : null // Age of position data in seconds
+          });
+        }
+      }
+    }
+
+    // Sort by route and direction
+    vehicles.sort((a, b) => {
+      if (a.routeId !== b.routeId) {
+        return a.routeId.localeCompare(b.routeId);
+      }
+      return (a.directionId || 0) - (b.directionId || 0);
+    });
+
+    const result = {
+      timestamp: Date.now(),
+      feedTimestamp: Number(feed.header.timestamp) * 1000,
+      feedAgeSeconds: now - Number(feed.header.timestamp),
+      vehicleCount: vehicles.length,
+      vehicles: vehicles,
+      routeSummary: {
+        '117N': vehicles.filter(v => v.routeId === '117N').length,
+        '113G': vehicles.filter(v => v.routeId === '113G').length,
+        '113B': vehicles.filter(v => v.routeId === '113B').length
+      }
+    };
+
+    console.log(`✅ Found ${vehicles.length} active vehicles:`, result.routeSummary);
+
+    res.json(result);
+  } catch (error) {
+    console.error('❌ GTFS-RT Vehicle Positions error:', error);
+    res.status(500).json({ error: 'Failed to fetch vehicle positions', details: error.message });
+  }
+});
+
 // Serve index.html for the root route
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
