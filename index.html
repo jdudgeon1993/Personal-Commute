@@ -1697,8 +1697,13 @@
 
         return (
           <div className={`mb-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-900/50' : 'bg-purple-50/30'} border-2 ${isDarkMode ? 'border-purple-600/30' : 'border-purple-300'}`}>
-            <div className={`text-xs font-bold mb-3 uppercase tracking-wide ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
-              🚆 Live Train Positions ({routeVehicles.length} active)
+            <div className="flex items-center justify-between mb-3">
+              <div className={`text-xs font-bold uppercase tracking-wide ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+                🚆 Live Train Positions ({routeVehicles.length} active)
+              </div>
+              <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                Updated: {vehiclePositions.timestamp ? new Date(vehiclePositions.timestamp).toLocaleTimeString() : 'Never'}
+              </div>
             </div>
 
             {/* Northbound Track */}
@@ -1737,6 +1742,9 @@
                         <div className="text-xl" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>🚆</div>
                         <div className={`text-xs font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-700'}`} style={{ fontSize: '9px' }}>
                           {vehicle.label}
+                        </div>
+                        <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`} style={{ fontSize: '8px' }}>
+                          {position.toFixed(0)}% • {vehicle.latitude?.toFixed(3)},{vehicle.longitude?.toFixed(3)}
                         </div>
                       </div>
                     );
@@ -1781,6 +1789,9 @@
                         <div className="text-xl" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))', transform: 'scaleX(-1)' }}>🚆</div>
                         <div className={`text-xs font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-700'}`} style={{ fontSize: '9px' }}>
                           {vehicle.label}
+                        </div>
+                        <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`} style={{ fontSize: '8px' }}>
+                          {position.toFixed(0)}% • {vehicle.latitude?.toFixed(3)},{vehicle.longitude?.toFixed(3)}
                         </div>
                       </div>
                     );
