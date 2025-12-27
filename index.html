@@ -240,6 +240,13 @@
         unionStation: { arriving: [], departing: [] }
       });
 
+      // Vehicle positions state (GPS tracking)
+      const [vehiclePositions, setVehiclePositions] = useState({
+        timestamp: null,
+        vehicles: [],
+        routeSummary: { '117N': 0, '113G': 0, '113B': 0 }
+      });
+
       const [expandedStations, setExpandedStations] = useState({
         nLine: { terminal124th: false, station112th: true, unionStation: false },
         gLine: { oldeTown: false, goldStrike: true, pecosJunction: false, unionStation: false },
@@ -1425,6 +1432,38 @@
         }
       }, []);
 
+      // Fetch vehicle positions (GPS tracking)
+      const fetchVehiclePositions = useCallback(async () => {
+        try {
+          console.log('🚆 Fetching vehicle positions...');
+
+          const response = await fetch(`${CONSTANTS.API_BASE_URL}/api/rtd/vehicle-positions`);
+
+          if (!response.ok) {
+            throw new Error(`Vehicle positions API returned ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          setVehiclePositions({
+            timestamp: data.timestamp,
+            vehicles: data.vehicles || [],
+            routeSummary: data.routeSummary || { '117N': 0, '113G': 0, '113B': 0 }
+          });
+
+          console.log(`✅ Vehicle positions updated: ${data.vehicleCount} trains tracked`);
+          console.log('📊 Route summary:', data.routeSummary);
+
+        } catch (error) {
+          console.error('❌ Vehicle positions error:', error);
+          setVehiclePositions({
+            timestamp: null,
+            vehicles: [],
+            routeSummary: { '117N': 0, '113G': 0, '113B': 0 }
+          });
+        }
+      }, []);
+
       // Geocode address to coordinates
       const geocodeAddress = async (address) => {
         const response = await fetch(
@@ -1514,7 +1553,8 @@
         fetchTransitData();
         fetchGLineData();
         fetchBLineData();
-      }, [fetchWeather, fetchDriveTimes, fetchTransitData, fetchGLineData, fetchBLineData]);
+        fetchVehiclePositions();
+      }, [fetchWeather, fetchDriveTimes, fetchTransitData, fetchGLineData, fetchBLineData, fetchVehiclePositions]);
 
       // 15-minute refresh for weather and drive times
       useEffect(() => {
@@ -1536,6 +1576,14 @@
         return () => clearInterval(interval);
       }, [fetchTransitData, fetchGLineData, fetchBLineData]);
 
+      // 10-second refresh for vehicle positions (GPS tracking updates every 5s)
+      useEffect(() => {
+        const interval = setInterval(() => {
+          fetchVehiclePositions();
+        }, 10000); // 10 seconds
+        return () => clearInterval(interval);
+      }, [fetchVehiclePositions]);
+
       // Manual refresh all with success feedback
       const handleManualRefresh = () => {
         fetchWeather();
@@ -1543,6 +1591,7 @@
         fetchTransitData();
         fetchGLineData();
         fetchBLineData();
+        fetchVehiclePositions();
         setLastRefresh(new Date());
         setRefreshSuccess(true);
         setTimeout(() => setRefreshSuccess(false), 2000);
@@ -1562,6 +1611,138 @@
           return `${hours} hr ${mins} min`;
         }
         return `${minutes} mins`;
+      };
+
+      // Visual Track Component - Show real-time train positions
+      const renderVisualTrack = (routeId) => {
+        // Filter vehicles for this route
+        const routeVehicles = vehiclePositions.vehicles.filter(v => v.routeId === routeId);
+
+        if (routeVehicles.length === 0) {
+          return null; // Don't show track if no vehicles
+        }
+
+        // Define stations for N Line
+        const nLineStations = [
+          { id: '34667', name: 'Union Station', sequence: 1 },
+          { id: '35246', name: '48th/Brighton', sequence: 2 },
+          { id: '35254', name: '112th Ave', sequence: 3 },
+          { id: '35367', name: '124th/Eastlake', sequence: 4 }
+        ];
+
+        // Separate by direction
+        const northbound = routeVehicles.filter(v => v.directionId === 1);
+        const southbound = routeVehicles.filter(v => v.directionId === 0);
+
+        // Calculate train position between stations (0-100%)
+        const getTrainPosition = (vehicle) => {
+          const stopSeq = vehicle.currentStopSequence || 0;
+
+          // Position based on stop sequence (0-4 for N Line)
+          if (stopSeq <= 1) return 10; // Near Union
+          if (stopSeq === 2) return 35; // Near 48th
+          if (stopSeq === 3) return 65; // Near 112th
+          if (stopSeq >= 4) return 90; // Near 124th
+
+          // Default: middle
+          return 50;
+        };
+
+        return (
+          <div className={`mb-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-900/50' : 'bg-purple-50'} border-2 ${isDarkMode ? 'border-purple-600/30' : 'border-purple-200'}`}>
+            <div className="text-xs font-bold text-purple-400 mb-3 uppercase tracking-wide">
+              🚆 Live Train Positions ({routeVehicles.length} active)
+            </div>
+
+            {/* Northbound Track */}
+            {northbound.length > 0 && (
+              <div className="mb-3">
+                <div className={`text-xs font-semibold mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  ⬆️ Northbound
+                </div>
+                <div className="relative h-12">
+                  {/* Track line */}
+                  <div className={`absolute top-1/2 left-0 right-0 h-1 ${isDarkMode ? 'bg-purple-600' : 'bg-purple-400'} rounded-full transform -translate-y-1/2`}></div>
+
+                  {/* Station markers */}
+                  {nLineStations.map((station, idx) => (
+                    <div
+                      key={station.id}
+                      className="absolute top-1/2 transform -translate-y-1/2"
+                      style={{ left: `${idx * 30}%` }}
+                    >
+                      <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-purple-400' : 'bg-purple-600'} border-2 ${isDarkMode ? 'border-gray-900' : 'border-white'}`}></div>
+                      <div className={`text-xs mt-1 whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontSize: '9px' }}>
+                        {station.name}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Trains */}
+                  {northbound.map((vehicle, idx) => {
+                    const position = getTrainPosition(vehicle);
+                    return (
+                      <div
+                        key={vehicle.id}
+                        className="absolute top-0 transform -translate-x-1/2 transition-all duration-1000"
+                        style={{ left: `${position}%` }}
+                      >
+                        <div className="text-xl" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>🚆</div>
+                        <div className={`text-xs font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-700'}`} style={{ fontSize: '9px' }}>
+                          {vehicle.label}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Southbound Track */}
+            {southbound.length > 0 && (
+              <div>
+                <div className={`text-xs font-semibold mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  ⬇️ Southbound
+                </div>
+                <div className="relative h-12">
+                  {/* Track line */}
+                  <div className={`absolute top-1/2 left-0 right-0 h-1 ${isDarkMode ? 'bg-purple-600' : 'bg-purple-400'} rounded-full transform -translate-y-1/2`}></div>
+
+                  {/* Station markers */}
+                  {nLineStations.map((station, idx) => (
+                    <div
+                      key={station.id}
+                      className="absolute top-1/2 transform -translate-y-1/2"
+                      style={{ left: `${idx * 30}%` }}
+                    >
+                      <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-purple-400' : 'bg-purple-600'} border-2 ${isDarkMode ? 'border-gray-900' : 'border-white'}`}></div>
+                      <div className={`text-xs mt-1 whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontSize: '9px' }}>
+                        {station.name}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Trains */}
+                  {southbound.map((vehicle, idx) => {
+                    const position = getTrainPosition(vehicle);
+                    return (
+                      <div
+                        key={vehicle.id}
+                        className="absolute top-0 transform -translate-x-1/2 transition-all duration-1000"
+                        style={{ left: `${position}%` }}
+                      >
+                        <div className="text-xl" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))', transform: 'scaleX(-1)' }}>🚆</div>
+                        <div className={`text-xs font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-700'}`} style={{ fontSize: '9px' }}>
+                          {vehicle.label}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
       };
 
       // Theme colors
@@ -2029,6 +2210,9 @@
                                   )}
                                   <div className={`flex-1 h-1 ${line.color} rounded-full opacity-30`}></div>
                                 </div>
+
+                                {/* Visual Track for N Line - Real-time train positions */}
+                                {line.name.includes('N Line') && renderVisualTrack('117N')}
 
                                 {/* Line Sections */}
                                 {line.sections && line.sections.map((section, sectionIdx) => (
