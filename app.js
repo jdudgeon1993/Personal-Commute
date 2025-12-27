@@ -586,31 +586,66 @@ const App = {
 
         ${this.renderVisualTrack(lineId)}
 
-        <div class="transit-header">
-          <div class="station-name">
-            📍 ${data.stopName}
+        <div class="station-board">
+          <div class="station-board-header">
+            <h3 class="station-board-title">📍 ${data.stopName}</h3>
+            ${nextTrain ? `
+              <div class="next-train-badge">
+                🔔 Next train: ${nextTrain.minutesAway} min
+              </div>
+            ` : ''}
           </div>
-          ${nextTrain ? `
-            <div class="next-train-badge">
-              🔔 Next: ${nextTrain.minutesAway} min
+
+          ${allArrivals.length > 0 ? `
+            ${data.northbound.length > 0 ? `
+              <div class="station-section">
+                <div class="section-header arriving">
+                  <span class="section-icon">🚆</span>
+                  <h4 class="section-title">Trains Arriving</h4>
+                  <span class="section-subtitle">Northbound</span>
+                </div>
+                <div class="train-list">
+                  ${data.northbound.map(train => `
+                    <div class="train-item fade-in">
+                      <div class="train-time">${new Date(train.time * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                      <div class="train-countdown ${train.minutesAway < 5 ? 'imminent' : train.minutesAway < 15 ? 'soon' : ''}">
+                        ${train.minutesAway} min
+                      </div>
+                      <div class="train-status">Arriving</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            ${data.southbound.length > 0 ? `
+              <div class="station-section">
+                <div class="section-header departing">
+                  <span class="section-icon">🚀</span>
+                  <h4 class="section-title">Trains Departing</h4>
+                  <span class="section-subtitle">Southbound</span>
+                </div>
+                <div class="train-list">
+                  ${data.southbound.map(train => `
+                    <div class="train-item fade-in">
+                      <div class="train-time">${new Date(train.time * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                      <div class="train-countdown ${train.minutesAway < 5 ? 'imminent' : train.minutesAway < 15 ? 'soon' : ''}">
+                        ${train.minutesAway} min
+                      </div>
+                      <div class="train-status">Departing</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+          ` : `
+            <div class="no-trains">
+              <div class="no-trains-icon">🚉</div>
+              <p class="no-trains-title">No upcoming trains</p>
+              <p class="no-trains-subtitle">Service may be limited at this time</p>
             </div>
-          ` : ''}
+          `}
         </div>
-
-        <div class="arrivals-grid">
-          ${this.renderDirection('Northbound', '↑', data.northbound)}
-          ${this.renderDirection('Southbound', '↓', data.southbound)}
-        </div>
-
-        ${allArrivals.length === 0 ? `
-          <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">🚉</div>
-            <p style="font-weight: 600;">No upcoming trains</p>
-            <p style="font-size: 0.875rem; margin-top: 0.5rem;">
-              Service may be limited at this time
-            </p>
-          </div>
-        ` : ''}
       </div>
     `;
   },
@@ -621,17 +656,13 @@ const App = {
   renderVisualTrack(lineId) {
     const vehicles = this.state.vehiclePositions.vehicles.filter(v => v.routeId === lineId);
 
-    if (vehicles.length === 0) {
-      return ''; // Don't show track if no vehicles
-    }
-
     // Station configurations for each line
     const stationConfigs = {
       '117N': [
-        { id: '34668', name: 'Union', lat: 39.7539, lng: -105.0000, pos: 3 },
-        { id: '35246', name: '48th', lat: 39.7809, lng: -104.9693, pos: 25 },
-        { id: '35254', name: '112th', lat: 39.9158, lng: -104.9872, pos: 70 },
-        { id: '35365', name: '124th', lat: 39.9308, lng: -104.9900, pos: 97 }
+        { id: '34668', name: 'Union', pos: 3 },
+        { id: '35246', name: '48th', pos: 25 },
+        { id: '35254', name: '112th', pos: 70 },
+        { id: '35365', name: '124th', pos: 97 }
       ],
       '113G': [
         { id: '34781', name: 'Union', pos: 5 },
@@ -647,86 +678,22 @@ const App = {
     };
 
     const stations = stationConfigs[lineId] || [];
-    const northbound = vehicles.filter(v => v.directionId === 0);
-    const southbound = vehicles.filter(v => v.directionId === 1);
-
-    // Calculate train position on track (0-100%)
-    const getTrainPosition = (vehicle) => {
-      if (!vehicle.latitude || !vehicle.longitude || !stations[0].lat) {
-        return 50; // Fallback
-      }
-
-      const trainLat = vehicle.latitude;
-      const trainLng = vehicle.longitude;
-
-      // Find closest stations
-      const distances = stations.map((station, idx) => {
-        const latDiff = trainLat - station.lat;
-        const lngDiff = trainLng - station.lng;
-        const dist = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-        return { station, idx, dist };
-      });
-
-      distances.sort((a, b) => a.dist - b.dist);
-      const closest = distances[0];
-      const secondClosest = distances[1];
-
-      const station1 = closest.idx < secondClosest.idx ? closest : secondClosest;
-      const station2 = closest.idx < secondClosest.idx ? secondClosest : closest;
-
-      const totalDist = station1.dist + station2.dist;
-      const ratio = station1.dist / totalDist;
-
-      const position = station1.station.pos + (station2.station.pos - station1.station.pos) * ratio;
-      return Math.max(1, Math.min(99, position));
-    };
 
     return `
-      <div class="visual-track">
+      <div class="visual-track-reference">
         <div class="track-header">
-          <div class="track-title">🚆 Live Train Positions</div>
-          <div class="track-count">${vehicles.length}</div>
+          <div class="track-title">🚆 ${lineId} Line</div>
+          <div class="track-count">${vehicles.length} Active</div>
         </div>
 
-        ${northbound.length > 0 ? `
-          <div class="track-direction">
-            <div class="track-label">⬆️ Northbound</div>
-            <div class="track-line">
-              ${stations.map(station => `
-                <div class="track-station" style="left: ${station.pos}%">
-                  <div class="station-dot"></div>
-                  <div class="station-label">${station.name}</div>
-                </div>
-              `).join('')}
-              ${northbound.map(vehicle => `
-                <div class="train-marker" style="left: ${getTrainPosition(vehicle)}%">
-                  <div class="train-icon">🚆</div>
-                  <div class="train-label">${vehicle.label || ''}</div>
-                </div>
-              `).join('')}
+        <div class="track-line-simple">
+          ${stations.map(station => `
+            <div class="track-station-simple" style="left: ${station.pos}%">
+              <div class="station-dot-simple"></div>
+              <div class="station-label-simple">${station.name}</div>
             </div>
-          </div>
-        ` : ''}
-
-        ${southbound.length > 0 ? `
-          <div class="track-direction">
-            <div class="track-label">⬇️ Southbound</div>
-            <div class="track-line">
-              ${stations.map(station => `
-                <div class="track-station" style="left: ${station.pos}%">
-                  <div class="station-dot"></div>
-                  <div class="station-label">${station.name}</div>
-                </div>
-              `).join('')}
-              ${southbound.map(vehicle => `
-                <div class="train-marker" style="left: ${getTrainPosition(vehicle)}%">
-                  <div class="train-icon">🚆</div>
-                  <div class="train-label">${vehicle.label || ''}</div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        ` : ''}
+          `).join('')}
+        </div>
       </div>
     `;
   },

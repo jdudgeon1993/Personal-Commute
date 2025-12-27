@@ -568,7 +568,75 @@ body {
   margin-top: var(--space-lg);
 }
 
-.transit-header {
+/* ============================================
+   Visual Track Reference (Simple)
+   ============================================ */
+
+.visual-track-reference {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  margin: var(--space-lg) 0;
+  border: 1px solid var(--border-color);
+}
+
+.track-line-simple {
+  position: relative;
+  height: 40px;
+  background: linear-gradient(to right, var(--primary) 0%, var(--secondary) 50%, var(--primary) 100%);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-md);
+}
+
+.track-line-simple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255,255,255,0.3);
+  transform: translateY(-50%);
+  border-radius: 2px;
+}
+
+.track-station-simple {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.station-dot-simple {
+  width: 10px;
+  height: 10px;
+  background: white;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.station-label-simple {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: var(--space-xs);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ============================================
+   Station Board (Train Station Feel)
+   ============================================ */
+
+.station-board {
+  margin-top: var(--space-lg);
+}
+
+.station-board-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -577,9 +645,10 @@ body {
   border-bottom: 2px solid var(--border-color);
 }
 
-.station-name {
+.station-board-title {
   font-size: 1.25rem;
   font-weight: 700;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -595,6 +664,125 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+}
+
+.station-section {
+  margin-bottom: var(--space-xl);
+}
+
+.station-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+}
+
+.section-header.arriving {
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 4px solid var(--success);
+}
+
+.section-header.departing {
+  background: rgba(139, 92, 246, 0.1);
+  border-left: 4px solid var(--secondary);
+}
+
+.section-icon {
+  font-size: 1.5rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.section-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.train-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.train-item {
+  background: var(--bg-secondary);
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all var(--transition-base);
+  border: 1px solid var(--border-color);
+}
+
+.train-item:hover {
+  background: var(--bg-tertiary);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-md);
+}
+
+.train-time {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.train-countdown {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.train-countdown.soon {
+  color: var(--warning);
+}
+
+.train-countdown.imminent {
+  color: var(--danger);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.train-status {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.no-trains {
+  text-align: center;
+  padding: var(--space-2xl);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+}
+
+.no-trains-icon {
+  font-size: 4rem;
+  margin-bottom: var(--space-md);
+}
+
+.no-trains-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.no-trains-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
 }
 
 .arrivals-grid {
