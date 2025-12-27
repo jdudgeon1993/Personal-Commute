@@ -166,7 +166,7 @@
       },
       // G Line: All stations from west to east
       gLineStops: {
-        wardStation: ['34504', '34505'],   // Terminal - Wheat Ridge/Ward Road Station (trying dual-platform)
+        wardStation: ['34510', '34515'],   // Terminal - Wheat Ridge/Ward Road (Platform IDs from Transitland)
         oldeTown: ['34541', '34542'],      // Middle - Olde Town Arvada (dual-platform: EB, WB)
         goldStrike: ['34525', '34526'],    // Middle - 60th/Sheridan Gold Strike (dual-platform: Track 1 & 2)
         pecosJunction: ['34544', '34543'], // Middle - Transfer point (dual-platform: Track 1 NB, Track 2 SB)
@@ -1199,6 +1199,20 @@
           console.log('✅ All G Line stations fetched');
 
           // Process Ward Station (Terminal - western endpoint)
+          // ENHANCED DEBUG: Log raw API response first
+          console.log('🔍 WARD STATION RAW API RESPONSE:', {
+            totalArrivals: wardRes.arrivals?.length || 0,
+            allArrivals: wardRes.arrivals?.map(a => ({
+              routeId: a.routeId,
+              directionId: a.directionId,
+              stopId: a.stopId,
+              tripId: a.tripId,
+              arrivalTime: a.arrivalTime,
+              departureTime: a.departureTime,
+              status: a.status
+            })) || []
+          });
+
           // Try as middle station: westbound (arriving from Union) and eastbound (departing to Union)
           const wardData = processMiddleStation(
             wardRes.arrivals,
@@ -1215,17 +1229,12 @@
             departing: wardData.eastbound || []
           };
 
-          // DEBUG: Log Ward Station data
-          console.log('🔍 WARD STATION DEBUG:', {
-            totalArrivals: wardRes.arrivals?.length || 0,
+          // DEBUG: Log processed Ward Station data
+          console.log('🔍 WARD STATION PROCESSED:', {
             westbound: wardData.westbound?.length || 0,
             eastbound: wardData.eastbound?.length || 0,
-            sampleArrival: wardRes.arrivals?.[0] ? {
-              routeId: wardRes.arrivals[0].routeId,
-              directionId: wardRes.arrivals[0].directionId,
-              arrivalTime: wardRes.arrivals[0].arrivalTime,
-              departureTime: wardRes.arrivals[0].departureTime
-            } : 'NO DATA'
+            arriving: wardDataTerminal.arriving?.length || 0,
+            departing: wardDataTerminal.departing?.length || 0
           });
 
           // Process Olde Town Arvada (Middle - pass-through)
@@ -1345,6 +1354,30 @@
           );
 
           // Process Union Station (Terminal - southbound endpoint)
+          // ENHANCED DEBUG: Log raw API response for Union and Pecos
+          console.log('🔍 B LINE RAW API RESPONSES:', {
+            union: {
+              totalArrivals: unionRes.arrivals?.length || 0,
+              allArrivals: unionRes.arrivals?.map(a => ({
+                routeId: a.routeId,
+                directionId: a.directionId,
+                stopId: a.stopId,
+                tripId: a.tripId,
+                arrivalTime: a.arrivalTime,
+                departureTime: a.departureTime
+              })) || []
+            },
+            pecos: {
+              totalArrivals: pecosRes.arrivals?.length || 0,
+              allArrivals: pecosRes.arrivals?.map(a => ({
+                routeId: a.routeId,
+                directionId: a.directionId,
+                stopId: a.stopId,
+                tripId: a.tripId
+              })) || []
+            }
+          });
+
           // Shows trains arriving from north (dir 0 northbound) and departing to north (dir 1 southbound)
           const unionData = processTerminalStation(
             unionRes.arrivals,
@@ -1353,16 +1386,12 @@
             0   // departing to north (northbound trains starting from Union to Westminster)
           );
 
-          // DEBUG: Log B Line Union and Pecos data
-          console.log('🔍 B LINE DEBUG:', {
-            unionTotal: unionRes.arrivals?.length || 0,
+          // DEBUG: Log B Line processed data
+          console.log('🔍 B LINE PROCESSED:', {
             unionArriving: unionData.arriving?.length || 0,
             unionDeparting: unionData.departing?.length || 0,
-            pecosTotal: pecosRes.arrivals?.length || 0,
             pecosNorthbound: pecosData.northbound?.length || 0,
-            pecosSouthbound: pecosData.southbound?.length || 0,
-            sampleUnion: unionRes.arrivals?.[0],
-            samplePecos: pecosRes.arrivals?.[0]
+            pecosSouthbound: pecosData.southbound?.length || 0
           });
 
           // Update station-based state
@@ -1971,12 +2000,18 @@
                             </div>
                           ) : (
                             lineData.map((line, lineIdx) => {
-                              // Count total active trains for this line
-                              const totalTrains = line.sections?.reduce((sum, section) => {
-                                return sum + section.rows.reduce((rowSum, row) => {
-                                  return rowSum + (row.trains?.filter(t => t).length || 0);
-                                }, 0);
-                              }, 0) || 0;
+                              // Count UNIQUE trains by tripId (not time slots)
+                              const uniqueTripIds = new Set();
+                              line.sections?.forEach(section => {
+                                section.rows.forEach(row => {
+                                  row.trains?.forEach(train => {
+                                    if (train && train.tripId) {
+                                      uniqueTripIds.add(train.tripId);
+                                    }
+                                  });
+                                });
+                              });
+                              const totalTrains = uniqueTripIds.size;
 
                               return (
                               <div key={lineIdx} className={`space-y-4 p-4 rounded-xl ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50'} border-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} transition-all hover:shadow-lg`}>
