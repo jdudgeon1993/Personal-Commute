@@ -1,0 +1,618 @@
+/* ============================================
+   Commute Dashboard 2.0 - Design System
+   ============================================ */
+
+:root {
+  /* Colors - Light Mode */
+  --primary: #3b82f6;
+  --secondary: #8b5cf6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  --border-color: #e2e8f0;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+
+  /* Transit Line Colors */
+  --n-line: #7c3aed;
+  --g-line: #10b981;
+  --b-line: #3b82f6;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Transitions */
+  --transition-fast: 150ms ease-in-out;
+  --transition-base: 200ms ease-in-out;
+  --transition-slow: 300ms ease-in-out;
+}
+
+/* Dark Mode */
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-card: #1e293b;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --border-color: #334155;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   Layout
+   ============================================ */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+/* ============================================
+   Header
+   ============================================ */
+
+.header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  padding: var(--space-lg) 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.header-title h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.header-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.header-greeting {
+  font-size: 1rem;
+  color: var(--primary);
+  font-weight: 600;
+  margin-top: var(--space-xs);
+}
+
+.header-controls {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+/* ============================================
+   Weather Widget
+   ============================================ */
+
+.weather-widget {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--bg-secondary);
+  padding: var(--space-md);
+  border-radius: var(--radius-xl);
+}
+
+.weather-icon {
+  width: 64px;
+  height: 64px;
+}
+
+.weather-temp {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.weather-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.weather-details {
+  display: flex;
+  gap: var(--space-md);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+
+.btn {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-secondary);
+}
+
+.btn-icon {
+  padding: var(--space-sm);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================
+   Tabs
+   ============================================ */
+
+.tabs {
+  display: flex;
+  gap: var(--space-sm);
+  border-bottom: 2px solid var(--border-color);
+  margin-top: var(--space-xl);
+  overflow-x: auto;
+}
+
+.tab {
+  padding: var(--space-md) var(--space-lg);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* ============================================
+   Cards
+   ============================================ */
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-base);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+}
+
+.card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.card-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* ============================================
+   Drive Time Cards
+   ============================================ */
+
+.drive-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+.drive-card {
+  position: relative;
+}
+
+.drive-time {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--warning);
+  text-align: center;
+  margin: var(--space-lg) 0;
+}
+
+.drive-context {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.drive-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.drive-updated {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: var(--space-sm);
+}
+
+/* ============================================
+   Toggle Switch
+   ============================================ */
+
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-tertiary);
+  transition: var(--transition-base);
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: var(--transition-base);
+  border-radius: 50%;
+}
+
+.toggle input:checked + .toggle-slider {
+  background-color: var(--success);
+}
+
+.toggle input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+/* ============================================
+   Transit Cards
+   ============================================ */
+
+.station-selector {
+  margin-bottom: var(--space-lg);
+}
+
+.station-selector select {
+  width: 100%;
+  padding: var(--space-md);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.station-selector select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.transit-card {
+  margin-top: var(--space-lg);
+}
+
+.transit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.station-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.next-train-badge {
+  background: var(--warning);
+  color: white;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.arrivals-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+}
+
+.direction-section h4 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.arrival-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.arrival-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+}
+
+.arrival-item:hover {
+  background: var(--bg-tertiary);
+  transform: translateX(4px);
+}
+
+.arrival-time {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.arrival-countdown {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.arrival-countdown.soon {
+  color: var(--warning);
+}
+
+.arrival-countdown.imminent {
+  color: var(--danger);
+}
+
+/* ============================================
+   Loading States
+   ============================================ */
+
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: var(--space-xl);
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================
+   Utilities
+   ============================================ */
+
+.hidden {
+  display: none !important;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+@media (max-width: 768px) {
+  .header-title h1 {
+    font-size: 1.5rem;
+  }
+
+  .weather-widget {
+    width: 100%;
+  }
+
+  .arrivals-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .drive-time {
+    font-size: 2.5rem;
+  }
+
+  .tabs {
+    padding: 0 var(--space-sm);
+  }
+
+  .tab {
+    padding: var(--space-md) var(--space-sm);
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 var(--space-sm);
+  }
+
+  .header {
+    padding: var(--space-md) 0;
+  }
+
+  .card {
+    padding: var(--space-md);
+  }
+}
