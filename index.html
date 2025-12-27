@@ -615,17 +615,20 @@
           northboundRows.push({
             station: 'Union Station',
             trains: getNextTwoTrains(nLineData.unionStation?.departing || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           northboundRows.push({
             station: '48th & Brighton at NWC',
             trains: getNextTwoTrains(nLineData.station48thBrighton?.northbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           northboundRows.push({
             station: 'Northgenn & 112th',
             trains: getNextTwoTrains(nLineData.station112th?.northbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           nLineSections.push({ title: 'Northbound', rows: northboundRows });
 
@@ -634,17 +637,20 @@
           southboundRows.push({
             station: 'Northgenn & 112th',
             trains: getNextTwoTrains(nLineData.station112th?.southbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           southboundRows.push({
             station: '48th & Brighton at NWC',
             trains: getNextTwoTrains(nLineData.station48thBrighton?.southbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           southboundRows.push({
             station: 'Union Station',
             trains: getNextTwoTrains(nLineData.unionStation?.arriving || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           nLineSections.push({ title: 'Southbound', rows: southboundRows });
 
@@ -664,17 +670,20 @@
           westboundRows.push({
             station: 'Union Station',
             trains: getNextTwoTrains(bLineData.unionStation?.departing || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           westboundRows.push({
             station: 'Pecos Junction',
             trains: getNextTwoTrains(bLineData.pecosJunction?.northbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           westboundRows.push({
             station: 'Westminster Station',
             trains: getNextTwoTrains(bLineData.westminster?.arriving || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           bLineSections.push({ title: 'Westbound', rows: westboundRows });
 
@@ -683,17 +692,20 @@
           eastboundRows.push({
             station: 'Westminster Station',
             trains: getNextTwoTrains(bLineData.westminster?.departing || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           eastboundRows.push({
             station: 'Pecos Junction',
             trains: getNextTwoTrains(bLineData.pecosJunction?.southbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           eastboundRows.push({
             station: 'Union Station',
             trains: getNextTwoTrains(bLineData.unionStation?.arriving || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           bLineSections.push({ title: 'Eastbound', rows: eastboundRows });
 
@@ -713,27 +725,32 @@
           northboundRows.push({
             station: 'Union Station',
             trains: getNextTwoTrains(gLineData.unionStation?.departing || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           northboundRows.push({
             station: 'Pecos Junction',
             trains: getNextTwoTrains(gLineData.pecosJunction?.eastbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           northboundRows.push({
             station: 'Gold Strike',
             trains: getNextTwoTrains(gLineData.goldStrike?.eastbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           northboundRows.push({
             station: 'Old Town Arvada',
             trains: getNextTwoTrains(gLineData.oldeTown?.eastbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           northboundRows.push({
             station: 'Ward Station',
             trains: getNextTwoTrains(gLineData.wardStation?.arriving || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           gLineSections.push({ title: 'Northbound', rows: northboundRows });
 
@@ -742,27 +759,32 @@
           southboundRows.push({
             station: 'Ward Station',
             trains: getNextTwoTrains(gLineData.wardStation?.departing || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           southboundRows.push({
             station: 'Old Town Arvada',
             trains: getNextTwoTrains(gLineData.oldeTown?.westbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           southboundRows.push({
             station: 'Gold Strike',
             trains: getNextTwoTrains(gLineData.goldStrike?.westbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           southboundRows.push({
             station: 'Pecos Junction',
             trains: getNextTwoTrains(gLineData.pecosJunction?.westbound || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           southboundRows.push({
             station: 'Union Station',
             trains: getNextTwoTrains(gLineData.unionStation?.arriving || []),
-            getStatus: getTrainStatus
+            getStatus: getTrainStatus,
+            getCountdown: getCountdown
           });
           gLineSections.push({ title: 'Southbound', rows: southboundRows });
 
@@ -2047,13 +2069,13 @@
                                                       <span className={`font-mono font-bold text-lg ${textColor} px-3 py-1.5 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-white'} border-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
                                                         {nextTrain.departureTime || nextTrain.arrivalTime || '—'}
                                                       </span>
-                                                      {getCountdown(nextTrain) && (
+                                                      {row.getCountdown && row.getCountdown(nextTrain) && (
                                                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                                                          getCountdown(nextTrain) === 'Now' ? 'bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100' :
-                                                          getCountdown(nextTrain) === 'Departed' ? 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400' :
+                                                          row.getCountdown(nextTrain) === 'Now' ? 'bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100' :
+                                                          row.getCountdown(nextTrain) === 'Departed' ? 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400' :
                                                           'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
                                                         }`}>
-                                                          {getCountdown(nextTrain)}
+                                                          {row.getCountdown(nextTrain)}
                                                         </span>
                                                       )}
                                                     </div>
@@ -2069,9 +2091,9 @@
                                                       <span className={`font-mono font-semibold text-base ${textColor} px-3 py-1 rounded-lg ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-100'}`}>
                                                         {upcomingTrain.departureTime || upcomingTrain.arrivalTime || '—'}
                                                       </span>
-                                                      {getCountdown(upcomingTrain) && (
+                                                      {row.getCountdown && row.getCountdown(upcomingTrain) && (
                                                         <span className={`text-xs font-medium px-2 py-0.5 rounded ${textMuted}`}>
-                                                          {getCountdown(upcomingTrain)}
+                                                          {row.getCountdown(upcomingTrain)}
                                                         </span>
                                                       )}
                                                     </div>
