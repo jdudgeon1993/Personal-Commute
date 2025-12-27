@@ -1718,8 +1718,12 @@
 
                   {/* Station markers */}
                   {nLineStations.map((station, idx) => {
-                    // Abbreviate names for mobile
-                    const shortName = station.name.replace('Station', '').replace('/Eastlake', '').replace('/Brighton', '').trim();
+                    // Ultra-short names for mobile
+                    const mobileName =
+                      station.name === 'Union Station' ? 'Union' :
+                      station.name === '48th/Brighton' ? '48th' :
+                      station.name === '112th Ave' ? '112th' :
+                      '124th';
                     return (
                       <div
                         key={station.id}
@@ -1727,10 +1731,10 @@
                         style={{ left: `${station.visualPos}%` }}
                         title={station.name}
                       >
-                        <div className={`w-2 h-2 sm:w-3.5 sm:h-3.5 rounded-full ${isDarkMode ? 'bg-purple-400' : 'bg-purple-600'} border sm:border-2 ${isDarkMode ? 'border-gray-900' : 'border-white'} shadow-lg`}></div>
-                        <div className={`text-xs mt-0.5 sm:mt-1.5 whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontSize: '7px', marginLeft: '-50%', textAlign: 'center', width: '60px' }}>
-                          <span className="hidden sm:inline">{station.name}</span>
-                          <span className="sm:hidden">{shortName}</span>
+                        <div className={`w-1.5 h-1.5 sm:w-3.5 sm:h-3.5 rounded-full ${isDarkMode ? 'bg-purple-400' : 'bg-purple-600'} border sm:border-2 ${isDarkMode ? 'border-gray-900' : 'border-white'}`}></div>
+                        <div className={`mt-0.5 sm:mt-1.5 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontSize: '6px', width: '40px', marginLeft: '-20px' }}>
+                          <div className="sm:hidden">{mobileName}</div>
+                          <div className="hidden sm:block text-xs">{station.name}</div>
                         </div>
                       </div>
                     );
@@ -1774,7 +1778,11 @@
 
                   {/* Station markers */}
                   {nLineStations.map((station, idx) => {
-                    const shortName = station.name.replace('Station', '').replace('/Eastlake', '').replace('/Brighton', '').trim();
+                    const mobileName =
+                      station.name === 'Union Station' ? 'Union' :
+                      station.name === '48th/Brighton' ? '48th' :
+                      station.name === '112th Ave' ? '112th' :
+                      '124th';
                     return (
                       <div
                         key={station.id}
@@ -1782,10 +1790,10 @@
                         style={{ left: `${station.visualPos}%` }}
                         title={station.name}
                       >
-                        <div className={`w-2 h-2 sm:w-3.5 sm:h-3.5 rounded-full ${isDarkMode ? 'bg-purple-400' : 'bg-purple-600'} border sm:border-2 ${isDarkMode ? 'border-gray-900' : 'border-white'} shadow-lg`}></div>
-                        <div className={`text-xs mt-0.5 sm:mt-1.5 whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontSize: '7px', marginLeft: '-50%', textAlign: 'center', width: '60px' }}>
-                          <span className="hidden sm:inline">{station.name}</span>
-                          <span className="sm:hidden">{shortName}</span>
+                        <div className={`w-1.5 h-1.5 sm:w-3.5 sm:h-3.5 rounded-full ${isDarkMode ? 'bg-purple-400' : 'bg-purple-600'} border sm:border-2 ${isDarkMode ? 'border-gray-900' : 'border-white'}`}></div>
+                        <div className={`mt-0.5 sm:mt-1.5 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontSize: '6px', width: '40px', marginLeft: '-20px' }}>
+                          <div className="sm:hidden">{mobileName}</div>
+                          <div className="hidden sm:block text-xs">{station.name}</div>
                         </div>
                       </div>
                     );
