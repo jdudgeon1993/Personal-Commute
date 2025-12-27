@@ -20,6 +20,11 @@ const App = {
       evening: null,
     },
     transitData: {},
+    vehiclePositions: {
+      vehicles: [],
+      timestamp: null,
+      routeSummary: { '117N': 0, '113G': 0, '113B': 0 }
+    },
     loading: {
       initial: true,
       weather: false,
@@ -135,6 +140,7 @@ const App = {
       this.fetchWeather(),
       this.fetchDriveTimes(),
       this.fetchTransitData(),
+      this.fetchVehiclePositions(),
     ]);
 
     this.state.loading.weather = false;
@@ -189,6 +195,16 @@ const App = {
   },
 
   /**
+   * Fetch vehicle positions for live GPS tracking
+   */
+  async fetchVehiclePositions() {
+    console.log('🚆 Fetching vehicle positions...');
+    const data = await API.getVehiclePositions();
+    this.state.vehiclePositions = data;
+    console.log(`✅ Got ${data.vehicles.length} vehicles:`, data.routeSummary);
+  },
+
+  /**
    * Set up auto-refresh timers
    */
   setupAutoRefresh() {
@@ -212,6 +228,11 @@ const App = {
         this.fetchTransitData().then(() => this.render());
       }
     }, this.config.refreshIntervals.transit);
+
+    // Vehicle positions refresh (10 seconds for live tracking)
+    setInterval(() => {
+      this.fetchVehiclePositions().then(() => this.render());
+    }, 10000);
   },
 
   /**
@@ -563,6 +584,8 @@ const App = {
           </select>
         </div>
 
+        ${this.renderVisualTrack(lineId)}
+
         <div class="transit-header">
           <div class="station-name">
             📍 ${data.stopName}
@@ -586,6 +609,122 @@ const App = {
             <p style="font-size: 0.875rem; margin-top: 0.5rem;">
               Service may be limited at this time
             </p>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  },
+
+  /**
+   * Render visual track with live train positions
+   */
+  renderVisualTrack(lineId) {
+    const vehicles = this.state.vehiclePositions.vehicles.filter(v => v.routeId === lineId);
+
+    if (vehicles.length === 0) {
+      return ''; // Don't show track if no vehicles
+    }
+
+    // Station configurations for each line
+    const stationConfigs = {
+      '117N': [
+        { id: '34668', name: 'Union', lat: 39.7539, lng: -105.0000, pos: 3 },
+        { id: '35246', name: '48th', lat: 39.7809, lng: -104.9693, pos: 25 },
+        { id: '35254', name: '112th', lat: 39.9158, lng: -104.9872, pos: 70 },
+        { id: '35365', name: '124th', lat: 39.9308, lng: -104.9900, pos: 97 }
+      ],
+      '113G': [
+        { id: '34781', name: 'Union', pos: 5 },
+        { id: '34544', name: 'Pecos', pos: 35 },
+        { id: '34541', name: 'Olde Town', pos: 70 },
+        { id: '34510', name: 'Ward', pos: 95 }
+      ],
+      '113B': [
+        { id: '34782', name: 'Union', pos: 5 },
+        { id: '34544', name: 'Pecos', pos: 50 },
+        { id: '34560', name: 'Westminster', pos: 95 }
+      ]
+    };
+
+    const stations = stationConfigs[lineId] || [];
+    const northbound = vehicles.filter(v => v.directionId === 0);
+    const southbound = vehicles.filter(v => v.directionId === 1);
+
+    // Calculate train position on track (0-100%)
+    const getTrainPosition = (vehicle) => {
+      if (!vehicle.latitude || !vehicle.longitude || !stations[0].lat) {
+        return 50; // Fallback
+      }
+
+      const trainLat = vehicle.latitude;
+      const trainLng = vehicle.longitude;
+
+      // Find closest stations
+      const distances = stations.map((station, idx) => {
+        const latDiff = trainLat - station.lat;
+        const lngDiff = trainLng - station.lng;
+        const dist = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+        return { station, idx, dist };
+      });
+
+      distances.sort((a, b) => a.dist - b.dist);
+      const closest = distances[0];
+      const secondClosest = distances[1];
+
+      const station1 = closest.idx < secondClosest.idx ? closest : secondClosest;
+      const station2 = closest.idx < secondClosest.idx ? secondClosest : closest;
+
+      const totalDist = station1.dist + station2.dist;
+      const ratio = station1.dist / totalDist;
+
+      const position = station1.station.pos + (station2.station.pos - station1.station.pos) * ratio;
+      return Math.max(1, Math.min(99, position));
+    };
+
+    return `
+      <div class="visual-track">
+        <div class="track-header">
+          <div class="track-title">🚆 Live Train Positions</div>
+          <div class="track-count">${vehicles.length}</div>
+        </div>
+
+        ${northbound.length > 0 ? `
+          <div class="track-direction">
+            <div class="track-label">⬆️ Northbound</div>
+            <div class="track-line">
+              ${stations.map(station => `
+                <div class="track-station" style="left: ${station.pos}%">
+                  <div class="station-dot"></div>
+                  <div class="station-label">${station.name}</div>
+                </div>
+              `).join('')}
+              ${northbound.map(vehicle => `
+                <div class="train-marker" style="left: ${getTrainPosition(vehicle)}%">
+                  <div class="train-icon">🚆</div>
+                  <div class="train-label">${vehicle.label || ''}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${southbound.length > 0 ? `
+          <div class="track-direction">
+            <div class="track-label">⬇️ Southbound</div>
+            <div class="track-line">
+              ${stations.map(station => `
+                <div class="track-station" style="left: ${station.pos}%">
+                  <div class="station-dot"></div>
+                  <div class="station-label">${station.name}</div>
+                </div>
+              `).join('')}
+              ${southbound.map(vehicle => `
+                <div class="train-marker" style="left: ${getTrainPosition(vehicle)}%">
+                  <div class="train-icon">🚆</div>
+                  <div class="train-label">${vehicle.label || ''}</div>
+                </div>
+              `).join('')}
+            </div>
           </div>
         ` : ''}
       </div>
