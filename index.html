@@ -1639,9 +1639,9 @@
           { id: '35367', name: '124th/Eastlake', sequence: 4, lat: 39.9308, lng: -104.9900 }
         ];
 
-        // Separate by direction
-        const northbound = routeVehicles.filter(v => v.directionId === 1);
-        const southbound = routeVehicles.filter(v => v.directionId === 0);
+        // Separate by direction (RTD uses: 0=Northbound away from Union, 1=Southbound towards Union)
+        const northbound = routeVehicles.filter(v => v.directionId === 0);
+        const southbound = routeVehicles.filter(v => v.directionId === 1);
 
         // Calculate train position between stations using GPS coordinates (0-100%)
         const getTrainPosition = (vehicle) => {
