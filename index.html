@@ -1454,6 +1454,15 @@
           console.log(`✅ Vehicle positions updated: ${data.vehicleCount} trains tracked`);
           console.log('📊 Route summary:', data.routeSummary);
 
+          // Debug: Log N Line vehicle GPS coordinates
+          const nLineVehicles = (data.vehicles || []).filter(v => v.routeId === '117N');
+          if (nLineVehicles.length > 0) {
+            console.log('🔍 N Line vehicle positions:');
+            nLineVehicles.forEach(v => {
+              console.log(`  - Vehicle ${v.label}: Lat ${v.latitude?.toFixed(4)}, Lng ${v.longitude?.toFixed(4)}, Stop Seq ${v.currentStopSequence}, Dir ${v.directionId}`);
+            });
+          }
+
         } catch (error) {
           console.error('❌ Vehicle positions error:', error);
           setVehiclePositions({
@@ -1622,35 +1631,73 @@
           return null; // Don't show track if no vehicles
         }
 
-        // Define stations for N Line
+        // Define stations for N Line with GPS coordinates
         const nLineStations = [
-          { id: '34667', name: 'Union Station', sequence: 1 },
-          { id: '35246', name: '48th/Brighton', sequence: 2 },
-          { id: '35254', name: '112th Ave', sequence: 3 },
-          { id: '35367', name: '124th/Eastlake', sequence: 4 }
+          { id: '34667', name: 'Union Station', sequence: 1, lat: 39.7539, lng: -105.0000 },
+          { id: '35246', name: '48th/Brighton', sequence: 2, lat: 39.7809, lng: -104.9693 },
+          { id: '35254', name: '112th Ave', sequence: 3, lat: 39.9158, lng: -104.9872 },
+          { id: '35367', name: '124th/Eastlake', sequence: 4, lat: 39.9308, lng: -104.9900 }
         ];
 
         // Separate by direction
         const northbound = routeVehicles.filter(v => v.directionId === 1);
         const southbound = routeVehicles.filter(v => v.directionId === 0);
 
-        // Calculate train position between stations (0-100%)
+        // Calculate train position between stations using GPS coordinates (0-100%)
         const getTrainPosition = (vehicle) => {
-          const stopSeq = vehicle.currentStopSequence || 0;
+          if (!vehicle.latitude || !vehicle.longitude) {
+            // Fallback to stop sequence if no GPS
+            const stopSeq = vehicle.currentStopSequence || 0;
+            console.log(`📍 Vehicle ${vehicle.label}: No GPS, using stop sequence ${stopSeq}`);
+            if (stopSeq <= 1) return 10;
+            if (stopSeq === 2) return 35;
+            if (stopSeq === 3) return 65;
+            if (stopSeq >= 4) return 90;
+            return 50;
+          }
 
-          // Position based on stop sequence (0-4 for N Line)
-          if (stopSeq <= 1) return 10; // Near Union
-          if (stopSeq === 2) return 35; // Near 48th
-          if (stopSeq === 3) return 65; // Near 112th
-          if (stopSeq >= 4) return 90; // Near 124th
+          // Calculate position based on GPS coordinates
+          const trainLat = vehicle.latitude;
+          const trainLng = vehicle.longitude;
 
-          // Default: middle
-          return 50;
+          // Calculate distance from each station
+          const distances = nLineStations.map((station, idx) => {
+            const latDiff = trainLat - station.lat;
+            const lngDiff = trainLng - station.lng;
+            const dist = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+            return { station, idx, dist };
+          });
+
+          // Sort by distance to find closest stations
+          distances.sort((a, b) => a.dist - b.dist);
+          const closest = distances[0];
+          const secondClosest = distances[1];
+
+          // Calculate position between the two closest stations
+          const station1 = closest.idx < secondClosest.idx ? closest : secondClosest;
+          const station2 = closest.idx < secondClosest.idx ? secondClosest : closest;
+
+          const totalDist = station1.dist + station2.dist;
+          const ratio = station1.dist / totalDist;
+
+          // Map to visual positions (5%, 32%, 64%, 95%)
+          const visualPositions = [5, 32, 64, 95];
+          const startPos = visualPositions[station1.idx] || 5;
+          const endPos = visualPositions[station2.idx] || 95;
+
+          const position = startPos + (endPos - startPos) * ratio;
+
+          // Clamp between 5% and 95%
+          const finalPos = Math.max(5, Math.min(95, position));
+
+          console.log(`📍 Vehicle ${vehicle.label}: GPS (${trainLat.toFixed(4)}, ${trainLng.toFixed(4)}) → Position ${finalPos.toFixed(1)}% (between ${station1.station.name} and ${station2.station.name})`);
+
+          return finalPos;
         };
 
         return (
-          <div className={`mb-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-900/50' : 'bg-purple-50'} border-2 ${isDarkMode ? 'border-purple-600/30' : 'border-purple-200'}`}>
-            <div className="text-xs font-bold text-purple-400 mb-3 uppercase tracking-wide">
+          <div className={`mb-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-900/50' : 'bg-purple-50/30'} border-2 ${isDarkMode ? 'border-purple-600/30' : 'border-purple-300'}`}>
+            <div className={`text-xs font-bold mb-3 uppercase tracking-wide ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
               🚆 Live Train Positions ({routeVehicles.length} active)
             </div>
 
