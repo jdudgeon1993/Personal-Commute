@@ -62,10 +62,10 @@ const App = {
     },
     // N Line directional platforms - used for fetching combined data
     nLinePlatforms: {
-      '35365': { nb: null, sb: '35365', name: 'Eastlake & 124th' },      // Northern terminus: only SB trains
-      '35254': { nb: '35255', sb: '35254', name: '112th / Northglenn' }, // Mid-line: both platforms
-      '35246': { nb: '35247', sb: '35246', name: '48th & Brighton' },    // Mid-line: both platforms
-      '34668': { nb: '34668', sb: null, name: 'Union Station' },         // Southern terminus: only NB trains
+      '35365': ['35365'],  // Eastlake & 124th - northern terminus (both arrive NB, depart SB)
+      '35254': ['35254', '35255'],  // 112th / Northglenn - mid-line (separate platforms)
+      '35246': ['35246', '35247'],  // 48th & Brighton - mid-line (separate platforms)
+      '34668': ['34668'],  // Union Station - southern terminus (both arrive SB, depart NB)
     },
     stations: {
       '117N': [
@@ -257,26 +257,34 @@ const App = {
       for (const station of stations) {
         let data;
 
-        // Special handling for N Line - fetch from both platforms if needed
+        // Special handling for N Line - fetch from ALL platforms and merge
         if (lineId === '117N' && this.config.nLinePlatforms[station.id]) {
-          const platform = this.config.nLinePlatforms[station.id];
+          const platformIds = this.config.nLinePlatforms[station.id];
+          console.log(`🔍 Fetching ${station.name}: platforms=${platformIds.join(', ')}`);
 
-          console.log(`🔍 Fetching ${station.name}: NB platform=${platform.nb}, SB platform=${platform.sb}`);
+          const allNorthbound = [];
+          const allSouthbound = [];
 
-          const nbData = platform.nb ? await API.getLineArrivals(platform.nb, lineId) : { northbound: [], southbound: [] };
-          const sbData = platform.sb ? await API.getLineArrivals(platform.sb, lineId) : { northbound: [], southbound: [] };
+          // Fetch from each platform
+          for (const platformId of platformIds) {
+            const platformData = await API.getLineArrivals(platformId, lineId);
+            console.log(`  → Platform ${platformId}:`, platformData);
 
-          console.log(`  → NB fetch result:`, nbData);
-          console.log(`  → SB fetch result:`, sbData);
+            allNorthbound.push(...(platformData.northbound || []));
+            allSouthbound.push(...(platformData.southbound || []));
+          }
 
-          // Merge northbound from NB platform and southbound from SB platform
+          // Sort combined data by time
+          allNorthbound.sort((a, b) => a.time - b.time);
+          allSouthbound.sort((a, b) => a.time - b.time);
+
           data = {
-            northbound: nbData.northbound || [],
-            southbound: sbData.southbound || [],
+            northbound: allNorthbound,
+            southbound: allSouthbound,
             stopName: station.name,
           };
 
-          console.log(`✅ ${lineId} - ${station.name}: Merged data - NB: ${data.northbound.length} trains, SB: ${data.southbound.length} trains`);
+          console.log(`✅ ${lineId} - ${station.name}: Merged ${platformIds.length} platforms - NB: ${data.northbound.length} trains, SB: ${data.southbound.length} trains`);
         } else {
           // Standard fetch for G&B lines
           data = await API.getLineArrivals(station.id, lineId);
@@ -780,8 +788,16 @@ const App = {
             </div>
             <div class="train-list-compact">
               ${nextNB.length > 0 ? nextNB.map(train => {
-                const minutesAway = Math.max(0, train.minutesAway); // Don't show negative times
-                const status = minutesAway <= 1 ? 'Arriving' : 'Scheduled';
+                const minutesAway = Math.max(0, train.minutesAway);
+
+                // Determine status from GTFS data
+                let status = 'Scheduled';
+                if (minutesAway <= 1) {
+                  status = 'Arriving';
+                } else if (minutesAway <= 5) {
+                  status = 'Approaching';
+                }
+
                 return `
                   <div class="train-item-compact">
                     <div class="train-info-left">
@@ -814,8 +830,16 @@ const App = {
             </div>
             <div class="train-list-compact">
               ${nextSB.length > 0 ? nextSB.map(train => {
-                const minutesAway = Math.max(0, train.minutesAway); // Don't show negative times
-                const status = minutesAway <= 1 ? 'Departing' : 'Scheduled';
+                const minutesAway = Math.max(0, train.minutesAway);
+
+                // Determine status from GTFS data
+                let status = 'Scheduled';
+                if (minutesAway <= 1) {
+                  status = 'Arriving';
+                } else if (minutesAway <= 5) {
+                  status = 'Approaching';
+                }
+
                 return `
                   <div class="train-item-compact">
                     <div class="train-info-left">

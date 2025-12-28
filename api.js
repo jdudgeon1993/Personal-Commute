@@ -175,7 +175,7 @@ const API = {
       const data = await this.fetch(endpoint);
       console.log(`📊 API Response for ${stopId}:`, data);
 
-      // Normalize the response
+      // Normalize the response - preserve GTFS arrival/departure data
       const arrivals = (data.arrivals || [])
         .filter(arrival => {
           const matches = arrival.routeId === routeId;
@@ -184,14 +184,26 @@ const API = {
           }
           return matches;
         })
-        .map(arrival => ({
-          time: arrival.arrivalTime || arrival.departureTime,
-          timeFormatted: arrival.arrivalTimeFormatted || arrival.departureTimeFormatted,
-          routeId: arrival.routeId,
-          directionId: arrival.directionId,
-          tripId: arrival.tripId,
-          minutesAway: Math.round((arrival.arrivalTime - Date.now() / 1000) / 60),
-        }))
+        .map(arrival => {
+          // Preserve both arrival and departure times from GTFS
+          const arrivalTime = arrival.arrivalTime || arrival.departureTime;
+          const departureTime = arrival.departureTime || arrival.arrivalTime;
+          const now = Date.now() / 1000;
+
+          return {
+            time: arrivalTime, // Primary time for sorting/display
+            timeFormatted: arrival.arrivalTimeFormatted || arrival.departureTimeFormatted,
+            routeId: arrival.routeId,
+            directionId: arrival.directionId,
+            tripId: arrival.tripId,
+            minutesAway: Math.round((arrivalTime - now) / 60),
+            // GTFS-specific fields
+            arrivalTime: arrival.arrivalTime,
+            departureTime: arrival.departureTime,
+            isDeparture: arrival.isDeparture || false,
+            status: arrival.status || 'Scheduled',
+          };
+        })
         .sort((a, b) => a.time - b.time);
 
       console.log(`✅ Processed ${arrivals.length} arrivals for ${routeId} at ${stopId}`);
