@@ -38,8 +38,27 @@ const App = {
   // Configuration
   config: {
     locations: {
-      home: { lat: 39.9526, lng: -105.0008 }, // Northglenn
-      work: { lat: 39.7392, lng: -104.9903 }, // Denver Downtown
+      home: {
+        address: '11625 Community Center Drive, Northglenn, CO',
+        lat: null,
+        lng: null
+      },
+      garage: {
+        address: '1801 California Street, Denver, CO 80202',
+        lat: null,
+        lng: null
+      },
+      work: {
+        address: '707 17th Street, Denver, CO 80202',
+        lat: null,
+        lng: null
+      },
+    },
+    // Your preferred station for each line
+    myStations: {
+      '117N': '35254',  // 112th / Northglenn
+      '113G': '34781',  // Union Station
+      '113B': '34782',  // Union Station
     },
     stations: {
       '117N': [
@@ -150,47 +169,98 @@ const App = {
   },
 
   /**
+   * Geocode an address to get coordinates
+   */
+  async geocodeAddress(address) {
+    try {
+      const response = await fetch(`/api/geocode?address=${encodeURIComponent(address)}`);
+      const data = await response.json();
+      if (data.results && data.results[0]) {
+        const location = data.results[0].geometry.location;
+        return { lat: location.lat, lng: location.lng };
+      }
+      return null;
+    } catch (error) {
+      console.error('Geocoding failed:', error);
+      return null;
+    }
+  },
+
+  /**
    * Fetch weather data
    */
   async fetchWeather() {
-    const { lat, lng } = this.config.locations.home;
-    this.state.weather = await API.getWeather(lat, lng);
+    let home = this.config.locations.home;
+
+    // Geocode if we don't have coordinates yet
+    if (!home.lat || !home.lng) {
+      const coords = await this.geocodeAddress(home.address);
+      if (coords) {
+        home.lat = coords.lat;
+        home.lng = coords.lng;
+      }
+    }
+
+    this.state.weather = await API.getWeather(home.lat, home.lng);
   },
 
   /**
-   * Fetch drive times (both morning and evening)
+   * Fetch drive times (home -> work via garage)
    */
   async fetchDriveTimes() {
-    const { home, work } = this.config.locations;
+    const { home, garage, work } = this.config.locations;
 
-    // Morning commute (home -> work)
+    // Geocode addresses if needed
+    for (const location of [home, garage, work]) {
+      if (!location.lat || !location.lng) {
+        const coords = await this.geocodeAddress(location.address);
+        if (coords) {
+          location.lat = coords.lat;
+          location.lng = coords.lng;
+        }
+      }
+    }
+
+    // Morning commute (home -> garage for parking)
     this.state.driveTime.morning = await API.getDriveTimes(
       home,
-      work,
+      garage,
       this.state.avoidHighways
     );
 
-    // Evening commute (work -> home)
+    // Evening commute (garage -> home)
     this.state.driveTime.evening = await API.getDriveTimes(
-      work,
+      garage,
       home,
       this.state.avoidHighways
     );
   },
 
   /**
-   * Fetch transit data for all lines
+   * Fetch transit data for ALL stations on all lines
    */
   async fetchTransitData() {
     const lines = ['117N', '113G', '113B'];
 
-    console.log('🚆 Fetching transit data for all lines...');
-    for (const line of lines) {
-      const stationId = this.state.selectedStation[line];
-      console.log(`  → Line ${line}: Station ${stationId}`);
-      this.state.transitData[line] = await API.getLineArrivals(stationId, line);
-      console.log(`  ✓ Line ${line}: ${this.state.transitData[line].arrivals.length} arrivals`);
+    console.log('🚆 Fetching transit data for all lines and stations...');
+
+    for (const lineId of lines) {
+      const stations = this.config.stations[lineId] || [];
+      const lineData = {};
+
+      // Fetch data for each station on this line
+      for (const station of stations) {
+        const data = await API.getLineArrivals(station.id, lineId);
+        lineData[station.id] = {
+          ...data,
+          stationName: station.name,
+        };
+      }
+
+      this.state.transitData[lineId] = lineData;
+      console.log(`✅ ${lineId}: Loaded ${stations.length} stations`);
     }
+
     console.log('✅ Transit data fetch complete');
   },
 
@@ -320,6 +390,14 @@ const App = {
   },
 
   /**
+   * Switch selected line
+   */
+  switchLine(lineId) {
+    this.state.selectedLine = lineId;
+    this.render();
+  },
+
+  /**
    * Set up event listeners
    */
   setupEventListeners() {
@@ -327,6 +405,7 @@ const App = {
     window.appRefresh = () => this.handleRefresh();
     window.appToggleTheme = () => this.toggleTheme();
     window.appSwitchTab = (tab) => this.switchTab(tab);
+    window.appSwitchLine = (lineId) => this.switchLine(lineId);
     window.appChangeStation = (line, station) => this.changeStation(line, station);
     window.appToggleHighways = () => this.toggleAvoidHighways();
   },
@@ -474,12 +553,286 @@ const App = {
   },
 
   /**
-   * Render main content
+   * Render main content - Concept 1: Single Page Dashboard
    */
   renderContent() {
+    const lineId = this.state.selectedLine;
+    const lineData = this.state.transitData[lineId] || {};
+    const vehicles = this.state.vehiclePositions.vehicles.filter(v => v.routeId === lineId);
+    const myStation = this.config.myStations[lineId];
+
     return `
-      <div class="container" style="margin-top: 2rem; margin-bottom: 2rem;">
-        ${this.state.activeTab === 'drive' ? this.renderDriveTab() : this.renderTransitTab()}
+      <div class="container dashboard">
+        <!-- Compact Drive Cards -->
+        ${this.renderCompactDriveCards()}
+
+        <!-- Line Tabs -->
+        ${this.renderLineTabs()}
+
+        <!-- Visual Track with Active Count -->
+        ${this.renderVisualTrackReference(lineId, vehicles.length)}
+
+        <!-- Your Station Focus -->
+        ${this.renderYourStation(lineData[myStation], lineId)}
+
+        <!-- All Stations Quick View -->
+        ${this.renderAllStationsQuickView(lineId, lineData)}
+      </div>
+    `;
+  },
+
+  /**
+   * CONCEPT 1 RENDER FUNCTIONS
+   */
+
+  /**
+   * Render compact drive time cards
+   */
+  renderCompactDriveCards() {
+    const { morning, evening } = this.state.driveTime;
+
+    if (!morning || !evening) {
+      return `
+        <div class="compact-drive-section">
+          <div class="skeleton" style="height: 80px;"></div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="compact-drive-section">
+        <h3 class="section-title">🚗 Drive Times</h3>
+        <div class="compact-drive-cards">
+          <div class="compact-drive-card">
+            <div class="compact-drive-icon">☀️</div>
+            <div class="compact-drive-info">
+              <div class="compact-drive-label">Morning (Home → Garage)</div>
+              <div class="compact-drive-time">${morning.minutes} min</div>
+              <div class="compact-drive-distance">${morning.distance} mi</div>
+            </div>
+          </div>
+          <div class="compact-drive-card">
+            <div class="compact-drive-icon">🌙</div>
+            <div class="compact-drive-info">
+              <div class="compact-drive-label">Evening (Garage → Home)</div>
+              <div class="compact-drive-time">${evening.minutes} min</div>
+              <div class="compact-drive-distance">${evening.distance} mi</div>
+            </div>
+          </div>
+        </div>
+        <div class="drive-toggle compact">
+          <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;">
+            🛣️ Avoid Highways
+          </div>
+          <label class="toggle">
+            <input type="checkbox"
+                   ${this.state.avoidHighways ? 'checked' : ''}
+                   onchange="appToggleHighways()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Render line selector tabs
+   */
+  renderLineTabs() {
+    const lines = [
+      { id: '117N', label: 'N Line', color: '#FF6B6B' },
+      { id: '113G', label: 'G Line', color: '#4ECDC4' },
+      { id: '113B', label: 'B Line', color: '#95E1D3' }
+    ];
+
+    return `
+      <div class="line-tabs">
+        ${lines.map(line => `
+          <button class="line-tab ${this.state.selectedLine === line.id ? 'active' : ''}"
+                  style="--line-color: ${line.color}"
+                  onclick="appSwitchLine('${line.id}')">
+            🚆 ${line.label}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  /**
+   * Render visual track reference with active train count
+   */
+  renderVisualTrackReference(lineId, activeCount) {
+    const stationConfigs = {
+      '117N': [
+        { id: '34668', name: 'Union', pos: 3 },
+        { id: '35246', name: '48th', pos: 25 },
+        { id: '35254', name: '112th', pos: 70 },
+        { id: '35365', name: '124th', pos: 97 }
+      ],
+      '113G': [
+        { id: '34781', name: 'Union', pos: 5 },
+        { id: '34544', name: 'Pecos', pos: 35 },
+        { id: '34541', name: 'Olde Town', pos: 70 },
+        { id: '34510', name: 'Ward', pos: 95 }
+      ],
+      '113B': [
+        { id: '34782', name: 'Union', pos: 5 },
+        { id: '34544', name: 'Pecos', pos: 50 },
+        { id: '34560', name: 'Westminster', pos: 95 }
+      ]
+    };
+
+    const stations = stationConfigs[lineId] || [];
+    const myStation = this.config.myStations[lineId];
+
+    return `
+      <div class="visual-track-reference">
+        <div class="track-header">
+          <div class="track-title">🚆 ${lineId} Route Map</div>
+          <div class="track-count">${activeCount} Active Train${activeCount !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="track-line-simple">
+          ${stations.map(station => `
+            <div class="track-station-simple ${station.id === myStation ? 'my-station' : ''}"
+                 style="left: ${station.pos}%">
+              <div class="station-dot-simple"></div>
+              <div class="station-label-simple">
+                ${station.id === myStation ? '⭐ ' : ''}${station.name}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Render "Your Station" focus area
+   */
+  renderYourStation(stationData, lineId) {
+    const myStationId = this.config.myStations[lineId];
+    const stationName = this.config.stations[lineId].find(s => s.id === myStationId)?.name || 'Your Station';
+
+    if (!stationData || stationData._isFallback) {
+      return `
+        <div class="your-station-section">
+          <h3 class="section-title">⭐ ${stationName}</h3>
+          <div class="no-trains">
+            <div class="no-trains-icon">🚉</div>
+            <p class="no-trains-subtitle">No upcoming trains available</p>
+          </div>
+        </div>
+      `;
+    }
+
+    const nextNB = stationData.northbound.slice(0, 2);
+    const nextSB = stationData.southbound.slice(0, 2);
+
+    return `
+      <div class="your-station-section">
+        <h3 class="section-title">⭐ ${stationName}</h3>
+        <div class="your-station-grid">
+          <div class="direction-column">
+            <div class="direction-header northbound">
+              <span class="direction-icon">⬆️</span>
+              <span class="direction-label">Northbound</span>
+            </div>
+            <div class="train-list-compact">
+              ${nextNB.length > 0 ? nextNB.map(train => `
+                <div class="train-item-compact">
+                  <div class="train-time-compact">
+                    ${new Date(train.time * 1000).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                  <div class="train-countdown-compact ${
+                    train.minutesAway < 5 ? 'imminent' :
+                    train.minutesAway < 15 ? 'soon' : ''
+                  }">
+                    ${train.minutesAway} min
+                  </div>
+                </div>
+              `).join('') : `
+                <div class="no-trains-compact">No trains scheduled</div>
+              `}
+            </div>
+          </div>
+
+          <div class="direction-column">
+            <div class="direction-header southbound">
+              <span class="direction-icon">⬇️</span>
+              <span class="direction-label">Southbound</span>
+            </div>
+            <div class="train-list-compact">
+              ${nextSB.length > 0 ? nextSB.map(train => `
+                <div class="train-item-compact">
+                  <div class="train-time-compact">
+                    ${new Date(train.time * 1000).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                  <div class="train-countdown-compact ${
+                    train.minutesAway < 5 ? 'imminent' :
+                    train.minutesAway < 15 ? 'soon' : ''
+                  }">
+                    ${train.minutesAway} min
+                  </div>
+                </div>
+              `).join('') : `
+                <div class="no-trains-compact">No trains scheduled</div>
+              `}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Render all stations quick view
+   */
+  renderAllStationsQuickView(lineId, lineData) {
+    const stations = this.config.stations[lineId] || [];
+    const myStationId = this.config.myStations[lineId];
+
+    return `
+      <div class="all-stations-section">
+        <h3 class="section-title">📊 All Stations</h3>
+        <div class="stations-table">
+          <div class="stations-table-header">
+            <div class="station-name-col">Station</div>
+            <div class="station-next-col">Next NB</div>
+            <div class="station-next-col">Next SB</div>
+          </div>
+          ${stations.map(station => {
+            const data = lineData[station.id];
+            const nextNB = data?.northbound?.[0];
+            const nextSB = data?.southbound?.[0];
+            const isMyStation = station.id === myStationId;
+
+            return `
+              <div class="stations-table-row ${isMyStation ? 'my-station-row' : ''}">
+                <div class="station-name-col">
+                  ${isMyStation ? '⭐ ' : ''}${station.name}
+                </div>
+                <div class="station-next-col">
+                  ${nextNB ? `
+                    <span class="next-train-time">${nextNB.minutesAway} min</span>
+                    <span class="next-train-clock">${new Date(nextNB.time * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                  ` : '<span class="no-train">—</span>'}
+                </div>
+                <div class="station-next-col">
+                  ${nextSB ? `
+                    <span class="next-train-time">${nextSB.minutesAway} min</span>
+                    <span class="next-train-clock">${new Date(nextSB.time * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                  ` : '<span class="no-train">—</span>'}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
       </div>
     `;
   },
