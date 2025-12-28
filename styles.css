@@ -441,24 +441,22 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--space-md);
+  padding: 0 var(--space-xs);
 }
 
 .track-title {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .track-count {
-  background: var(--primary);
-  color: white;
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-md);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .track-direction {
@@ -573,31 +571,15 @@ body {
    ============================================ */
 
 .visual-track-reference {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-md);
   margin: var(--space-lg) 0;
-  border: 1px solid var(--border-color);
+  padding: var(--space-md) 0;
 }
 
 .track-line-simple {
   position: relative;
-  height: 40px;
-  background: linear-gradient(to right, var(--primary) 0%, var(--secondary) 50%, var(--primary) 100%);
-  border-radius: var(--radius-md);
-  margin-top: var(--space-md);
-}
-
-.track-line-simple::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: rgba(255,255,255,0.3);
-  transform: translateY(-50%);
-  border-radius: 2px;
+  height: 2px;
+  background: var(--border-color);
+  margin: var(--space-lg) 0;
 }
 
 .track-station-simple {
@@ -608,12 +590,17 @@ body {
 }
 
 .station-dot-simple {
-  width: 10px;
-  height: 10px;
-  background: white;
-  border: 2px solid var(--primary);
+  width: 6px;
+  height: 6px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: all var(--transition-base);
+}
+
+.track-station-simple:hover .station-dot-simple {
+  border-color: var(--primary);
+  transform: scale(1.3);
 }
 
 .station-label-simple {
@@ -621,10 +608,10 @@ body {
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  margin-top: var(--space-xs);
+  margin-top: 0.5rem;
   font-size: 0.625rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 500;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -1256,16 +1243,13 @@ body {
 .track-station-simple.my-station .station-dot-simple {
   background: var(--warning);
   border-color: var(--warning);
-  width: 14px;
-  height: 14px;
-  border-width: 3px;
-  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+  width: 8px;
+  height: 8px;
 }
 
 .track-station-simple.my-station .station-label-simple {
-  color: var(--warning);
-  font-weight: 700;
-  font-size: 0.75rem;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 /* ============================================
