@@ -62,10 +62,10 @@ const App = {
     },
     // N Line directional platforms - used for fetching combined data
     nLinePlatforms: {
-      '35365': { nb: null, sb: '35365', name: 'Eastlake & 124th' },      // Only SB platform
-      '35254': { nb: '35255', sb: '35254', name: '112th / Northglenn' }, // Both platforms
-      '35246': { nb: '35247', sb: '35246', name: '48th & Brighton' },    // Both platforms
-      '34668': { nb: null, sb: null, name: 'Union Station' },           // Bidirectional
+      '35365': { nb: null, sb: '35365', name: 'Eastlake & 124th' },      // Northern terminus: only SB trains
+      '35254': { nb: '35255', sb: '35254', name: '112th / Northglenn' }, // Mid-line: both platforms
+      '35246': { nb: '35247', sb: '35246', name: '48th & Brighton' },    // Mid-line: both platforms
+      '34668': { nb: '34668', sb: null, name: 'Union Station' },         // Southern terminus: only NB trains
     },
     stations: {
       '117N': [
@@ -260,8 +260,14 @@ const App = {
         // Special handling for N Line - fetch from both platforms if needed
         if (lineId === '117N' && this.config.nLinePlatforms[station.id]) {
           const platform = this.config.nLinePlatforms[station.id];
+
+          console.log(`🔍 Fetching ${station.name}: NB platform=${platform.nb}, SB platform=${platform.sb}`);
+
           const nbData = platform.nb ? await API.getLineArrivals(platform.nb, lineId) : { northbound: [], southbound: [] };
           const sbData = platform.sb ? await API.getLineArrivals(platform.sb, lineId) : { northbound: [], southbound: [] };
+
+          console.log(`  → NB fetch result:`, nbData);
+          console.log(`  → SB fetch result:`, sbData);
 
           // Merge northbound from NB platform and southbound from SB platform
           data = {
@@ -270,7 +276,7 @@ const App = {
             stopName: station.name,
           };
 
-          console.log(`📍 ${lineId} - ${station.name}: Merged NB(${platform.nb}) + SB(${platform.sb})`);
+          console.log(`✅ ${lineId} - ${station.name}: Merged data - NB: ${data.northbound.length} trains, SB: ${data.southbound.length} trains`);
         } else {
           // Standard fetch for G&B lines
           data = await API.getLineArrivals(station.id, lineId);
@@ -281,6 +287,7 @@ const App = {
           hasSouthbound: !!data.southbound,
           nbCount: data.northbound?.length || 0,
           sbCount: data.southbound?.length || 0,
+          sample: data.northbound?.[0] || data.southbound?.[0],
         });
 
         lineData[station.id] = {
@@ -772,22 +779,29 @@ const App = {
               <span class="direction-label">Northbound</span>
             </div>
             <div class="train-list-compact">
-              ${nextNB.length > 0 ? nextNB.map(train => `
-                <div class="train-item-compact">
-                  <div class="train-time-compact">
-                    ${new Date(train.time * 1000).toLocaleTimeString('en-US', {
-                      hour: 'numeric',
-                      minute: '2-digit'
-                    })}
+              ${nextNB.length > 0 ? nextNB.map(train => {
+                const minutesAway = Math.max(0, train.minutesAway); // Don't show negative times
+                const status = minutesAway <= 1 ? 'Arriving' : 'Scheduled';
+                return `
+                  <div class="train-item-compact">
+                    <div class="train-info-left">
+                      <div class="train-time-compact">
+                        ${new Date(train.time * 1000).toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                      <div class="train-status-label">${status}</div>
+                    </div>
+                    <div class="train-countdown-compact ${
+                      minutesAway < 2 ? 'imminent' :
+                      minutesAway < 5 ? 'soon' : ''
+                    }">
+                      ${minutesAway < 1 ? 'Now' : `${minutesAway} min`}
+                    </div>
                   </div>
-                  <div class="train-countdown-compact ${
-                    train.minutesAway < 5 ? 'imminent' :
-                    train.minutesAway < 15 ? 'soon' : ''
-                  }">
-                    ${train.minutesAway} min
-                  </div>
-                </div>
-              `).join('') : `
+                `;
+              }).join('') : `
                 <div class="no-trains-compact">No trains scheduled</div>
               `}
             </div>
@@ -799,22 +813,29 @@ const App = {
               <span class="direction-label">Southbound</span>
             </div>
             <div class="train-list-compact">
-              ${nextSB.length > 0 ? nextSB.map(train => `
-                <div class="train-item-compact">
-                  <div class="train-time-compact">
-                    ${new Date(train.time * 1000).toLocaleTimeString('en-US', {
-                      hour: 'numeric',
-                      minute: '2-digit'
-                    })}
+              ${nextSB.length > 0 ? nextSB.map(train => {
+                const minutesAway = Math.max(0, train.minutesAway); // Don't show negative times
+                const status = minutesAway <= 1 ? 'Departing' : 'Scheduled';
+                return `
+                  <div class="train-item-compact">
+                    <div class="train-info-left">
+                      <div class="train-time-compact">
+                        ${new Date(train.time * 1000).toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                      <div class="train-status-label">${status}</div>
+                    </div>
+                    <div class="train-countdown-compact ${
+                      minutesAway < 2 ? 'imminent' :
+                      minutesAway < 5 ? 'soon' : ''
+                    }">
+                      ${minutesAway < 1 ? 'Now' : `${minutesAway} min`}
+                    </div>
                   </div>
-                  <div class="train-countdown-compact ${
-                    train.minutesAway < 5 ? 'imminent' :
-                    train.minutesAway < 15 ? 'soon' : ''
-                  }">
-                    ${train.minutesAway} min
-                  </div>
-                </div>
-              `).join('') : `
+                `;
+              }).join('') : `
                 <div class="no-trains-compact">No trains scheduled</div>
               `}
             </div>
@@ -846,6 +867,10 @@ const App = {
             const nextSB = data?.southbound?.[0];
             const isMyStation = station.id === myStationId;
 
+            // Handle negative times
+            const nbMinutes = nextNB ? Math.max(0, nextNB.minutesAway) : null;
+            const sbMinutes = nextSB ? Math.max(0, nextSB.minutesAway) : null;
+
             return `
               <div class="stations-table-row ${isMyStation ? 'my-station-row' : ''}">
                 <div class="station-name-col">
@@ -853,13 +878,13 @@ const App = {
                 </div>
                 <div class="station-next-col">
                   ${nextNB ? `
-                    <span class="next-train-time">${nextNB.minutesAway} min</span>
+                    <span class="next-train-time">${nbMinutes < 1 ? 'Now' : `${nbMinutes} min`}</span>
                     <span class="next-train-clock">${new Date(nextNB.time * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
                   ` : '<span class="no-train">—</span>'}
                 </div>
                 <div class="station-next-col">
                   ${nextSB ? `
-                    <span class="next-train-time">${nextSB.minutesAway} min</span>
+                    <span class="next-train-time">${sbMinutes < 1 ? 'Now' : `${sbMinutes} min`}</span>
                     <span class="next-train-clock">${new Date(nextSB.time * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
                   ` : '<span class="no-train">—</span>'}
                 </div>

@@ -1090,10 +1090,24 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.train-info-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
 .train-time-compact {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.train-status-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .train-countdown-compact {
