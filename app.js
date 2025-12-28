@@ -498,9 +498,10 @@ const App = {
       return;
     }
 
-    // Concept 1: Single-page layout (no old tabs)
+    // Restored tab-based navigation
     app.innerHTML = `
       ${this.renderHeader()}
+      ${this.renderTabs()}
       ${this.renderContent()}
     `;
   },
@@ -607,23 +608,23 @@ const App = {
   },
 
   /**
-   * Render main content - Concept 1: Single Page Dashboard
+   * Render main content based on active tab
    */
   renderContent() {
-    const lineId = this.state.selectedLine;
+    // Drive tab shows drive times
+    if (this.state.activeTab === 'drive') {
+      return this.renderDriveTab();
+    }
+
+    // Train line tabs show that line's info
+    const lineId = this.state.activeTab;
     const lineData = this.state.transitData[lineId] || {};
     const vehicles = this.state.vehiclePositions.vehicles.filter(v => v.routeId === lineId);
     const myStation = this.config.myStations[lineId];
 
     return `
-      <div class="container dashboard">
-        <!-- Compact Drive Cards -->
-        ${this.renderCompactDriveCards()}
-
-        <!-- Line Tabs -->
-        ${this.renderLineTabs()}
-
-        <!-- Visual Track with Active Count -->
+      <div class="container">
+        <!-- Visual Track Reference -->
         ${this.renderVisualTrackReference(lineId, vehicles.length)}
 
         <!-- Your Station Focus -->
