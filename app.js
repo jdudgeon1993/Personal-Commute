@@ -56,17 +56,22 @@ const App = {
     },
     // Your preferred station for each line
     myStations: {
-      '117N': '35254',  // 112th / Northglenn
+      '117N': '35254',  // 112th / Northglenn (primary stop ID)
       '113G': '34781',  // Union Station
       '113B': '34782',  // Union Station
     },
+    // N Line directional platforms - used for fetching combined data
+    nLinePlatforms: {
+      '35365': { nb: null, sb: '35365', name: 'Eastlake & 124th' },      // Only SB platform
+      '35254': { nb: '35255', sb: '35254', name: '112th / Northglenn' }, // Both platforms
+      '35246': { nb: '35247', sb: '35246', name: '48th & Brighton' },    // Both platforms
+      '34668': { nb: null, sb: null, name: 'Union Station' },           // Bidirectional
+    },
     stations: {
       '117N': [
-        { id: '35365', name: 'Eastlake & 124th (SB)' },
-        { id: '35254', name: '112th / Northglenn (SB)' },
-        { id: '35246', name: '48th & Brighton (SB)' },
-        { id: '35255', name: '112th / Northglenn (NB)' },
-        { id: '35247', name: '48th & Brighton (NB)' },
+        { id: '35365', name: 'Eastlake & 124th' },
+        { id: '35254', name: '112th / Northglenn' },
+        { id: '35246', name: '48th & Brighton' },
         { id: '34668', name: 'Union Station' },
       ],
       '113G': [
@@ -250,7 +255,34 @@ const App = {
 
       // Fetch data for each station on this line
       for (const station of stations) {
-        const data = await API.getLineArrivals(station.id, lineId);
+        let data;
+
+        // Special handling for N Line - fetch from both platforms if needed
+        if (lineId === '117N' && this.config.nLinePlatforms[station.id]) {
+          const platform = this.config.nLinePlatforms[station.id];
+          const nbData = platform.nb ? await API.getLineArrivals(platform.nb, lineId) : { northbound: [], southbound: [] };
+          const sbData = platform.sb ? await API.getLineArrivals(platform.sb, lineId) : { northbound: [], southbound: [] };
+
+          // Merge northbound from NB platform and southbound from SB platform
+          data = {
+            northbound: nbData.northbound || [],
+            southbound: sbData.southbound || [],
+            stopName: station.name,
+          };
+
+          console.log(`📍 ${lineId} - ${station.name}: Merged NB(${platform.nb}) + SB(${platform.sb})`);
+        } else {
+          // Standard fetch for G&B lines
+          data = await API.getLineArrivals(station.id, lineId);
+        }
+
+        console.log(`📍 ${lineId} - ${station.name} (${station.id}):`, {
+          hasNorthbound: !!data.northbound,
+          hasSouthbound: !!data.southbound,
+          nbCount: data.northbound?.length || 0,
+          sbCount: data.southbound?.length || 0,
+        });
+
         lineData[station.id] = {
           ...data,
           stationName: station.name,
@@ -444,9 +476,9 @@ const App = {
       return;
     }
 
+    // Concept 1: Single-page layout (no old tabs)
     app.innerHTML = `
       ${this.renderHeader()}
-      ${this.renderTabs()}
       ${this.renderContent()}
     `;
   },
@@ -713,7 +745,9 @@ const App = {
     const myStationId = this.config.myStations[lineId];
     const stationName = this.config.stations[lineId].find(s => s.id === myStationId)?.name || 'Your Station';
 
-    if (!stationData || stationData._isFallback) {
+    // Defensive: Check if data exists and has the expected structure
+    if (!stationData || stationData._isFallback || !stationData.northbound || !stationData.southbound) {
+      console.log(`⚠️ No valid data for ${lineId} station ${myStationId}:`, stationData);
       return `
         <div class="your-station-section">
           <h3 class="section-title">⭐ ${stationName}</h3>
@@ -725,8 +759,8 @@ const App = {
       `;
     }
 
-    const nextNB = stationData.northbound.slice(0, 2);
-    const nextSB = stationData.southbound.slice(0, 2);
+    const nextNB = (stationData.northbound || []).slice(0, 2);
+    const nextSB = (stationData.southbound || []).slice(0, 2);
 
     return `
       <div class="your-station-section">
