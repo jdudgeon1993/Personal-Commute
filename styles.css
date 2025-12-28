@@ -1275,11 +1275,30 @@ body {
 
 @media (max-width: 768px) {
   .header-title h1 {
-    font-size: 1.5rem;
+    font-size: 1.125rem;
+  }
+
+  .header-subtitle {
+    font-size: 0.7rem;
+  }
+
+  .header-greeting {
+    font-size: 0.8rem;
   }
 
   .weather-widget {
     width: 100%;
+    font-size: 0.85rem;
+  }
+
+  .weather-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .btn {
+    font-size: 0.75rem;
+    padding: var(--space-xs) var(--space-sm);
   }
 
   .arrivals-grid {
@@ -1287,41 +1306,76 @@ body {
   }
 
   .drive-time {
-    font-size: 2.5rem;
+    font-size: 2rem;
+  }
+
+  .drive-cards {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
   }
 
   .tabs {
-    padding: 0 var(--space-sm);
+    padding: 0;
+    gap: var(--space-xs);
   }
 
   .tab {
-    padding: var(--space-md) var(--space-sm);
+    padding: var(--space-sm);
+    font-size: 0.75rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Your Station Responsive */
+  .your-station-section {
+    padding: var(--space-md);
+  }
+
+  .your-station-section .section-title {
+    font-size: 1rem;
+  }
+
+  .your-station-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+
+  .direction-header {
+    font-size: 0.75rem;
+    padding: var(--space-sm);
+  }
+
+  .train-list-compact {
+    padding: var(--space-sm);
+  }
+
+  .train-item-compact {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .train-time-compact {
     font-size: 0.8rem;
   }
 
-  /* Concept 1 Responsive */
-  .your-station-grid {
-    grid-template-columns: 1fr;
+  .train-countdown-compact {
+    font-size: 0.9rem;
   }
 
-  .line-tabs {
-    flex-wrap: wrap;
+  /* All Stations Table Responsive */
+  .all-stations-section {
+    padding: var(--space-md);
   }
 
-  .line-tab {
-    flex: 1;
-    min-width: 120px;
-  }
-
-  .compact-drive-cards {
-    grid-template-columns: 1fr;
+  .all-stations-section .section-title {
+    font-size: 0.875rem;
   }
 
   .stations-table-header,
   .stations-table-row {
-    grid-template-columns: 1.5fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr;
     gap: var(--space-xs);
     padding: var(--space-sm);
+    font-size: 0.7rem;
   }
 
   .station-name-col {
@@ -1333,42 +1387,146 @@ body {
   }
 
   .next-train-clock {
-    font-size: 0.625rem;
+    font-size: 0.6rem;
+  }
+
+  /* Visual Track Responsive */
+  .track-header {
+    font-size: 0.7rem;
+  }
+
+  .station-label-simple {
+    font-size: 0.55rem;
   }
 }
 
 @media (max-width: 480px) {
   .container {
-    padding: 0 var(--space-sm);
+    padding: 0 var(--space-xs);
   }
 
   .header {
-    padding: var(--space-md) 0;
+    padding: var(--space-sm) 0;
+  }
+
+  .header-content {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .weather-widget {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .btn {
+    font-size: 0.7rem;
+    padding: var(--space-xs);
   }
 
   .card {
-    padding: var(--space-md);
+    padding: var(--space-sm);
   }
 
-  /* Concept 1 Responsive */
-  .compact-drive-section,
-  .your-station-section,
-  .all-stations-section {
-    padding: var(--space-md);
+  .drive-cards {
+    gap: var(--space-sm);
   }
 
-  .line-tab {
-    padding: var(--space-sm) var(--space-md);
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
+  /* Your Station Section */
+  .your-station-section {
+    padding: var(--space-sm);
+    margin: var(--space-sm) 0;
+  }
+
+  .your-station-section .section-title {
+    font-size: 0.9rem;
+    margin-bottom: var(--space-sm);
+  }
+
+  .direction-header {
+    font-size: 0.7rem;
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .train-list-compact {
+    padding: var(--space-xs);
+    gap: var(--space-xs);
+  }
+
+  .train-item-compact {
+    padding: var(--space-xs);
+  }
+
+  .train-time-compact {
     font-size: 0.75rem;
+  }
+
+  .train-status-label {
+    font-size: 0.55rem;
+  }
+
+  .train-countdown-compact {
+    font-size: 0.85rem;
+    padding: 2px var(--space-xs);
+  }
+
+  /* All Stations Section */
+  .all-stations-section {
+    padding: var(--space-sm);
+    margin: var(--space-sm) 0;
+  }
+
+  .all-stations-section .section-title {
+    font-size: 0.8rem;
+    margin-bottom: var(--space-xs);
   }
 
   .stations-table-header,
   .stations-table-row {
-    font-size: 0.75rem;
-    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.65rem;
+    padding: var(--space-xs);
+    gap: 2px;
+  }
+
+  .station-name-col {
+    font-size: 0.7rem;
+  }
+
+  .next-train-time {
+    font-size: 0.8rem;
+  }
+
+  .next-train-clock {
+    font-size: 0.55rem;
+  }
+
+  /* Visual Track */
+  .visual-track-reference {
+    margin: var(--space-sm) 0;
+  }
+
+  .track-header {
+    padding: 0;
+    margin-bottom: var(--space-xs);
   }
 
   .station-label-simple {
-    font-size: 0.5rem;
+    font-size: 0.45rem;
+    margin-top: 0.3rem;
   }
 }
