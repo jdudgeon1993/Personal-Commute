@@ -883,6 +883,378 @@ body {
 }
 
 /* ============================================
+   Concept 1: Compact Drive Cards
+   ============================================ */
+
+.compact-drive-section {
+  margin: var(--space-lg) 0;
+  padding: var(--space-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+}
+
+.compact-drive-section .section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.compact-drive-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.compact-drive-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-base);
+}
+
+.compact-drive-card:hover {
+  background: var(--bg-tertiary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.compact-drive-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.compact-drive-info {
+  flex: 1;
+}
+
+.compact-drive-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.compact-drive-time {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--warning);
+}
+
+.compact-drive-distance {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.drive-toggle.compact {
+  margin-top: 0;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-color);
+}
+
+/* ============================================
+   Concept 1: Line Tabs
+   ============================================ */
+
+.line-tabs {
+  display: flex;
+  gap: var(--space-sm);
+  margin: var(--space-lg) 0;
+  justify-content: center;
+}
+
+.line-tab {
+  padding: var(--space-md) var(--space-xl);
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.line-tab:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--line-color, var(--primary));
+  transform: translateY(-2px);
+}
+
+.line-tab.active {
+  background: var(--line-color, var(--primary));
+  color: white;
+  border-color: var(--line-color, var(--primary));
+  box-shadow: var(--shadow-md);
+}
+
+/* ============================================
+   Concept 1: Your Station Section
+   ============================================ */
+
+.your-station-section {
+  margin: var(--space-lg) 0;
+  padding: var(--space-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  border: 2px solid var(--warning);
+  box-shadow: var(--shadow-lg);
+}
+
+.your-station-section .section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.your-station-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+}
+
+.direction-column {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.direction-header {
+  padding: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.direction-header.northbound {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+  border-bottom: 2px solid var(--success);
+}
+
+.direction-header.southbound {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--secondary);
+  border-bottom: 2px solid var(--secondary);
+}
+
+.direction-icon {
+  font-size: 1.25rem;
+}
+
+.direction-label {
+  flex: 1;
+}
+
+.train-list-compact {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.train-item-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+  border: 1px solid var(--border-color);
+}
+
+.train-item-compact:hover {
+  background: var(--bg-tertiary);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
+}
+
+.train-time-compact {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.train-countdown-compact {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--success);
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+.train-countdown-compact.soon {
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.train-countdown-compact.imminent {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.no-trains-compact {
+  text-align: center;
+  padding: var(--space-lg);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+/* ============================================
+   Concept 1: All Stations Table
+   ============================================ */
+
+.all-stations-section {
+  margin: var(--space-lg) 0;
+  padding: var(--space-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+}
+
+.all-stations-section .section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.stations-table {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.stations-table-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: var(--space-sm);
+  background: var(--bg-tertiary);
+  padding: var(--space-md);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.stations-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  transition: all var(--transition-base);
+}
+
+.stations-table-row:last-child {
+  border-bottom: none;
+}
+
+.stations-table-row:hover {
+  background: var(--bg-tertiary);
+  transform: translateX(2px);
+}
+
+.stations-table-row.my-station-row {
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 4px solid var(--warning);
+  font-weight: 600;
+}
+
+.stations-table-row.my-station-row:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.station-name-col {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+
+.station-next-col {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  align-items: flex-start;
+}
+
+.next-train-time {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.next-train-clock {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.no-train {
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+/* ============================================
+   Concept 1: Dashboard Layout
+   ============================================ */
+
+.dashboard {
+  padding-top: var(--space-lg);
+  padding-bottom: var(--space-2xl);
+}
+
+/* Highlight user's station on visual track */
+.track-station-simple.my-station .station-dot-simple {
+  background: var(--warning);
+  border-color: var(--warning);
+  width: 14px;
+  height: 14px;
+  border-width: 3px;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+}
+
+.track-station-simple.my-station .station-label-simple {
+  color: var(--warning);
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+/* ============================================
    Utilities
    ============================================ */
 
@@ -928,6 +1300,43 @@ body {
     padding: var(--space-md) var(--space-sm);
     font-size: 0.8rem;
   }
+
+  /* Concept 1 Responsive */
+  .your-station-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .line-tabs {
+    flex-wrap: wrap;
+  }
+
+  .line-tab {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .compact-drive-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .stations-table-header,
+  .stations-table-row {
+    grid-template-columns: 1.5fr 1fr 1fr;
+    gap: var(--space-xs);
+    padding: var(--space-sm);
+  }
+
+  .station-name-col {
+    font-size: 0.75rem;
+  }
+
+  .next-train-time {
+    font-size: 0.875rem;
+  }
+
+  .next-train-clock {
+    font-size: 0.625rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -941,5 +1350,27 @@ body {
 
   .card {
     padding: var(--space-md);
+  }
+
+  /* Concept 1 Responsive */
+  .compact-drive-section,
+  .your-station-section,
+  .all-stations-section {
+    padding: var(--space-md);
+  }
+
+  .line-tab {
+    padding: var(--space-sm) var(--space-md);
+    font-size: 0.75rem;
+  }
+
+  .stations-table-header,
+  .stations-table-row {
+    font-size: 0.75rem;
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .station-label-simple {
+    font-size: 0.5rem;
   }
 }
