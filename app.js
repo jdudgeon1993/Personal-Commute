@@ -62,10 +62,10 @@ const App = {
     },
     // N Line directional platforms - used for fetching combined data
     nLinePlatforms: {
-      '35365': ['35365'],  // Eastlake & 124th - northern terminus (both arrive NB, depart SB)
-      '35254': ['35254', '35255'],  // 112th / Northglenn - mid-line (separate platforms)
-      '35246': ['35246', '35247'],  // 48th & Brighton - mid-line (separate platforms)
-      '34668': ['34668'],  // Union Station - southern terminus (both arrive SB, depart NB)
+      '35365': { platforms: ['35365'], directions: ['southbound'] },  // Eastlake - northern terminus (only departs SB)
+      '35254': { platforms: ['35254', '35255'], directions: ['northbound', 'southbound'] },  // 112th - mid-line (both directions)
+      '35246': { platforms: ['35246', '35247'], directions: ['northbound', 'southbound'] },  // 48th - mid-line (both directions)
+      '34668': { platforms: ['34668'], directions: ['northbound'] },  // Union - southern terminus (only departs NB)
     },
     stations: {
       '117N': [
@@ -257,10 +257,13 @@ const App = {
       for (const station of stations) {
         let data;
 
-        // Special handling for N Line - fetch from ALL platforms and merge
+        // Special handling for N Line - fetch from platforms and filter directions
         if (lineId === '117N' && this.config.nLinePlatforms[station.id]) {
-          const platformIds = this.config.nLinePlatforms[station.id];
-          console.log(`🔍 Fetching ${station.name}: platforms=${platformIds.join(', ')}`);
+          const config = this.config.nLinePlatforms[station.id];
+          const platformIds = config.platforms;
+          const allowedDirections = config.directions;
+
+          console.log(`🔍 Fetching ${station.name}: platforms=${platformIds.join(', ')}, directions=${allowedDirections.join(', ')}`);
 
           const allNorthbound = [];
           const allSouthbound = [];
@@ -270,8 +273,12 @@ const App = {
             const platformData = await API.getLineArrivals(platformId, lineId);
             console.log(`  → Platform ${platformId}:`, platformData);
 
-            allNorthbound.push(...(platformData.northbound || []));
-            allSouthbound.push(...(platformData.southbound || []));
+            if (allowedDirections.includes('northbound')) {
+              allNorthbound.push(...(platformData.northbound || []));
+            }
+            if (allowedDirections.includes('southbound')) {
+              allSouthbound.push(...(platformData.southbound || []));
+            }
           }
 
           // Sort combined data by time
